@@ -131,7 +131,10 @@ guideline ([Holick et al. 2011][endo-2011]); its 2024 guideline endorses no thre
 Dimensions are per finding, so a subgroup finding carries its own band. The band follows a fixed
 precedence, written into the dimension's definition and used again in the labeling guide:
 
-1. the population's eligibility restriction, if it was restricted by vitamin D status;
+1. the population's eligibility restriction, if it was restricted by vitamin D status and the
+   whole eligible range lies on one side of 20 ng/mL (50 nmol/L), in either unit. A restriction
+   of ≤20 ng/mL or ≤50 nmol/L counts as below; one that straddles the line, such as <30 ng/mL
+   or <75 nmol/L, doesn't settle the band and falls through to the next rule;
 2. otherwise, the baseline mean or median the abstract reports for that population;
 3. `mixed` only when the abstract reports values on both sides of 20 ng/mL with no single summary
    for that finding's population;
