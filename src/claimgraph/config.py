@@ -11,6 +11,8 @@ from pydantic import Field, StringConstraints, model_validator
 from claimgraph.models import DEFAULT_EXCLUDED_DESIGNS, Design, Finding, NonBlank, Reason, Record
 
 MAX_DIMENSIONS = 5
+# The only absent value for an options dimension; text and number dimensions use null.
+NOT_REPORTED = "not_reported"
 
 QuestionId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")]
 DimensionName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
@@ -41,6 +43,8 @@ class Dimension(Record):
                 raise ValueError("an options dimension needs a non-empty options list")
             if len(set(self.options)) != len(self.options):
                 raise ValueError("options must be unique")
+            if NOT_REPORTED not in self.options:
+                raise ValueError(f"an options dimension must include {NOT_REPORTED!r}")
         elif self.options is not None:
             raise ValueError("only an options dimension takes options")
         if self.type is DimensionType.NUMBER:

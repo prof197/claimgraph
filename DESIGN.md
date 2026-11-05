@@ -118,6 +118,10 @@ ones. A question has at most five, which keeps the schema small enough to extrac
 dimension counts as evaluated only if it is labeled; an unlabeled one shows "not evaluated" on
 the page.
 
+Every dimension has exactly one way to say the abstract doesn't report it. An options dimension
+must list `not_reported`, and the model must pick an option, never null. Text and number
+dimensions use null. The page shows "Not reported" for both.
+
 v1 ships one dimension: baseline vitamin D status, refining population, with the options
 `below_20_ng_ml` (25(OH)D below 20 ng/mL, 50 nmol/L), `at_or_above_20_ng_ml`, `mixed` and
 `not_reported`. The 20 ng/mL cut-off is the deficiency threshold in the Endocrine Society's 2011

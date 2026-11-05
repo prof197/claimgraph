@@ -97,9 +97,11 @@ def test_dimension_must_be_answered() -> None:
     ("dim", "value"),
     [
         (dimension(), "synthetic text"),
-        (dimension(type="options", options=["low", "high"]), "high"),
+        (dimension(), None),
+        (dimension(type="options", options=["low", "high", "not_reported"]), "high"),
+        (dimension(type="options", options=["low", "high", "not_reported"]), "not_reported"),
         (dimension(type="number", unit="ng/mL"), 18.5),
-        (dimension(type="options", options=["low", "high"]), None),
+        (dimension(type="number", unit="ng/mL"), None),
     ],
 )
 def test_dimension_accepts_valid_values(dim: dict[str, Any], value: object) -> None:
@@ -112,7 +114,8 @@ def test_dimension_accepts_valid_values(dim: dict[str, Any], value: object) -> N
 @pytest.mark.parametrize(
     ("dim", "value"),
     [
-        (dimension(type="options", options=["low", "high"]), "medium"),
+        (dimension(type="options", options=["low", "high", "not_reported"]), "medium"),
+        (dimension(type="options", options=["low", "high", "not_reported"]), None),
         (dimension(type="number", unit="ng/mL"), "about twenty"),
     ],
 )

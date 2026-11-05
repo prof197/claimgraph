@@ -103,9 +103,10 @@ def test_accepts_five_dimensions() -> None:
 
 
 def test_options_dimension() -> None:
-    cfg = config(dimensions=[dimension(type="options", options=["low", "high"])])
+    options = ["low", "high", "not_reported"]
+    cfg = config(dimensions=[dimension(type="options", options=options)])
 
-    assert cfg.dimensions[0].options == ["low", "high"]
+    assert cfg.dimensions[0].options == options
 
 
 def test_number_dimension() -> None:
@@ -127,7 +128,14 @@ def test_number_dimension() -> None:
         pytest.param([dimension(type="colour")], id="unknown type"),
         pytest.param([dimension(type="options")], id="options type without options"),
         pytest.param([dimension(type="options", options=[])], id="empty options"),
-        pytest.param([dimension(type="options", options=["a", "a"])], id="duplicate options"),
+        pytest.param(
+            [dimension(type="options", options=["a", "a", "not_reported"])],
+            id="duplicate options",
+        ),
+        pytest.param(
+            [dimension(type="options", options=["low", "high"])],
+            id="options without not_reported",
+        ),
         pytest.param([dimension(options=["a", "b"])], id="options on a text dimension"),
         pytest.param([dimension(type="number")], id="number without unit"),
         pytest.param([dimension(unit="ng/mL")], id="unit on a text dimension"),

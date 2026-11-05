@@ -26,14 +26,15 @@ class ExtractionFields(Record):
 
 
 def _field_type(dimension: Dimension) -> Any:
-    # Every dimension is nullable but required, so the model must answer each one,
-    # even if only to say the abstract doesn't report it.
+    # Every dimension is required, so the model must answer each one. Text and number
+    # dimensions answer "not reported" with null; options dimensions with their
+    # not_reported option, so they have exactly one absent value.
     match dimension.type:
         case DimensionType.TEXT:
             return str | None
         case DimensionType.OPTIONS:
             options: Any = Literal[tuple(dimension.options or ())]
-            return options | None
+            return options
         case DimensionType.NUMBER:
             return float | None
 
