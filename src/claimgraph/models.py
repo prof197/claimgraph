@@ -120,17 +120,34 @@ class Study(Record):
         return f"{self.first_author} {self.year}"
 
 
-class Finding(Record):
-    finding_id: FindingId
-    claim: NonBlank
+class FindingFields(Record):
+    """The fixed fields of a finding. The descriptions are shown to the extraction model."""
+
+    claim: NonBlank = Field(description="One plain-language sentence stating the finding.")
     # Kept byte for byte: it is checked against the abstract text.
-    quote: NonBlank
-    outcome_reported: NonBlank
-    effect: Effect
-    is_primary: bool
-    population: str
-    intervention: str
-    comparator: str
+    quote: NonBlank = Field(
+        description="The sentence from the abstract that reports this finding, copied exactly."
+    )
+    outcome_reported: NonBlank = Field(
+        description="The outcome measure as the abstract names it, such as 'PHQ-9 score'."
+    )
+    effect: Effect = Field(
+        description=(
+            "What happened to the measure with the intervention compared with the comparator: "
+            "increased, decreased, or no_change when the abstract reports no significant "
+            "difference."
+        )
+    )
+    is_primary: bool = Field(
+        description="True if the abstract names this as the study's primary outcome."
+    )
+    population: str = Field(description="Who was enrolled, as reported.")
+    intervention: str = Field(description="Agent, dose, duration, route and form, as reported.")
+    comparator: str = Field(description="Placebo, active treatment or usual care, as reported.")
+
+
+class Finding(FindingFields):
+    finding_id: FindingId
     dimensions: dict[str, DimensionValue]
 
     @property

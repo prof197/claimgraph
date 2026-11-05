@@ -6,6 +6,7 @@
 uv sync                                   # install
 uv run claimgraph --help                  # CLI
 uv run pytest                             # tests
+UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .
 ```
 

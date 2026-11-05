@@ -1,0 +1,158 @@
+{
+  "$defs": {
+    "Design": {
+      "enum": [
+        "rct",
+        "non_randomized_trial",
+        "cohort",
+        "case_control",
+        "cross_sectional",
+        "case_series",
+        "systematic_review",
+        "meta_analysis",
+        "case_report",
+        "animal",
+        "in_vitro",
+        "other"
+      ],
+      "title": "Design",
+      "type": "string"
+    },
+    "Effect": {
+      "description": "What happened to the measure as reported, before polarity is applied.",
+      "enum": [
+        "increased",
+        "decreased",
+        "no_change"
+      ],
+      "title": "Effect",
+      "type": "string"
+    },
+    "ExtractedFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "description": "One plain-language sentence stating the finding.",
+          "pattern": "\\S",
+          "title": "Claim",
+          "type": "string"
+        },
+        "quote": {
+          "description": "The sentence from the abstract that reports this finding, copied exactly.",
+          "pattern": "\\S",
+          "title": "Quote",
+          "type": "string"
+        },
+        "outcome_reported": {
+          "description": "The outcome measure as the abstract names it, such as 'PHQ-9 score'.",
+          "pattern": "\\S",
+          "title": "Outcome Reported",
+          "type": "string"
+        },
+        "effect": {
+          "$ref": "#/$defs/Effect",
+          "description": "What happened to the measure with the intervention compared with the comparator: increased, decreased, or no_change when the abstract reports no significant difference."
+        },
+        "is_primary": {
+          "description": "True if the abstract names this as the study's primary outcome.",
+          "title": "Is Primary",
+          "type": "boolean"
+        },
+        "population": {
+          "description": "Who was enrolled, as reported.",
+          "title": "Population",
+          "type": "string"
+        },
+        "intervention": {
+          "description": "Agent, dose, duration, route and form, as reported.",
+          "title": "Intervention",
+          "type": "string"
+        },
+        "comparator": {
+          "description": "Placebo, active treatment or usual care, as reported.",
+          "title": "Comparator",
+          "type": "string"
+        },
+        "baseline_vitamin_d_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "below_20_ng_ml",
+                "at_or_above_20_ng_ml",
+                "mixed",
+                "not_reported"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline serum 25-hydroxyvitamin D of the enrolled population, from the reported mean or median or from an inclusion criterion. below_20_ng_ml: below 20 ng/mL (50 nmol/L), the deficiency cut-off in the Endocrine Society's 2011 guideline. at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) or higher. mixed: the abstract reports participants or subgroups on both sides of the cut-off. not_reported: the abstract gives no baseline level. The Endocrine Society's 2024 guideline endorses no thresholds; this cut-off only groups studies.",
+          "title": "Baseline Vitamin D Status"
+        }
+      },
+      "required": [
+        "claim",
+        "quote",
+        "outcome_reported",
+        "effect",
+        "is_primary",
+        "population",
+        "intervention",
+        "comparator",
+        "baseline_vitamin_d_status"
+      ],
+      "title": "ExtractedFinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "design": {
+      "$ref": "#/$defs/Design",
+      "description": "The study's design."
+    },
+    "sample_size": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Participants enrolled or randomized, not analyzed; null if the abstract does not say.",
+      "title": "Sample Size"
+    },
+    "review_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "For a systematic review or meta-analysis only: one sentence summarizing its conclusion. Null for any other design.",
+      "title": "Review Summary"
+    },
+    "findings": {
+      "description": "Every finding the abstract reports, one per outcome, arm or subgroup. Empty for a systematic review or meta-analysis.",
+      "items": {
+        "$ref": "#/$defs/ExtractedFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "design",
+    "sample_size",
+    "review_summary",
+    "findings"
+  ],
+  "title": "Extraction",
+  "type": "object"
+}
