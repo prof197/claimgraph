@@ -171,7 +171,15 @@ committed, so every run is reproducible.
 **Retrieve.**
 
 - ESearch with `usehistory=y`, then EFetch in batches of 200 PMIDs as XML. A token-bucket limiter
-  holds 3 requests per second, or 10 when `NCBI_API_KEY` is set.
+  holds 3 requests per second, or 10 when `NCBI_API_KEY` is set. Every request names the tool and
+  a contact email, as NCBI's usage guidelines ask. Rate-limit responses, server errors and network
+  failures are retried up to three times with backoff.
+- The date range bounds the Entrez date (`[edat]`), the day a record was added to PubMed, not the
+  publication date. That freezes the result set: a record published before the end date but
+  indexed after it cannot appear on a later rerun. The page states the range as "records added to
+  PubMed through October 31, 2026".
+- ESearch returns at most 10,000 PMIDs for PubMed. A larger result stops the run and asks for a
+  narrower query, rather than silently truncating it.
 - Raw XML is cached per PMID, so reruns make no requests. The parser keeps PMID, title, first
   author, journal, labelled abstract sections, year, article language, publication types, MeSH
   headings and trial IDs.
