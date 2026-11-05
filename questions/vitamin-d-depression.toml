@@ -1,0 +1,19 @@
+id = "vitamin-d-depression"
+title = "Does vitamin D affect depression?"
+query = '''("Vitamin D"[MeSH] OR "vitamin D"[tiab] OR cholecalciferol[tiab] OR ergocalciferol[tiab] OR "25-hydroxyvitamin D"[tiab]) AND (Depression[MeSH] OR "Depressive Disorder"[MeSH] OR depress*[tiab])'''
+# Set once the unfiltered record count has been measured.
+filters = []
+end_date = 2026-10-31
+
+[[dimensions]]
+name = "baseline_vitamin_d_status"
+type = "options"
+refines = "population"
+options = ["below_20_ng_ml", "at_or_above_20_ng_ml", "mixed", "not_reported"]
+definition = """\
+Baseline serum 25-hydroxyvitamin D of the enrolled population, from the reported mean or median \
+or from an inclusion criterion. below_20_ng_ml: below 20 ng/mL (50 nmol/L), the deficiency \
+cut-off in the Endocrine Society's 2011 guideline. at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) \
+or higher. mixed: the abstract reports participants or subgroups on both sides of the cut-off. \
+not_reported: the abstract gives no baseline level. The Endocrine Society's 2024 guideline \
+endorses no thresholds; this cut-off only groups studies."""
