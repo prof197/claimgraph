@@ -183,8 +183,17 @@ committed, so every run is reproducible.
 - Raw XML is cached per PMID, so reruns make no requests. The parser keeps PMID, title, first
   author, journal, labelled abstract sections, year, article language, publication types, MeSH
   headings and trial IDs.
+  - The first author is the first listed surname, or the group name for a group author.
+  - The year is the issue's publication year, falling back to MEDLINE's free-text date, then the
+    electronic publication date, then the date the record entered PubMed.
+  - Trial IDs are ClinicalTrials.gov numbers from the record's registry links, plus any written
+    in the title or abstract.
 - Extraction reads the English `Abstract` element. Records with no abstract, or with only a
-  non-English `OtherAbstract`, are dropped and counted by language.
+  non-English `OtherAbstract`, are dropped and counted by language. An article in another
+  language with an English abstract is kept, with its language recorded.
+- Records typed "Retracted Publication" are dropped and counted, and the page's method section
+  says how many were excluded. Retraction status is only as current as the cached record. Book
+  records are dropped too.
 - The run manifest records the query, the retrieval date and the counts.
 
 **Extract.**

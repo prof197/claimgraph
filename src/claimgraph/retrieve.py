@@ -1,14 +1,18 @@
-"""Retrieve: search PubMed and fetch its records politely through NCBI E-utilities."""
+"""Retrieve: search PubMed, fetch its records politely and parse their abstracts."""
 
+import re
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from datetime import date
+from enum import StrEnum
+from typing import Annotated
+from xml.etree import ElementTree
 
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from claimgraph.config import QuestionConfig
-from claimgraph.models import NonBlank, Pmid, Record
+from claimgraph.models import ClinicalTrialsId, NonBlank, Pmid, Record
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 # EFetch pages through results this many records at a time.
@@ -203,3 +207,165 @@ class EutilsClient:
             if attempt < ATTEMPTS:
                 self._sleep(2**attempt)
         raise EutilsError(f"{failure} after {ATTEMPTS} attempts")
+
+
+# Parsing
+
+
+class DropReason(StrEnum):
+    BOOK = "book"
+    RETRACTED = "retracted"
+    NO_ABSTRACT = "no_abstract"
+    # PubMed puts English in Abstract and other languages in OtherAbstract.
+    NON_ENGLISH_ONLY = "non_english_only"
+
+
+class AbstractSection(Record):
+    label: str | None
+    category: str | None
+    text: NonBlank
+
+
+class Abstract(Record):
+    """One PubMed record with an English abstract: a line of abstracts.jsonl."""
+
+    pmid: Pmid
+    title: str
+    first_author: str | None
+    journal: str
+    year: int
+    language: str
+    publication_types: list[str]
+    mesh: list[str]
+    trial_ids: list[ClinicalTrialsId]
+    sections: Annotated[list[AbstractSection], Field(min_length=1)]
+
+    @property
+    def text(self) -> str:
+        return "\n".join(
+            section.text if section.label is None else f"{section.label}: {section.text}"
+            for section in self.sections
+        )
+
+
+class Dropped(Record):
+    pmid: Pmid
+    reason: DropReason
+    # The article's language, from PubMed.
+    language: str
+
+
+_TRIAL_ID = re.compile(r"\bNCT\d{8}\b")
+_YEAR = re.compile(r"\b(\d{4})\b")
+
+
+def split_articles(document: bytes) -> dict[str, bytes]:
+    """Split one EFetch response into the raw XML of each record, keyed by PMID."""
+    root = ElementTree.fromstring(document)
+    if root.tag != "PubmedArticleSet":
+        message = root.findtext("ERROR") or f"unexpected root element {root.tag}"
+        raise EutilsError(f"EFetch error: {message}")
+    records: dict[str, bytes] = {}
+    for element in root:
+        pmid = element.findtext("MedlineCitation/PMID") or element.findtext("BookDocument/PMID")
+        if pmid is None:
+            raise EutilsError(f"record without a PMID in {element.tag}")
+        records[pmid] = ElementTree.tostring(element, encoding="utf-8")
+    return records
+
+
+def parse_record(xml: bytes) -> Abstract | Dropped:
+    element = ElementTree.fromstring(xml)
+    if element.tag == "PubmedBookArticle":
+        document = _required(element, "BookDocument")
+        return Dropped(
+            pmid=_required_text(document, "PMID"),
+            reason=DropReason.BOOK,
+            language=document.findtext("Language") or "und",
+        )
+
+    citation = _required(element, "MedlineCitation")
+    article = _required(citation, "Article")
+    pmid = _required_text(citation, "PMID")
+    language = article.findtext("Language") or "und"
+    publication_types = [_text(t) for t in article.iterfind("PublicationTypeList/PublicationType")]
+
+    if "Retracted Publication" in publication_types:
+        return Dropped(pmid=pmid, reason=DropReason.RETRACTED, language=language)
+    sections = [
+        AbstractSection(label=s.get("Label"), category=s.get("NlmCategory"), text=_text(s))
+        for s in article.iterfind("Abstract/AbstractText")
+        if _text(s)
+    ]
+    if not sections:
+        has_other = any(_text(o) for o in citation.iterfind("OtherAbstract"))
+        reason = DropReason.NON_ENGLISH_ONLY if has_other else DropReason.NO_ABSTRACT
+        return Dropped(pmid=pmid, reason=reason, language=language)
+
+    title = _text(article.find("ArticleTitle")) or _text(article.find("VernacularTitle"))
+    text = " ".join([title, *(s.text for s in sections)])
+    return Abstract(
+        pmid=pmid,
+        title=title,
+        first_author=_first_author(article),
+        journal=article.findtext("Journal/ISOAbbreviation") or _text(article.find("Journal/Title")),
+        year=_year(element, pmid),
+        language=language,
+        publication_types=publication_types,
+        mesh=[_text(d) for d in citation.iterfind("MeshHeadingList/MeshHeading/DescriptorName")],
+        trial_ids=_trial_ids(article, text),
+        sections=sections,
+    )
+
+
+def _text(element: ElementTree.Element | None) -> str:
+    """The element's text with inline markup removed and whitespace collapsed."""
+    if element is None:
+        return ""
+    return " ".join("".join(element.itertext()).split())
+
+
+def _required(element: ElementTree.Element, path: str) -> ElementTree.Element:
+    found = element.find(path)
+    if found is None:
+        raise EutilsError(f"record without {path}")
+    return found
+
+
+def _required_text(element: ElementTree.Element, path: str) -> str:
+    return _text(_required(element, path))
+
+
+def _first_author(article: ElementTree.Element) -> str | None:
+    author = article.find("AuthorList/Author")
+    if author is None:
+        return None
+    return author.findtext("LastName") or author.findtext("CollectiveName")
+
+
+def _year(element: ElementTree.Element, pmid: str) -> int:
+    # The issue's publication year, then MEDLINE's free-text date, then the electronic
+    # publication date, then the date the record entered PubMed.
+    pub_date = "MedlineCitation/Article/Journal/JournalIssue/PubDate"
+    candidates = [
+        element.findtext(f"{pub_date}/Year"),
+        element.findtext(f"{pub_date}/MedlineDate"),
+        element.findtext("MedlineCitation/Article/ArticleDate/Year"),
+        element.findtext("PubmedData/History/PubMedPubDate[@PubStatus='pubmed']/Year"),
+    ]
+    for candidate in candidates:
+        match = _YEAR.search(candidate or "")
+        if match:
+            return int(match.group(1))
+    raise EutilsError(f"record {pmid} has no year")
+
+
+def _trial_ids(article: ElementTree.Element, text: str) -> list[str]:
+    linked = [
+        _text(number)
+        for bank in article.iterfind("DataBankList/DataBank")
+        if bank.findtext("DataBankName") == "ClinicalTrials.gov"
+        for number in bank.iterfind("AccessionNumberList/AccessionNumber")
+    ]
+    # A malformed registry entry is ignored rather than failing the whole record.
+    return sorted({*(i for i in linked if _TRIAL_ID.fullmatch(i)), *_TRIAL_ID.findall(text)})
