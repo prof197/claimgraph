@@ -126,7 +126,19 @@ v1 ships one dimension: baseline vitamin D status, refining population, with the
 `below_20_ng_ml` (25(OH)D below 20 ng/mL, 50 nmol/L), `at_or_above_20_ng_ml`, `mixed` and
 `not_reported`. The 20 ng/mL cut-off is the deficiency threshold in the Endocrine Society's 2011
 guideline ([Holick et al. 2011][endo-2011]); its 2024 guideline endorses no thresholds
-([Demay et al. 2024][endo-2024]).
+([Demay et al. 2024][endo-2024]), so the cut-off only groups studies.
+
+Dimensions are per finding, so a subgroup finding carries its own band. The band follows a fixed
+precedence, written into the dimension's definition and used again in the labeling guide:
+
+1. the population's eligibility restriction, if it was restricted by vitamin D status;
+2. otherwise, the baseline mean or median the abstract reports for that population;
+3. `mixed` only when the abstract reports values on both sides of 20 ng/mL with no single summary
+   for that finding's population;
+4. otherwise `not_reported`.
+
+A fixed order keeps the model and the labels from resolving the same abstract differently, so the
+eval measures extraction rather than disagreement over the rule.
 
 **Design weights.** The summary strip weights studies by design.
 
