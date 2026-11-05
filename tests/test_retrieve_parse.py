@@ -241,6 +241,21 @@ def test_non_english_only_abstract_is_dropped_with_its_language() -> None:
     assert record == Dropped(pmid="999000001", reason=DropReason.NON_ENGLISH_ONLY, language="spa")
 
 
+@pytest.mark.parametrize("language", ["Language='eng'", ""])
+def test_english_other_abstract_alone_counts_as_no_abstract(language: str) -> None:
+    # Extraction reads only the Abstract element; an English OtherAbstract (such as a
+    # population-research summary) is not a non-English abstract. The DTD defaults its
+    # Language to English.
+    other = (
+        f"<OtherAbstract Type='PIP' {language}>"
+        "<AbstractText>Synthetic English summary.</AbstractText></OtherAbstract>"
+    )
+
+    record = dropped(article(abstract=None, other_abstract=other))
+
+    assert record.reason is DropReason.NO_ABSTRACT
+
+
 def test_english_abstract_beside_another_language_is_kept() -> None:
     other = (
         "<OtherAbstract Type='Publisher' Language='por'>"

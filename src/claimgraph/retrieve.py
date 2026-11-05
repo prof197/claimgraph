@@ -301,8 +301,12 @@ def parse_record(xml: bytes) -> Abstract | Dropped:
         if _text(s)
     ]
     if not sections:
-        has_other = any(_text(o) for o in citation.iterfind("OtherAbstract"))
-        reason = DropReason.NON_ENGLISH_ONLY if has_other else DropReason.NO_ABSTRACT
+        # The DTD defaults an OtherAbstract's language to English.
+        non_english = any(
+            _text(o) and o.get("Language", "eng") != "eng"
+            for o in citation.iterfind("OtherAbstract")
+        )
+        reason = DropReason.NON_ENGLISH_ONLY if non_english else DropReason.NO_ABSTRACT
         return Dropped(pmid=pmid, reason=reason, language=language)
 
     title = _text(article.find("ArticleTitle")) or _text(article.find("VernacularTitle"))
