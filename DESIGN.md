@@ -123,18 +123,20 @@ must list `not_reported`, and the model must pick an option, never null. Text an
 dimensions use null. The page shows "Not reported" for both.
 
 v1 ships one dimension: baseline vitamin D status, refining population, with the options
-`below_20_ng_ml` (25(OH)D below 20 ng/mL, 50 nmol/L), `at_or_above_20_ng_ml`, `mixed` and
-`not_reported`. The 20 ng/mL cut-off is the deficiency threshold in the Endocrine Society's 2011
+`below_20_ng_ml` (25(OH)D strictly below 20 ng/mL, 50 nmol/L), `at_or_above_20_ng_ml`, `mixed`
+and `not_reported`. The 20 ng/mL cut-off is the deficiency threshold in the Endocrine Society's 2011
 guideline ([Holick et al. 2011][endo-2011]); its 2024 guideline endorses no thresholds
 ([Demay et al. 2024][endo-2024]), so the cut-off only groups studies.
 
-Dimensions are per finding, so a subgroup finding carries its own band. The band follows a fixed
-precedence, written into the dimension's definition and used again in the labeling guide:
+Exactly 20 ng/mL (50 nmol/L) is `at_or_above_20_ng_ml` everywhere; `below_20_ng_ml` means
+strictly below. Dimensions are per finding, so a subgroup finding carries its own band. The band
+follows a fixed precedence, written into the dimension's definition and used again in the
+labeling guide:
 
-1. the population's eligibility restriction, if it was restricted by vitamin D status and the
-   whole eligible range lies on one side of 20 ng/mL (50 nmol/L), in either unit. A restriction
-   of ≤20 ng/mL or ≤50 nmol/L counts as below; one that straddles the line, such as <30 ng/mL
-   or <75 nmol/L, doesn't settle the band and falls through to the next rule;
+1. the population's eligibility restriction, if it was restricted by vitamin D status and its
+   whole range is strictly below 20 ng/mL (50 nmol/L) or at or above it, in either unit. A
+   restriction with values on both sides, such as ≤20 ng/mL, ≤50 nmol/L or <30 ng/mL, doesn't
+   settle the band and falls through to the next rule;
 2. otherwise, the baseline mean or median the abstract reports for that population;
 3. `mixed` only when the abstract reports values on both sides of 20 ng/mL with no single summary
    for that finding's population;
