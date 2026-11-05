@@ -15,7 +15,7 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from claimgraph.config import QuestionConfig
-from claimgraph.models import ClinicalTrialsId, NonBlank, Pmid, Record
+from claimgraph.models import NonBlank, Pmid, Record, TrialId
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 # EFetch pages through results this many records at a time.
@@ -240,7 +240,7 @@ class Abstract(Record):
     language: str
     publication_types: list[str]
     mesh: list[str]
-    trial_ids: list[ClinicalTrialsId]
+    trial_ids: list[TrialId]
     sections: Annotated[list[AbstractSection], Field(min_length=1)]
 
     @property
@@ -258,7 +258,34 @@ class Dropped(Record):
     language: str
 
 
-_TRIAL_ID = re.compile(r"\bNCT\d{8}\b")
+_NCT_ID = re.compile(r"\bNCT\d{8}\b")
+CLINICALTRIALS_GOV = "ClinicalTrials.gov"
+# The clinical trial registries PubMed links from a record's DataBankList, as NLM lists them.
+# Other DataBank entries are data repositories, such as figshare or GenBank.
+TRIAL_REGISTRIES = frozenset(
+    {
+        "ANZCTR",
+        "ChiCTR",
+        "CRiS",
+        CLINICALTRIALS_GOV,
+        "CTRI",
+        "DRKS",
+        "EudraCT",
+        "IRCT",
+        "ISRCTN",
+        "JapicCTI",
+        "JMACCT",
+        "JPRN",
+        "NTR",
+        "PACTR",
+        "ReBec",
+        "REPEC",
+        "RPCEC",
+        "SLCTR",
+        "TCTR",
+        "UMIN CTR",
+    }
+)
 _YEAR = re.compile(r"\b(\d{4})\b")
 
 
@@ -368,14 +395,21 @@ def _year(element: ElementTree.Element, pmid: str) -> int:
 
 
 def _trial_ids(article: ElementTree.Element, text: str) -> list[str]:
-    linked = [
-        _text(number)
-        for bank in article.iterfind("DataBankList/DataBank")
-        if bank.findtext("DataBankName") == "ClinicalTrials.gov"
-        for number in bank.iterfind("AccessionNumberList/AccessionNumber")
-    ]
-    # A malformed registry entry is ignored rather than failing the whole record.
-    return sorted({*(i for i in linked if _TRIAL_ID.fullmatch(i)), *_TRIAL_ID.findall(text)})
+    # Papers sharing any registration are one trial, so IDs from every registry are kept.
+    # NCT numbers are also read from the text, where many abstracts state them.
+    registrations = {(CLINICALTRIALS_GOV, number) for number in _NCT_ID.findall(text)}
+    for bank in article.iterfind("DataBankList/DataBank"):
+        registry = _text(bank.find("DataBankName"))
+        if registry not in TRIAL_REGISTRIES:
+            continue
+        for number in bank.iterfind("AccessionNumberList/AccessionNumber"):
+            accession = _text(number).upper()
+            # A malformed entry is skipped rather than failing the whole record.
+            malformed = not accession or " " in accession
+            if malformed or (registry == CLINICALTRIALS_GOV and not _NCT_ID.fullmatch(accession)):
+                continue
+            registrations.add((registry, accession))
+    return sorted(f"{registry.upper()}:{accession}" for registry, accession in registrations)
 
 
 # The retrieve stage

@@ -187,32 +187,54 @@ def test_year_falls_back_in_order(pub_date: str, article_date: str, year: int) -
     assert record.year == year
 
 
-def test_trial_ids_come_from_the_registry_link_and_the_text() -> None:
-    databanks = (
-        "<DataBankList CompleteYN='Y'>"
-        "<DataBank><DataBankName>ClinicalTrials.gov</DataBankName>"
-        "<AccessionNumberList><AccessionNumber>NCT99000002</AccessionNumber></AccessionNumberList>"
-        "</DataBank>"
-        "<DataBank><DataBankName>ISRCTN</DataBankName>"
-        "<AccessionNumberList><AccessionNumber>ISRCTN99000003</AccessionNumber></AccessionNumberList>"
-        "</DataBank>"
-        "</DataBankList>"
+def databank_list(*banks: tuple[str, str]) -> str:
+    entries = "".join(
+        f"<DataBank><DataBankName>{name}</DataBankName><AccessionNumberList>"
+        f"<AccessionNumber>{number}</AccessionNumber></AccessionNumberList></DataBank>"
+        for name, number in banks
+    )
+    return f"<DataBankList CompleteYN='Y'>{entries}</DataBankList>"
+
+
+def test_trial_ids_come_from_every_registry_and_the_text() -> None:
+    databanks = databank_list(
+        ("ClinicalTrials.gov", "NCT99000002"),
+        ("ISRCTN", "ISRCTN99000003"),
+        ("IRCT", " irct99000004n1 "),
+        ("UMIN CTR", "UMIN99000005"),
     )
     abstract = "<AbstractText>Registered as NCT99000001 and NCT99000002 (synthetic).</AbstractText>"
 
     record = parsed(article(databanks=databanks, abstract=abstract))
 
-    assert record.trial_ids == ["NCT99000001", "NCT99000002"]
+    assert record.trial_ids == [
+        "CLINICALTRIALS.GOV:NCT99000001",
+        "CLINICALTRIALS.GOV:NCT99000002",
+        "IRCT:IRCT99000004N1",
+        "ISRCTN:ISRCTN99000003",
+        "UMIN CTR:UMIN99000005",
+    ]
 
 
-def test_malformed_registry_number_is_ignored() -> None:
-    databanks = (
-        "<DataBankList CompleteYN='Y'><DataBank><DataBankName>ClinicalTrials.gov</DataBankName>"
-        "<AccessionNumberList><AccessionNumber>NCT9900</AccessionNumber></AccessionNumberList>"
-        "</DataBank></DataBankList>"
-    )
+def test_data_repositories_are_not_trial_registries() -> None:
+    databanks = databank_list(("figshare", "10.6084/m9.figshare.99000001"), ("GENBANK", "X99001"))
 
     assert parsed(article(databanks=databanks)).trial_ids == []
+
+
+@pytest.mark.parametrize(
+    "banks",
+    [(("ClinicalTrials.gov", "NCT9900"),), (("ISRCTN", "  "),), (("IRCT", "IRCT 99000001N1"),)],
+)
+def test_malformed_registry_number_is_ignored(banks: tuple[tuple[str, str], ...]) -> None:
+    assert parsed(article(databanks=databank_list(*banks))).trial_ids == []
+
+
+def test_recorded_trials_keep_their_own_registries() -> None:
+    records = recorded()
+
+    assert records["32945627"].trial_ids == ["CHICTR:CHICTR2000030130"]
+    assert records["26585952"].trial_ids == ["NTR:NTR3845"]
 
 
 # Dropped records

@@ -29,7 +29,7 @@ def study(**overrides: Any) -> Study:
         "title": "Synthetic trial of vitamin D for test fixtures",
         "first_author": "Synthetic",
         "journal": "Journal of Test Fixtures",
-        "trial_ids": ["NCT00000000"],
+        "trial_ids": ["CLINICALTRIALS.GOV:NCT99000001"],
         "year": 2020,
         "language": "eng",
         "design": Design.RCT,
@@ -106,10 +106,20 @@ def test_study_rejects_malformed_pmid(pmid: str) -> None:
         study(pmid=pmid)
 
 
-@pytest.mark.parametrize("trial_id", ["NCT123", "ISRCTN12345678", "nct00000000"])
-def test_study_rejects_non_clinicaltrials_gov_ids(trial_id: str) -> None:
+@pytest.mark.parametrize(
+    "trial_id",
+    ["NCT99000001", "clinicaltrials.gov:NCT99000001", "ISRCTN:isrctn99000001", "ISRCTN:", " :X"],
+)
+def test_study_rejects_ids_not_in_registry_accession_form(trial_id: str) -> None:
     with pytest.raises(ValidationError):
         study(trial_ids=[trial_id])
+
+
+@pytest.mark.parametrize(
+    "trial_id", ["CLINICALTRIALS.GOV:NCT99000001", "IRCT:IRCT99000001N1", "UMIN CTR:UMIN99000001"]
+)
+def test_study_accepts_registry_accession_ids(trial_id: str) -> None:
+    assert study(trial_ids=[trial_id]).trial_ids == [trial_id]
 
 
 @pytest.mark.parametrize("sample_size", [0, -5])

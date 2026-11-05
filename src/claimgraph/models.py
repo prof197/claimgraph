@@ -14,7 +14,8 @@ from pydantic import (
 
 Pmid = Annotated[str, StringConstraints(pattern=r"^[1-9][0-9]*$")]
 FindingId = Annotated[str, StringConstraints(pattern=r"^[1-9][0-9]*-[1-9][0-9]*$")]
-ClinicalTrialsId = Annotated[str, StringConstraints(pattern=r"^NCT[0-9]{8}$")]
+# A trial registration as REGISTRY:ACCESSION, upper-cased, such as CLINICALTRIALS.GOV:NCT01169259.
+TrialId = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9][A-Z0-9. -]*:[^\sa-z]+$")]
 NonBlank = Annotated[str, StringConstraints(pattern=r"\S")]
 DimensionValue = str | float | None
 
@@ -106,7 +107,7 @@ class Study(Record):
     title: str
     first_author: str | None
     journal: str
-    trial_ids: list[ClinicalTrialsId]
+    trial_ids: list[TrialId]
     year: int
     language: str
     design: Design

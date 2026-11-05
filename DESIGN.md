@@ -62,7 +62,7 @@ several outcomes, arms or subgroups.
 | --- | --- | --- | --- |
 | Study | `pmid` | str | One per PubMed record |
 | Study | `title`, `first_author`, `journal` | str, str or None, str | From PubMed metadata; the display label defaults to first author and year |
-| Study | `trial_ids` | list[str] | ClinicalTrials.gov IDs; papers sharing one count once |
+| Study | `trial_ids` | list[str] | Registrations from any trial registry, as `REGISTRY:ACCESSION`; papers linked through any shared ID count once |
 | Study | `year` | int | |
 | Study | `language` | str | Article language, from PubMed |
 | Study | `design` | Design | From PubMed publication types when they name it; the model otherwise |
@@ -82,8 +82,12 @@ several outcomes, arms or subgroups.
 | Classification | `pair_id`, `verdict`, `reason`, `also_differs`, `detail`, `rationale`, `arm` | — | `verdict` is `genuine` or `apparent`; `detail` is a short specific, such as "duration: 8 weeks vs a median 5.3 years" |
 
 A `pair_id` is the outcome plus the two study keys in canonical order, so a pair has one
-identity across runs and arms. The study key is the trial ID when there is one and the PMID
-otherwise, which is the same rule that merges papers from one trial.
+identity across runs and arms. The study key comes from the same rule that merges papers from
+one trial: a paper with no registration is keyed by its PMID.
+
+Papers merge transitively. If paper A shares a registration with B, and B with C, all three are
+one study, even when A and C share none; the studies are the connected components of a graph of
+papers joined by shared IDs.
 
 **What the model returns.** Extraction returns an Extraction per abstract: the study-level design
 (used only when publication types don't name one), the sample size, a one-sentence summary for
@@ -186,8 +190,12 @@ committed, so every run is reproducible.
   - The first author is the first listed surname, or the group name for a group author.
   - The year is the issue's publication year, falling back to MEDLINE's free-text date, then the
     electronic publication date, then the date the record entered PubMed.
-  - Trial IDs are ClinicalTrials.gov numbers from the record's registry links, plus any written
-    in the title or abstract.
+  - Trial IDs come from the record's links to any of the trial registries NLM lists
+    ([NLM: DataBank sources][nlm-databank]), such as ClinicalTrials.gov, IRCT, ChiCTR or ISRCTN,
+    plus any NCT number written in the title or abstract. Each is stored trimmed and upper-cased
+    as `REGISTRY:ACCESSION`, such as `CLINICALTRIALS.GOV:NCT01169259`. Links to data
+    repositories, such as figshare, are not registrations. In the vitamin D corpus, about a
+    quarter of linked registrations are outside ClinicalTrials.gov.
 - Extraction reads the English `Abstract` element. Records with no abstract, or with only a
   non-English `OtherAbstract`, are dropped and counted by language. An article in another
   language with an English abstract is kept, with its language recorded.
@@ -296,8 +304,8 @@ The summary strip counts studies per normalized outcome; the graph holds the sam
 page to draw.
 
 - **Unit:** studies, per normalized outcome. A study's direction on an outcome is its primary
-  finding's; failing that, its first-reported finding on that outcome. Papers sharing a trial ID
-  count once.
+  finding's; failing that, its first-reported finding on that outcome. Papers linked through any
+  shared trial registration count once.
 - **Weighted share:** the sum of design weights per direction, divided by the total.
 - **Sensitivity line:** recompute with every study weighted 1, and with weight = sample size, a
   stand-in for inverse-variance weighting when abstracts give no effect sizes. The strip says
@@ -495,6 +503,7 @@ None yet. Counts, block sizes, token use, cost and eval scores land here as they
 - [NLM: copyright and downloading data][nlm-copyright]
 - [NLM: MEDLINE citations by language][nlm-lang]
 - [PubMed DTD: OtherAbstract][dtd-other]
+- [NLM: MEDLINE DataBank sources and trial registries][nlm-databank]
 - [Claude API pricing][pricing]
 - [Cochrane Handbook 5.1, section 9.5.1: what is heterogeneity][cochrane]
 - [GRADE: indirectness and PICO][grade-pico]
@@ -516,6 +525,7 @@ None yet. Counts, block sizes, token use, cost and eval scores land here as they
 [nlm-copyright]: https://www.nlm.nih.gov/databases/download.html
 [nlm-lang]: https://www.nlm.nih.gov/bsd/medline_lang_distr.html
 [dtd-other]: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/240101/el-OtherAbstract.html
+[nlm-databank]: https://www.nlm.nih.gov/bsd/medline_databank_source.html
 [pricing]: https://platform.claude.com/docs/en/about-claude/pricing
 [cochrane]: https://training-noproxy.cochrane.org/handbook/archive/v5.1/chapter_9/9_5_1_what_is_heterogeneity.htm
 [grade-pico]: https://scholarworks.aub.edu.lb/items/3ff7d4a6-32f2-46d7-9ffe-15425f8d58fd
