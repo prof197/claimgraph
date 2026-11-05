@@ -181,7 +181,8 @@ committed, so every run is reproducible.
   input schema is generated from that model, and the tool input is validated against it. Invalid
   output gets one retry with the validation error; a second failure is logged and counted.
 - The static instructions and schema form a cached prompt prefix. Cache reads cost 0.1× the input
-  price or less on current models, and the batch discount applies to them too.
+  price on Haiku 5.5 and 0.05× on Sonnet 5.5 and Opus 5.5, and they stack with the batch
+  discount ([pricing][pricing]).
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
   normalization. A miss gets one retry that names the miss; a second miss drops the finding and
   counts it. The page never shows an unchecked quote.
@@ -345,7 +346,7 @@ each.
 | --- | --- |
 | 50-abstract dev set for tuning | Schema iterations cost cents |
 | Batch API | 50% off input and output, including cache reads |
-| Cached prompt prefix | Cache reads at 0.1× the input price or less |
+| Cached prompt prefix | Cache reads at 0.1× the input price on Haiku 5.5, 0.05× on Sonnet 5.5 and Opus 5.5 |
 | Replay cache | Reruns and CI cost nothing |
 | Study-level pairs, differing directions only | Pairs grow with studies, not findings |
 | Small model for the bulk of pairs | Larger arms run only where the ablation shows they pay |
