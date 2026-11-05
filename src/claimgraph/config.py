@@ -86,3 +86,11 @@ def load_config(path: Path) -> QuestionConfig:
     if config.id != path.stem:
         raise ValueError(f"config id {config.id!r} does not match file name {path.name!r}")
     return config
+
+
+def resolve_question(question: str, questions_dir: Path = Path("questions")) -> Path:
+    """A QUESTION argument is a path to a config, or the id of one in questions/."""
+    path = Path(question)
+    if path.suffix == ".toml":
+        return path
+    return questions_dir / f"{question}.toml"

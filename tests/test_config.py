@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from claimgraph.config import DimensionType, QuestionConfig, load_config
+from claimgraph.config import DimensionType, QuestionConfig, load_config, resolve_question
 from claimgraph.models import DEFAULT_EXCLUDED_DESIGNS, Design, Reason
 
 QUESTIONS = Path(__file__).parents[1] / "questions"
@@ -144,3 +144,14 @@ def test_number_dimension() -> None:
 def test_rejects_bad_dimensions(dims: list[dict[str, Any]]) -> None:
     with pytest.raises(ValidationError):
         config(dimensions=dims)
+
+
+@pytest.mark.parametrize(
+    ("question", "path"),
+    [
+        ("vitamin-d-depression", Path("questions/vitamin-d-depression.toml")),
+        ("elsewhere/synthetic.toml", Path("elsewhere/synthetic.toml")),
+    ],
+)
+def test_question_is_an_id_or_a_config_path(question: str, path: Path) -> None:
+    assert resolve_question(question) == path

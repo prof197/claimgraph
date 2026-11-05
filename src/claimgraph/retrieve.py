@@ -2,9 +2,12 @@
 
 import re
 import time
-from collections.abc import Callable, Iterator, Mapping, Sequence
-from datetime import date
+from collections import Counter
+from collections.abc import Callable, Generator, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from datetime import UTC, date, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated
 from xml.etree import ElementTree
 
@@ -369,3 +372,153 @@ def _trial_ids(article: ElementTree.Element, text: str) -> list[str]:
     ]
     # A malformed registry entry is ignored rather than failing the whole record.
     return sorted({*(i for i in linked if _TRIAL_ID.fullmatch(i)), *_TRIAL_ID.findall(text)})
+
+
+# The retrieve stage
+
+
+class SavedSearch(Record):
+    """search.json: the PMIDs a search returned, so reruns need not search again."""
+
+    term: str
+    searched_at: datetime
+    count: int
+    pmids: list[Pmid]
+    # Asked for but not returned by EFetch; retried only on refresh, so reruns stay offline.
+    unavailable: list[Pmid] = Field(default_factory=list[Pmid])
+
+
+class RetrieveManifest(Record):
+    question: str
+    term: str
+    # What the date bound means, in words, for the page's method section.
+    date_range: str
+    searched_at: datetime
+    found: int
+    fetched: int
+    cached: int
+    # In the search result, but EFetch returned no record for them.
+    unavailable: list[Pmid]
+    kept: int
+    dropped: dict[DropReason, int]
+    languages_kept: dict[str, int]
+    languages_dropped: dict[DropReason, dict[str, int]]
+    requests: int
+    raw_bytes: int
+
+
+class RunManifest(Record):
+    """manifest.json: what one run of a question did, stage by stage."""
+
+    retrieve: RetrieveManifest
+
+
+def describe_dates(config: QuestionConfig) -> str:
+    def spoken(day: date) -> str:
+        return f"{day:%B} {day.day}, {day.year}"
+
+    end = spoken(config.end_date)
+    if config.start_date is None:
+        return f"records added to PubMed through {end}"
+    return f"records added to PubMed from {spoken(config.start_date)} through {end}"
+
+
+def retrieve(
+    config: QuestionConfig,
+    run_dir: Path,
+    client: EutilsClient,
+    *,
+    refresh: bool = False,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> RunManifest:
+    """Search, fetch what the cache lacks, and parse every record into abstracts.jsonl."""
+    raw_dir = run_dir / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    requests_before = client.requests
+    term = build_term(config)
+
+    search_path = run_dir / "search.json"
+    saved = (
+        SavedSearch.model_validate_json(search_path.read_text()) if search_path.exists() else None
+    )
+    history: SearchResult | None = None
+    if refresh or saved is None or saved.term != term:
+        history = client.search(term)
+        saved = SavedSearch(term=term, searched_at=now(), count=history.count, pmids=history.pmids)
+        _write(search_path, saved.model_dump_json(indent=2).encode())
+
+    def raw_path(pmid: str) -> Path:
+        return raw_dir / f"{pmid}.xml"
+
+    skip = set(saved.unavailable)
+    missing = [p for p in saved.pmids if refresh or not (raw_path(p).exists() or p in skip)]
+    if missing:
+        # A fresh search pages through the history server; filling gaps left by an
+        # interrupted run asks for the missing PMIDs by ID.
+        if history is not None and len(missing) == len(saved.pmids):
+            documents = client.fetch_history(history)
+        else:
+            documents = client.fetch_ids(missing)
+        wanted = set(missing)
+        for document in documents:
+            for pmid, xml in split_articles(document).items():
+                if pmid in wanted:
+                    _write(raw_path(pmid), xml)
+                    wanted.discard(pmid)
+        fetched = len(missing) - len(wanted)
+        unavailable = [p for p in saved.pmids if p in wanted or p in skip]
+        saved = saved.model_copy(update={"unavailable": unavailable})
+        _write(search_path, saved.model_dump_json(indent=2).encode())
+    else:
+        fetched = 0
+
+    available = [p for p in saved.pmids if raw_path(p).exists()]
+    records = [parse_record(raw_path(p).read_bytes()) for p in available]
+    abstracts = [r for r in records if isinstance(r, Abstract)]
+    drops = [r for r in records if isinstance(r, Dropped)]
+    _write(
+        run_dir / "abstracts.jsonl",
+        "".join(f"{a.model_dump_json()}\n" for a in abstracts).encode(),
+    )
+
+    languages_dropped: dict[DropReason, dict[str, int]] = {}
+    for drop in drops:
+        by_language = languages_dropped.setdefault(drop.reason, {})
+        by_language[drop.language] = by_language.get(drop.language, 0) + 1
+    manifest = RunManifest(
+        retrieve=RetrieveManifest(
+            question=config.id,
+            term=term,
+            date_range=describe_dates(config),
+            searched_at=saved.searched_at,
+            found=saved.count,
+            fetched=fetched,
+            cached=len(available) - fetched,
+            unavailable=[p for p in saved.pmids if not raw_path(p).exists()],
+            kept=len(abstracts),
+            dropped=dict(sorted(Counter(d.reason for d in drops).items())),
+            languages_kept=dict(sorted(Counter(a.language for a in abstracts).items())),
+            languages_dropped={
+                reason: dict(sorted(counts.items()))
+                for reason, counts in sorted(languages_dropped.items())
+            },
+            requests=client.requests - requests_before,
+            raw_bytes=sum(raw_path(p).stat().st_size for p in available),
+        )
+    )
+    _write(run_dir / "manifest.json", manifest.model_dump_json(indent=2).encode())
+    return manifest
+
+
+def _write(path: Path, data: bytes) -> None:
+    # Write then rename, so an interrupted run never leaves a half-written cache file.
+    partial = path.with_name(f"{path.name}.tmp")
+    partial.write_bytes(data)
+    partial.replace(path)
+
+
+@contextmanager
+def connect_eutils(env: Mapping[str, str]) -> Generator[EutilsClient]:
+    identity = NcbiIdentity.from_env(env)
+    with httpx.Client(timeout=60) as http:
+        yield EutilsClient(http, identity, RateLimiter(identity.rate))

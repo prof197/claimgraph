@@ -5,6 +5,8 @@
 ```
 uv sync                                   # install
 uv run claimgraph --help                  # CLI
+uv run --env-file .env claimgraph run vitamin-d-depression --stage retrieve
+                                          # fetch and parse abstracts into runs/
 uv run pytest                             # tests
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .

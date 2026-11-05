@@ -194,7 +194,19 @@ committed, so every run is reproducible.
 - Records typed "Retracted Publication" are dropped and counted, and the page's method section
   says how many were excluded. Retraction status is only as current as the cached record. Book
   records are dropped too.
-- The run manifest records the query, the retrieval date and the counts.
+- Each run writes `runs/<id>/`: `search.json` (the exact term, the search date and the PMIDs),
+  `raw/<pmid>.xml`, `abstracts.jsonl` and `manifest.json`. A rerun with the same term reuses the
+  saved search and the cached records and makes no requests; a changed query or filter searches
+  again and fetches only records not already cached. Files are written whole or not at all, so
+  an interrupted run resumes by fetching just the missing PMIDs. A PMID the search lists but
+  EFetch never returns is recorded as unavailable and retried only on `--refresh`.
+- `--refresh` searches and re-fetches everything. A published run refreshes first, so retraction
+  status is current.
+- The run manifest records the query, the date range in words, the search date and the counts:
+  found, fetched, cached, unavailable, kept, and dropped by reason. Its language report counts
+  kept records by article language and dropped records by reason and language, so the evidence
+  outside English is visible rather than silent. It also records the requests made and the raw
+  cache size.
 
 **Extract.**
 

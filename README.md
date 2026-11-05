@@ -25,8 +25,13 @@ API key. See [DESIGN.md](DESIGN.md) for the decisions behind each step.
 
 ```
 uv sync
-uv run claimgraph --version
+cp .env.example .env    # add a contact email for NCBI
+uv run --env-file .env claimgraph run vitamin-d-depression --stage retrieve
 ```
+
+Retrieval writes `runs/vitamin-d-depression/`: the cached PubMed records, the parsed abstracts
+and a manifest of what was found, kept and dropped. A rerun reads the cache and makes no
+requests.
 
 ## Results
 
@@ -37,6 +42,9 @@ Generated from the evals once they exist.
 Abstracts only, one question at a time, and a human-reviewed outcome mapping: cheaper and more
 checkable than full text, at the cost of what abstracts leave out. The failure modes the evals
 track are listed in [DESIGN.md](DESIGN.md#failure-modes).
+
+Known limitation: retracted papers are excluded using the retraction status in each cached
+record, which is only as current as the last fetch. Published runs refresh the cache first.
 
 ## Outcomes
 
