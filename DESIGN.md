@@ -92,7 +92,7 @@ papers joined by shared IDs.
 
 **What the model returns.** Extraction returns an Extraction per abstract: the study-level design
 (used only when publication types don't name one), the sample size, a one-sentence summary for
-reviews and meta-analyses only, and the list of findings. Code assigns `finding_id`. Stored
+reviews only, systematic, meta-analyses or narrative, and the list of findings. Code assigns `finding_id`. Stored
 Findings keep custom-dimension values in a `dimensions` mapping, so the Finding model stays
 static while the extraction model varies with the question.
 
@@ -159,9 +159,14 @@ eval measures extraction rather than disagreement over the rule.
 | Cohort | 2 | Counted |
 | Case-control, cross-sectional | 1 | Counted |
 | Case series | 0.5 | Counted |
-| Other (fits none of the above) | — | Shown, not counted |
+| Other (a primary study that fits none of the above) | — | Shown, not counted |
 | Systematic review, meta-analysis | — | Listed, not counted |
+| Narrative review | — | Not counted |
 | Case report, animal, in vitro | — | Excluded by default; set per question |
+
+Narrative reviews, reviews without systematic methods, have their own design rather than falling
+to Other. Other then means only a primary study of unclear design, so how often extraction falls
+back to it stays a clean signal in the extraction eval.
 
 ## Retrieve and extract
 
@@ -257,8 +262,8 @@ title alone.
   returns only findings in that domain. Findings on other outcomes are counted as out of scope
   in the run manifest and not stored, so a broad search adds recall without filling the map with
   unrelated outcomes.
-- Reviews and meta-analyses get study fields and a one-sentence summary for the reviews list,
-  labelled as a summary. Their findings are not extracted for counting.
+- Reviews, systematic or narrative, and meta-analyses get study fields and a one-sentence
+  summary, labelled as a summary. Their findings are not extracted for counting.
 - **Model.** Extraction starts on the small model and moves to the mid-tier model only where the
   extraction eval shows a field-level gap.
 
@@ -339,7 +344,8 @@ page to draw.
   when either changes the leading direction.
 - **Thin outcomes:** under 5 studies, the strip shows counts only, without the weighted bar or the
   sensitivity line, and says the evidence is thin.
-- **Reviews and meta-analyses:** listed, not counted.
+- **Reviews and meta-analyses:** listed, not counted. Whether narrative reviews are listed too
+  or left out by default is set with the page.
 - **Graph:** a NetworkX graph whose nodes are outcome hubs and findings. Edges link each finding
   to its outcome, plus genuine contradictions with their reason. It is exported as node-link JSON
   with a per-outcome summary block, and a JSON schema test guards the export.
@@ -454,7 +460,7 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 [the labeling guide](evals/gold/LABELING.md) gives the rules and worked examples.
 
 - **Abstracts:** one file per gold abstract, `labels/PMID.toml`, with the design, the sample
-  size, a summary for systematic reviews and meta-analyses, and one block per finding in the
+  size, a summary for reviews, and one block per finding in the
   outcome domain: the verbatim quote, the outcome as reported, the effect, whether it is the
   primary outcome, and a value for every config dimension. Population, intervention and
   comparator are not labeled, because the eval does not score them. `claimgraph gold template`
@@ -639,6 +645,14 @@ publication types and animal-only studies, apply to every row.
   "25-hydroxyvitamin D3", now a listed term. On this sample, title scope would drop
   roughly two in five broad-only records that bear on the question, most of them studies that
   report depression secondarily. The sample is small; the interval on 8 of 20 is wide.
+- **Review publication types.** PubMed's types do not separate systematic from narrative
+  reviews reliably. Of 326 kept records tagged Review but not Systematic Review, Meta-Analysis
+  or Scoping Review, at least 21 are systematic reviews, meta-analyses or scoping reviews by
+  their own title or stated methods, and about 18 more describe a database search without
+  saying how studies were chosen. Seven systematic reviews or meta-analyses carry no type but
+  Journal Article, as do 716 kept records in all, most of them recent. Of 109 records tagged
+  Systematic Review or Meta-Analysis, 1 describes no method in its abstract. By type and
+  wording, about 300 kept records, 16%, are narrative reviews; extraction gives the count.
 - **Which scope the demo uses** is decided at the dry run, from measured pairs, cost and mapping
   review effort, and defaults to title and abstract.
 

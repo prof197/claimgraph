@@ -98,13 +98,17 @@ def test_an_off_topic_abstract_has_no_findings() -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
-        pytest.param({"design": "narrative_review"}, id="unknown design"),
+        pytest.param({"design": "scoping_review"}, id="unknown design"),
         pytest.param({"design": ""}, id="unfilled design"),
         pytest.param({"sample_size": 0}, id="zero sample size"),
         pytest.param({"sample_size": ""}, id="unfilled sample size"),
         pytest.param({"sample_size": "unknown"}, id="other sample size text"),
         pytest.param({"color": "teal"}, id="unknown key"),
-        pytest.param({"design": "meta_analysis"}, id="review with findings"),
+        pytest.param(
+            {"design": "meta_analysis", "review_summary": "Synthetic summary."},
+            id="review with findings",
+        ),
+        pytest.param({"design": "narrative_review", "finding": []}, id="review without summary"),
         pytest.param({"review_summary": "Synthetic summary."}, id="summary on a trial"),
     ],
 )
@@ -130,8 +134,9 @@ def test_rejects_bad_findings(finding: dict[str, Any]) -> None:
         label(finding=[base | finding])
 
 
-def test_a_review_carries_a_summary_and_no_findings() -> None:
-    review = label(design="systematic_review", finding=[], review_summary="Synthetic summary.")
+@pytest.mark.parametrize("design", ["systematic_review", "meta_analysis", "narrative_review"])
+def test_a_review_carries_a_summary_and_no_findings(design: str) -> None:
+    review = label(design=design, finding=[], review_summary="Synthetic summary.")
 
     assert review.review_summary == "Synthetic summary."
 
@@ -341,8 +346,9 @@ def test_template_shows_the_abstract_and_fails_until_filled() -> None:
         AbstractLabel.model_validate(data)
 
 
-def test_review_template_asks_for_a_summary_not_findings() -> None:
-    data = tomllib.loads(label_template(gold_entry(Stratum.SYSTEMATIC_REVIEW), VITAMIN_D))
+@pytest.mark.parametrize("stratum", [Stratum.SYSTEMATIC_REVIEW, Stratum.REVIEW])
+def test_review_template_asks_for_a_summary_not_findings(stratum: Stratum) -> None:
+    data = tomllib.loads(label_template(gold_entry(stratum), VITAMIN_D))
 
     assert "finding" not in data
     assert data["review_summary"] == ""

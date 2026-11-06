@@ -19,8 +19,8 @@ class ExtractionFields(Record):
     )
     review_summary: str | None = Field(
         description=(
-            "For a systematic review or meta-analysis only: one sentence summarizing its "
-            "conclusion. Null for any other design."
+            "For a review only, systematic, meta-analysis or narrative: one sentence "
+            "summarizing its conclusion. Null for any other design."
         )
     )
 
@@ -59,7 +59,7 @@ def build_extraction_model(config: QuestionConfig) -> type[ExtractionFields]:
         Field(
             description=(
                 "Every finding the abstract reports, one per outcome, arm or subgroup. "
-                "Empty for a systematic review or meta-analysis."
+                "Empty for a review."
             )
         ),
     )

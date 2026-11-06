@@ -221,7 +221,11 @@ def test_design_weights_match_the_published_table() -> None:
 
 
 def test_reviews_and_default_exclusions() -> None:
-    assert {Design.SYSTEMATIC_REVIEW, Design.META_ANALYSIS} == REVIEW_DESIGNS
+    assert {
+        Design.SYSTEMATIC_REVIEW,
+        Design.META_ANALYSIS,
+        Design.NARRATIVE_REVIEW,
+    } == REVIEW_DESIGNS
     assert {Design.CASE_REPORT, Design.ANIMAL, Design.IN_VITRO} == DEFAULT_EXCLUDED_DESIGNS
 
 

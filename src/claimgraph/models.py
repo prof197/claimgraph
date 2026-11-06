@@ -31,6 +31,9 @@ class Design(StrEnum):
     CASE_SERIES = "case_series"
     SYSTEMATIC_REVIEW = "systematic_review"
     META_ANALYSIS = "meta_analysis"
+    # A review without systematic methods. OTHER stays for primary studies of unclear
+    # design, so how often the model falls back to it remains a clean signal.
+    NARRATIVE_REVIEW = "narrative_review"
     CASE_REPORT = "case_report"
     ANIMAL = "animal"
     IN_VITRO = "in_vitro"
@@ -86,7 +89,7 @@ class Arm(StrEnum):
 
 
 # Weights for the summary strip. Designs absent from this table are not counted:
-# reviews are listed separately, OTHER is shown without a weight, and the default
+# reviews are summarized, not counted, OTHER is shown without a weight, and the default
 # exclusions are dropped unless a question config keeps them.
 DESIGN_WEIGHTS: dict[Design, float] = {
     Design.RCT: 3,
@@ -96,7 +99,9 @@ DESIGN_WEIGHTS: dict[Design, float] = {
     Design.CROSS_SECTIONAL: 1,
     Design.CASE_SERIES: 0.5,
 }
-REVIEW_DESIGNS = frozenset({Design.SYSTEMATIC_REVIEW, Design.META_ANALYSIS})
+REVIEW_DESIGNS = frozenset(
+    {Design.SYSTEMATIC_REVIEW, Design.META_ANALYSIS, Design.NARRATIVE_REVIEW}
+)
 DEFAULT_EXCLUDED_DESIGNS = frozenset({Design.CASE_REPORT, Design.ANIMAL, Design.IN_VITRO})
 
 

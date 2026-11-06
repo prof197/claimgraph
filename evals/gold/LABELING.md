@@ -40,20 +40,27 @@ given.
 | `case_control` | People with and without depression compared on vitamin D |
 | `cross_sectional` | Vitamin D and depression measured at one time |
 | `case_series` | A descriptive series of patients |
-| `systematic_review` | A review with a stated search and selection method, without pooling |
+| `systematic_review` | A review with systematic methods, without pooling, including scoping and umbrella reviews |
 | `meta_analysis` | A systematic review that pools results |
+| `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results |
 | `case_report` | One or a few patients described |
 | `animal`, `in_vitro` | Non-human or laboratory studies |
-| `other` | Anything else: narrative reviews, Mendelian randomization, protocols, guidelines, perspectives, bibliometric studies |
+| `other` | A primary study that fits none of the above, such as Mendelian randomization or a bibliometric analysis |
+
+A review has systematic methods when its abstract calls it systematic, scoping, umbrella or a
+meta-analysis, or describes both how it searched and how it chose studies: eligibility criteria,
+screening, or a count of included studies. A review that only names the databases it searched is
+narrative. A review titled narrative that describes both a search and a selection is systematic.
+PubMed's publication types do not settle this: some systematic reviews are tagged only Review,
+and recent records often carry no type at all.
 
 **`sample_size`**: participants enrolled or randomized, not analyzed or completed. When the
-abstract gives only one count of participants, use it. For reviews, write `"not_reported"`.
+abstract gives only one count of participants, use it. For reviews, write `"not_reported"`: a
+review's pooled total is neither enrolled nor randomized.
 
-**`review_summary`**: for `systematic_review` and `meta_analysis` only, one sentence stating
-the review's conclusion in your words. A review has no findings.
-
-A narrative review is `other` with no findings and no summary: it reports others' results, not
-its own.
+**`review_summary`**: for `systematic_review`, `meta_analysis` and `narrative_review` only, one
+sentence stating the review's conclusion in your words. A review has no findings: it reports
+others' results, not its own, and reviews are not counted.
 
 ### Findings
 

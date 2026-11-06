@@ -48,7 +48,7 @@ class AbstractLabel(Record):
     pmid: Pmid
     design: Design
     sample_size: Participants | Literal["not_reported"]
-    # For a systematic review or meta-analysis only.
+    # For a review only: systematic, meta-analysis or narrative.
     review_summary: NonBlank | None = None
     findings: list[FindingLabel] = Field(default_factory=list[FindingLabel], alias="finding")
     note: str | None = None
@@ -57,9 +57,11 @@ class AbstractLabel(Record):
     def _reviews_summarize_and_others_report(self) -> Self:
         if self.design in REVIEW_DESIGNS:
             if self.findings:
-                raise ValueError("a systematic review or meta-analysis has no findings to count")
+                raise ValueError("a review has no findings to count")
+            if self.review_summary is None:
+                raise ValueError("a review needs a review_summary")
         elif self.review_summary is not None:
-            raise ValueError("only a systematic review or meta-analysis takes a review_summary")
+            raise ValueError("only a review takes a review_summary")
         return self
 
     @property
@@ -285,13 +287,12 @@ def label_template(entry: GoldAbstract, config: QuestionConfig) -> str:
         '# Enrolled or randomized, not analyzed; "not_reported" if the abstract does not say.',
         'sample_size = ""',
     ]
-    if entry.design is Stratum.SYSTEMATIC_REVIEW:
+    if entry.design in (Stratum.SYSTEMATIC_REVIEW, Stratum.REVIEW):
         lines += [
-            "# A systematic review or meta-analysis has no findings: one sentence, its conclusion.",
+            "# A review has no findings: one sentence, its conclusion. Publication types do not",
+            "# settle systematic or narrative; the abstract's methods do.",
             'review_summary = ""',
         ]
-    elif entry.design is Stratum.REVIEW:
-        lines += ['# A narrative review: design "other" and no findings, unless it is systematic.']
     else:
         lines += ["", *_finding_block(config)]
     return "\n".join(lines) + "\n"
