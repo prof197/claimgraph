@@ -33,6 +33,7 @@ def config(**overrides: Any) -> QuestionConfig:
         "title": "Synthetic question for tests?",
         "exposure_terms": ["synthetic"],
         "outcome_terms": ["placebo*"],
+        "outcome_domain": ["synthetic symptom score"],
         "end_date": date(2026, 10, 31),
     }
     return QuestionConfig.model_validate(fields | overrides)
@@ -45,6 +46,12 @@ def test_vitamin_d_config_loads() -> None:
     assert cfg.start_date is None
     assert cfg.end_date == date(2026, 10, 31)
     assert cfg.exclude_designs == DEFAULT_EXCLUDED_DESIGNS
+    assert cfg.outcome_domain == [
+        "depressive symptoms",
+        "depression diagnosis or incidence",
+        "remission",
+        "response",
+    ]
     [baseline] = cfg.dimensions
     assert baseline.name == "baseline_vitamin_d_status"
     assert baseline.type is DimensionType.OPTIONS
@@ -84,7 +91,7 @@ def test_load_rejects_id_that_differs_from_file_name(tmp_path: Path) -> None:
     path = tmp_path / "other-name.toml"
     path.write_text(
         'id = "synthetic-question"\ntitle = "t"\nexposure_terms = ["x"]\n'
-        'outcome_terms = ["y"]\nend_date = 2026-10-31\n'
+        'outcome_terms = ["y"]\noutcome_domain = ["z"]\nend_date = 2026-10-31\n'
     )
 
     with pytest.raises(ValueError, match="other-name"):
@@ -104,6 +111,9 @@ def test_load_rejects_id_that_differs_from_file_name(tmp_path: Path) -> None:
         pytest.param({"outcome_terms": ["*"]}, id="bare truncation"),
         pytest.param({"exposure_terms": ["a", "a"]}, id="duplicate terms"),
         pytest.param({"topic_match": "mesh"}, id="unknown topic match"),
+        pytest.param({"outcome_domain": []}, id="empty outcome domain"),
+        pytest.param({"outcome_domain": [" "]}, id="blank outcome domain entry"),
+        pytest.param({"outcome_domain": ["a", "a"]}, id="duplicate outcome domain entries"),
         pytest.param({"filters": [""]}, id="blank filter"),
         pytest.param({"start_date": date(2027, 1, 1)}, id="start after end"),
         pytest.param({"exclude_designs": ["anecdote"]}, id="unknown design"),

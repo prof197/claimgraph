@@ -80,6 +80,9 @@ class QuestionConfig(Record):
     exposure_terms: TopicTerms
     outcome_terms: TopicTerms
     topic_match: TopicMatch = TopicMatch.TITLE_ABSTRACT
+    # The outcomes this question is about. Extraction keeps findings on these and counts the
+    # rest as out of scope, so a broad search does not fill the map with unrelated outcomes.
+    outcome_domain: Annotated[list[NonBlank], Field(min_length=1)]
     # PubMed-syntax clauses joined to the topic query with AND.
     filters: list[NonBlank] = Field(default_factory=list)
     start_date: date | None = None
@@ -95,6 +98,8 @@ class QuestionConfig(Record):
         for terms in (self.exposure_terms, self.outcome_terms):
             if len(set(terms)) != len(terms):
                 raise ValueError("topic terms must be unique")
+        if len(set(self.outcome_domain)) != len(self.outcome_domain):
+            raise ValueError("outcome domain entries must be unique")
         names = [d.name for d in self.dimensions]
         if len(set(names)) != len(names):
             raise ValueError("dimension names must be unique")

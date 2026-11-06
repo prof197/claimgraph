@@ -238,6 +238,11 @@ studies that report the outcome secondarily.
   counts it. The page never shows an unchecked quote.
 - Custom dimensions take their definition from the config. Operational criteria belong in the
   definition. Number dimensions name one unit and the model converts to it.
+- **Outcome domain.** The config names the outcomes the question is about; for vitamin D,
+  depressive symptoms, depression diagnosis or incidence, remission and response. Extraction
+  returns only findings in that domain. Findings on other outcomes are counted as out of scope
+  in the run manifest and not stored, so a broad search adds recall without filling the map with
+  unrelated outcomes.
 - Reviews and meta-analyses get study fields and a one-sentence summary for the reviews list,
   labelled as a summary. Their findings are not extracted for counting.
 - **Model.** Extraction starts on the small model and moves to the mid-tier model only where the

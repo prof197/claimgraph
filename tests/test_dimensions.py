@@ -22,6 +22,7 @@ def config(*dimensions: dict[str, Any]) -> QuestionConfig:
             "title": "Synthetic question for tests?",
             "exposure_terms": ["synthetic"],
             "outcome_terms": ["placebo*"],
+            "outcome_domain": ["synthetic symptom score"],
             "end_date": date(2026, 10, 31),
             "dimensions": list(dimensions),
         }

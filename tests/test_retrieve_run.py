@@ -34,6 +34,7 @@ def config(**overrides: Any) -> QuestionConfig:
         "title": "Synthetic question for tests?",
         "exposure_terms": ["synthetic"],
         "outcome_terms": ["placebo*"],
+        "outcome_domain": ["synthetic symptom score"],
         "end_date": date(2026, 10, 31),
     }
     return QuestionConfig.model_validate(fields | overrides)
