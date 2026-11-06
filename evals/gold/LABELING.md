@@ -39,7 +39,7 @@ given.
 | `cohort` | People followed over time, prospectively or retrospectively, including follow-up analyses of trial participants that do not compare the randomized arms |
 | `case_control` | People with and without depression compared on vitamin D |
 | `cross_sectional` | Vitamin D and depression measured at one time |
-| `case_series` | A series of patients with no comparison group, including single-arm before-after studies where everyone gets vitamin D |
+| `case_series` | A series of patients with no concurrent comparison group, including single-arm before-after studies where everyone gets vitamin D and comparisons with historical controls only |
 | `systematic_review` | A review with systematic methods, without pooling, including scoping and umbrella reviews |
 | `meta_analysis` | A systematic review that pools results |
 | `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results, unless they meet the systematic test below |
@@ -61,7 +61,8 @@ assigned without randomization, with a concurrent group that got something else,
 study in `other` compares groups the researchers did not assign, such as a natural experiment.
 A single-arm study, where everyone gets vitamin D and outcomes are compared before and after, is
 `case_series`, even when the abstract calls it a trial; its effect is the change from before to
-after.
+after. A study that compares treated patients only with historical controls, an earlier group
+that did not get vitamin D, is `case_series` too: it has no concurrent comparison either.
 
 A protocol reports no results, so it has no findings. Its design is the planned design, such as
 `rct` for a trial protocol. A review protocol's summary says what the review will assess.

@@ -174,8 +174,10 @@ extraction uses it stays a clean signal in the extraction eval.
 interventions by methods that are not random ([EPOC][epoc-designs]), so it needs a concurrent
 comparison group. A single-arm study, where everyone gets vitamin D and outcomes are compared
 before and after, is a case series, a series of patients given similar treatment
-([CEBM][cebm-glossary]), and weighs 0.5; its effect is the change from before to after.
-Extraction reports how many kept records are single-arm.
+([CEBM][cebm-glossary]), and weighs 0.5; its effect is the change from before to after. A
+comparison with historical controls only is a case series too: it has no concurrent group
+either, and historical controls are long known to inflate the apparent benefit of new
+treatments ([Goodacre 2015][goodacre]). Extraction reports how many kept records are single-arm.
 
 **Design from publication types.** A publication type that names a design sets it, such as
 Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. Review alone
@@ -601,10 +603,11 @@ These are expectations, to be replaced with measurements.
 
 - **Spin:** abstracts can overstate secondary or subgroup results. Counting primary findings,
   never subgroup results, and showing every quote limits the damage.
-- **Uncontrolled before-after findings lean toward benefit:** depression scores fall in the
-  placebo arms of antidepressant trials too, by a large part of the drug arms' improvement
+- **Uncontrolled findings lean toward benefit:** depression scores fall in the placebo arms of
+  antidepressant trials too, by a large part of the drug arms' improvement
   ([Rief et al. 2009][rief]), so a single-arm study can show improvement that vitamin D did not
-  cause. These studies are case series, and the 0.5 weight keeps them light.
+  cause, and historical controls overstate benefit ([Goodacre 2015][goodacre]). Both are case
+  series, and the 0.5 weight keeps them light.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.
@@ -720,6 +723,7 @@ publication types and animal-only studies, apply to every row.
 - [Cochrane EPOC: what study designs should be included in an EPOC review][epoc-designs]
 - [CEBM glossary: case series][cebm-glossary]
 - [Rief et al. 2009, placebo response in antidepressant trials][rief]
+- [Goodacre 2015, uncontrolled before-after studies][goodacre]
 - [GRADE certainty criteria, CDC ACIP handbook][grade-cdc]
 - [Okereke et al. 2020, VITAL-DEP][vital-dep]
 - [Ghaemi et al. 2024, vitamin D dose-response meta-analysis][ghaemi]
@@ -749,6 +753,7 @@ publication types and animal-only studies, apply to every row.
 [epoc-designs]: https://epoc.cochrane.org/sites/epoc.cochrane.org/files/public/uploads/Resources-for-authors2017/what_study_designs_should_be_included_in_an_epoc_review.pdf
 [cebm-glossary]: https://www.cebm.ox.ac.uk/resources/ebm-tools/glossary
 [rief]: https://pubmed.ncbi.nlm.nih.gov/19246102/
+[goodacre]: https://emj.bmj.com/content/32/7/507
 [grade-cdc]: https://www.cdc.gov/acip-grade-handbook/hcp/chapter-7-grade-criteria-determining-certainty-of-evidence/index.html
 [vital-dep]: https://pmc.ncbi.nlm.nih.gov/articles/PMC7403921/
 [ghaemi]: https://core-prod.cambridgecore.org/core/product/8F18452740B621CC04F441F037A2513B/core-reader
