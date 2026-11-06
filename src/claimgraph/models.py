@@ -31,8 +31,8 @@ class Design(StrEnum):
     CASE_SERIES = "case_series"
     SYSTEMATIC_REVIEW = "systematic_review"
     META_ANALYSIS = "meta_analysis"
-    # A review without systematic methods. OTHER stays for primary studies of unclear
-    # design, so how often the model falls back to it remains a clean signal.
+    # A review without systematic methods. OTHER holds only primary studies outside the
+    # weighted designs, so how often the model uses it remains a clean signal.
     NARRATIVE_REVIEW = "narrative_review"
     CASE_REPORT = "case_report"
     ANIMAL = "animal"

@@ -42,17 +42,25 @@ given.
 | `case_series` | A descriptive series of patients |
 | `systematic_review` | A review with systematic methods, without pooling, including scoping and umbrella reviews |
 | `meta_analysis` | A systematic review that pools results |
-| `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results |
+| `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results, unless they meet the systematic test below |
 | `case_report` | One or a few patients described |
 | `animal`, `in_vitro` | Non-human or laboratory studies |
-| `other` | A primary study that fits none of the above, such as Mendelian randomization or a bibliometric analysis |
+| `other` | A primary study outside the designs above, such as a quasi-experimental study, Mendelian randomization, a bibliometric analysis, or one whose design the abstract leaves unclear |
 
 A review has systematic methods when its abstract calls it systematic, scoping, umbrella or a
 meta-analysis, or describes both how it searched and how it chose studies: eligibility criteria,
 screening, or a count of included studies. A review that only names the databases it searched is
 narrative. A review titled narrative that describes both a search and a selection is systematic.
-PubMed's publication types do not settle this: some systematic reviews are tagged only Review,
-and recent records often carry no type at all.
+The systematic test applies first, so a guideline, position statement or perspective that meets
+it is a systematic review or meta-analysis. PubMed's publication types do not settle this: some
+systematic reviews are tagged only Review, and recent records often carry no type at all.
+
+An intervention the researchers assigned without randomization is `non_randomized_trial`, even
+when the abstract calls it quasi-experimental; a quasi-experimental study in `other` compares
+groups the researchers did not assign, such as a natural experiment.
+
+A protocol reports no results, so it has no findings. Its design is the planned design, such as
+`rct` for a trial protocol. A review protocol's summary says what the review will assess.
 
 **`sample_size`**: participants enrolled or randomized, not analyzed or completed. When the
 abstract gives only one count of participants, use it. For reviews, write `"not_reported"`: a

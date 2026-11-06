@@ -66,7 +66,7 @@ several outcomes, arms or subgroups.
 | Study | `trial_ids` | list[str] | Registrations from any trial registry, as `REGISTRY:ACCESSION`; papers linked through any shared ID count once |
 | Study | `year` | int | |
 | Study | `language` | str | Article language, from PubMed |
-| Study | `design` | Design | From PubMed publication types when they name it; the model otherwise |
+| Study | `design` | Design | From PubMed publication types when they name it, though Review alone names none; the model otherwise |
 | Study | `sample_size` | int or None | Enrolled or randomized, not analyzed |
 | Finding | `finding_id` | str | `<pmid>-<n>`, assigned by code |
 | Finding | `claim` | str | One plain sentence written by the model |
@@ -92,7 +92,8 @@ papers joined by shared IDs.
 
 **What the model returns.** Extraction returns an Extraction per abstract: the study-level design
 (used only when publication types don't name one), the sample size, a one-sentence summary for
-reviews only, systematic, meta-analyses or narrative, and the list of findings. Code assigns `finding_id`. Stored
+reviews only, systematic, meta-analyses or narrative, and the list of findings. Code assigns
+`finding_id`. Stored
 Findings keep custom-dimension values in a `dimensions` mapping, so the Finding model stays
 static while the extraction model varies with the question.
 
@@ -159,14 +160,21 @@ eval measures extraction rather than disagreement over the rule.
 | Cohort | 2 | Counted |
 | Case-control, cross-sectional | 1 | Counted |
 | Case series | 0.5 | Counted |
-| Other (a primary study that fits none of the above) | — | Shown, not counted |
+| Other (a primary study outside the designs above, such as quasi-experimental, Mendelian randomization or unclear) | — | Shown, not counted |
 | Systematic review, meta-analysis | — | Listed, not counted |
 | Narrative review | — | Not counted |
 | Case report, animal, in vitro | — | Excluded by default; set per question |
 
 Narrative reviews, reviews without systematic methods, have their own design rather than falling
-to Other. Other then means only a primary study of unclear design, so how often extraction falls
-back to it stays a clean signal in the extraction eval.
+to Other. Other then holds only primary studies outside the weighted designs, so how often
+extraction uses it stays a clean signal in the extraction eval.
+
+**Design from publication types.** A publication type that names a design sets it, such as
+Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. Review alone
+names no design: the model decides from the abstract whether the review is systematic or
+narrative. Among the kept records, at least 21 tagged only Review are systematic reviews,
+meta-analyses or scoping reviews by their own title or stated methods, while 1 of 109 tagged
+Systematic Review or Meta-Analysis describes no method (see Measured numbers).
 
 ## Retrieve and extract
 
@@ -264,6 +272,7 @@ title alone.
   unrelated outcomes.
 - Reviews, systematic or narrative, and meta-analyses get study fields and a one-sentence
   summary, labelled as a summary. Their findings are not extracted for counting.
+- Protocols report no results, so they have no findings; their design is the planned design.
 - **Model.** Extraction starts on the small model and moves to the mid-tier model only where the
   extraction eval shows a field-level gap.
 
