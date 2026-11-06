@@ -552,7 +552,10 @@ publication types and animal-only studies, apply to every row.
   title and abstract, 1 was on topic (a review of add-on treatments for depression), 3 marginal
   (premenstrual mood symptoms, psychological distress, parathyroid hormone and depression) and
   22 off topic, mostly bone and mineral studies. `Mood Disorders` also brings in bipolar disorder
-  studies, which the outcome domain leaves off the map.
+  studies, which the outcome domain leaves off the map. Restricting the headings to major topics
+  (`[majr]`) keeps 52 of the 142, but it loses the on-topic review and one of the marginal
+  records, and it drops no larger share of the bone and mineral studies: by title, 29 of those
+  are dropped and 29 kept. The headings stay at `[mh]`.
 - **Raw cache.** About 19 KB per record. The cache keeps records from earlier term lists, and the
   vitamin D run directory is about 50 MB.
 - **What title scope costs.** Under the earlier term list, title-and-abstract scope kept 1,439
