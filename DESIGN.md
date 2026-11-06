@@ -170,6 +170,13 @@ Narrative reviews, reviews without systematic methods, have their own design rat
 to Other. Other then holds only primary studies outside the weighted designs, so how often
 extraction uses it stays a clean signal in the extraction eval.
 
+**Trials need a comparison group.** A non-randomized trial allocates people to different
+interventions by methods that are not random ([EPOC][epoc-designs]), so it needs a concurrent
+comparison group. A single-arm study, where everyone gets vitamin D and outcomes are compared
+before and after, is a case series, a series of patients given similar treatment
+([CEBM][cebm-glossary]), and weighs 0.5; its effect is the change from before to after.
+Extraction reports how many kept records are single-arm.
+
 **Design from publication types.** A publication type that names a design sets it, such as
 Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. Review alone
 names no design: the model decides from the abstract whether the review is systematic or
@@ -594,6 +601,10 @@ These are expectations, to be replaced with measurements.
 
 - **Spin:** abstracts can overstate secondary or subgroup results. Counting primary findings,
   never subgroup results, and showing every quote limits the damage.
+- **Uncontrolled before-after findings lean toward benefit:** depression scores fall in the
+  placebo arms of antidepressant trials too, by a large part of the drug arms' improvement
+  ([Rief et al. 2009][rief]), so a single-arm study can show improvement that vitamin D did not
+  cause. These studies are case series, and the 0.5 weight keeps them light.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.
@@ -706,6 +717,9 @@ publication types and animal-only studies, apply to every row.
 - [Cochrane Handbook 5.1, section 9.5.1: what is heterogeneity][cochrane]
 - [Cochrane Handbook 6.5.1, section 4.4.4: controlled vocabulary and text words][cochrane-search]
 - [GRADE: indirectness and PICO][grade-pico]
+- [Cochrane EPOC: what study designs should be included in an EPOC review][epoc-designs]
+- [CEBM glossary: case series][cebm-glossary]
+- [Rief et al. 2009, placebo response in antidepressant trials][rief]
 - [GRADE certainty criteria, CDC ACIP handbook][grade-cdc]
 - [Okereke et al. 2020, VITAL-DEP][vital-dep]
 - [Ghaemi et al. 2024, vitamin D dose-response meta-analysis][ghaemi]
@@ -732,6 +746,9 @@ publication types and animal-only studies, apply to every row.
 [cochrane]: https://training-noproxy.cochrane.org/handbook/archive/v5.1/chapter_9/9_5_1_what_is_heterogeneity.htm
 [cochrane-search]: https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-04
 [grade-pico]: https://scholarworks.aub.edu.lb/items/3ff7d4a6-32f2-46d7-9ffe-15425f8d58fd
+[epoc-designs]: https://epoc.cochrane.org/sites/epoc.cochrane.org/files/public/uploads/Resources-for-authors2017/what_study_designs_should_be_included_in_an_epoc_review.pdf
+[cebm-glossary]: https://www.cebm.ox.ac.uk/resources/ebm-tools/glossary
+[rief]: https://pubmed.ncbi.nlm.nih.gov/19246102/
 [grade-cdc]: https://www.cdc.gov/acip-grade-handbook/hcp/chapter-7-grade-criteria-determining-certainty-of-evidence/index.html
 [vital-dep]: https://pmc.ncbi.nlm.nih.gov/articles/PMC7403921/
 [ghaemi]: https://core-prod.cambridgecore.org/core/product/8F18452740B621CC04F441F037A2513B/core-reader

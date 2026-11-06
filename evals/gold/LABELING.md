@@ -35,11 +35,11 @@ given.
 | Value | Use for |
 |---|---|
 | `rct` | Participants randomized to vitamin D or a comparator, including dose comparisons |
-| `non_randomized_trial` | An intervention without randomization, including single-arm pre-post trials |
+| `non_randomized_trial` | Participants allocated to vitamin D or a comparator by methods that are not random, with a concurrent comparison group |
 | `cohort` | People followed over time, prospectively or retrospectively, including follow-up analyses of trial participants that do not compare the randomized arms |
 | `case_control` | People with and without depression compared on vitamin D |
 | `cross_sectional` | Vitamin D and depression measured at one time |
-| `case_series` | A descriptive series of patients |
+| `case_series` | A series of patients with no comparison group, including single-arm before-after studies where everyone gets vitamin D |
 | `systematic_review` | A review with systematic methods, without pooling, including scoping and umbrella reviews |
 | `meta_analysis` | A systematic review that pools results |
 | `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results, unless they meet the systematic test below |
@@ -55,9 +55,13 @@ The systematic test applies first, so a guideline, position statement or perspec
 it is a systematic review or meta-analysis. PubMed's publication types do not settle this: some
 systematic reviews are tagged only Review, and recent records often carry no type at all.
 
-An intervention the researchers assigned without randomization is `non_randomized_trial`, even
-when the abstract calls it quasi-experimental; a quasi-experimental study in `other` compares
-groups the researchers did not assign, such as a natural experiment.
+A non-randomized trial needs a concurrent comparison group. An intervention the researchers
+assigned without randomization, with a concurrent group that got something else, is
+`non_randomized_trial`, even when the abstract calls it quasi-experimental; a quasi-experimental
+study in `other` compares groups the researchers did not assign, such as a natural experiment.
+A single-arm study, where everyone gets vitamin D and outcomes are compared before and after, is
+`case_series`, even when the abstract calls it a trial; its effect is the change from before to
+after.
 
 A protocol reports no results, so it has no findings. Its design is the planned design, such as
 `rct` for a trial protocol. A review protocol's summary says what the review will assess.
@@ -98,7 +102,7 @@ curly versus straight quote marks.
 side with less: `increased`, `decreased` or `no_change`. More vitamin D means a higher serum
 level, a higher intake, a higher dose, or supplementation compared with placebo or none. In a
 trial, it is the arm that got more: vitamin D against placebo, or the higher dose against the
-lower. Turn a result stated the other way round, as deficiency compared with sufficiency, so that
+lower. In a single-arm study, it is after supplementation against before. Turn a result stated the other way round, as deficiency compared with sufficiency, so that
 more vitamin D is the exposure side. When an abstract reports the association with depression as
 the exposure, as in "depressed patients had lower vitamin D", read it with vitamin D as the
 exposure: that is `decreased`, and `outcome_reported` is the depression measure, not the vitamin
@@ -113,7 +117,7 @@ D level. The quote stays verbatim.
 | A non-significant trend toward lower scores with vitamin D | `no_change` |
 | Synthetic scores fell more with the higher dose than with the lower dose | `decreased` |
 | Patients with synthetic depression had lower 25(OH)D than controls | `decreased`; the outcome is synthetic depression |
-| In an uncontrolled study, scores fell from baseline after supplementation | `decreased` |
+| In a single-arm study, scores fell from baseline after supplementation | `decreased`; the design is `case_series` |
 | Higher 25(OH)D was associated with more synthetic depressive symptoms | `increased` |
 
 **`is_primary`**: `true` only when the abstract calls this the primary outcome or endpoint.
