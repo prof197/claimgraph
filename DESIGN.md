@@ -263,6 +263,11 @@ title alone.
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
   normalization. A miss gets one retry that names the miss; a second miss drops the finding and
   counts it. The page never shows an unchecked quote.
+- **One prompt for every question.** The extraction prompt states the labeling rules in
+  general terms, filled in from the question config: the effect is read from the side with more
+  of the exposure, and measures that combine the outcome domain with something else don't
+  count. Examples specific to a question live in its config and the labeling guide, never in
+  the shared prompt, so a new question needs no prompt edits.
 - Custom dimensions take their definition from the config. Operational criteria belong in the
   definition. Number dimensions name one unit and the model converts to it.
 - **Outcome domain.** The config names the outcomes the question is about; for vitamin D,
