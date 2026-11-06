@@ -76,6 +76,7 @@ def test_defaults() -> None:
 
     assert cfg.filters == []
     assert cfg.topic_match is TopicMatch.TITLE_ABSTRACT
+    assert (cfg.exposure_mesh, cfg.outcome_mesh) == ([], [])
     assert cfg.start_date is None
     assert cfg.exclude_designs == DEFAULT_EXCLUDED_DESIGNS
     assert cfg.dimensions == []
@@ -111,6 +112,11 @@ def test_load_rejects_id_that_differs_from_file_name(tmp_path: Path) -> None:
         pytest.param({"outcome_terms": ["*"]}, id="bare truncation"),
         pytest.param({"exposure_terms": ["a", "a"]}, id="duplicate terms"),
         pytest.param({"topic_match": "mesh"}, id="unknown topic match"),
+        pytest.param({"exposure_mesh": [" "]}, id="blank heading"),
+        pytest.param({"exposure_mesh": ["Vitamin D*"]}, id="truncated heading"),
+        pytest.param({"outcome_mesh": ["Depression[mh]"]}, id="field tag in a heading"),
+        pytest.param({"outcome_mesh": ['"Depression"']}, id="quote in a heading"),
+        pytest.param({"outcome_mesh": ["Depression", "Depression"]}, id="duplicate headings"),
         pytest.param({"outcome_domain": []}, id="empty outcome domain"),
         pytest.param({"outcome_domain": [" "]}, id="blank outcome domain entry"),
         pytest.param({"outcome_domain": ["a", "a"]}, id="duplicate outcome domain entries"),
@@ -139,6 +145,26 @@ def test_topic_query_is_built_from_the_terms(match: TopicMatch, query: str) -> N
     cfg = config(exposure_terms=["vitamin D", "25(OH)D"], outcome_terms=["depress*", "mood"])
 
     assert cfg.topic_query(match) == f"({query})"
+
+
+def test_topic_query_adds_mesh_headings_in_title_abstract_scope() -> None:
+    cfg = config(
+        exposure_terms=["vitamin D"],
+        outcome_terms=["depress*"],
+        exposure_mesh=["Vitamin D"],
+        outcome_mesh=["Depression", "Mood Disorders"],
+    )
+
+    assert cfg.topic_query(TopicMatch.TITLE_ABSTRACT) == (
+        '("vitamin D"[tiab] OR "Vitamin D"[mh]) AND '
+        '(depress*[tiab] OR "Depression"[mh] OR "Mood Disorders"[mh])'
+    )
+
+
+def test_title_scope_ignores_mesh_headings() -> None:
+    cfg = config(exposure_mesh=["Synthetic Heading"], outcome_mesh=["Placebo Effect"])
+
+    assert cfg.topic_query(TopicMatch.TITLE) == '("synthetic"[ti]) AND (placebo*[ti])'
 
 
 def test_topic_query_defaults_to_the_configured_match() -> None:

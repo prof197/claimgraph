@@ -180,6 +180,14 @@ Scope is a config choice, not code, because it trades recall against review effo
 scope finds the studies that are about the question, while title-and-abstract scope also finds
 studies that report the outcome secondarily.
 
+In title-and-abstract scope, optional `exposure_mesh` and `outcome_mesh` lists add MeSH headings
+to each side, `OR`-ed with the terms and searched with `[mh]`, which also matches the narrower
+headings beneath each one. Combining controlled vocabulary with free text is standard practice
+for systematic searches ([Cochrane Handbook, section 4.4.4][cochrane-search]): indexers assign
+headings from the full article, so they find records whose abstract words miss the topic, while
+free text finds records not yet indexed. Title scope ignores the headings and stays a test of the
+title alone.
+
 **Retrieve.**
 
 - ESearch with `usehistory=y`, then EFetch in batches of 200 PMIDs as XML. A token-bucket limiter
@@ -553,6 +561,7 @@ animal-only studies, apply to every row.
 - [NLM: MEDLINE DataBank sources and trial registries][nlm-databank]
 - [Claude API pricing][pricing]
 - [Cochrane Handbook 5.1, section 9.5.1: what is heterogeneity][cochrane]
+- [Cochrane Handbook 6.5.1, section 4.4.4: controlled vocabulary and text words][cochrane-search]
 - [GRADE: indirectness and PICO][grade-pico]
 - [GRADE certainty criteria, CDC ACIP handbook][grade-cdc]
 - [Okereke et al. 2020, VITAL-DEP][vital-dep]
@@ -575,6 +584,7 @@ animal-only studies, apply to every row.
 [nlm-databank]: https://www.nlm.nih.gov/bsd/medline_databank_source.html
 [pricing]: https://platform.claude.com/docs/en/about-claude/pricing
 [cochrane]: https://training-noproxy.cochrane.org/handbook/archive/v5.1/chapter_9/9_5_1_what_is_heterogeneity.htm
+[cochrane-search]: https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-04
 [grade-pico]: https://scholarworks.aub.edu.lb/items/3ff7d4a6-32f2-46d7-9ffe-15425f8d58fd
 [grade-cdc]: https://www.cdc.gov/acip-grade-handbook/hcp/chapter-7-grade-criteria-determining-certainty-of-evidence/index.html
 [vital-dep]: https://pmc.ncbi.nlm.nih.gov/articles/PMC7403921/

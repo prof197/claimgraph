@@ -22,6 +22,11 @@ TopicTerm = Annotated[
     str, StringConstraints(strip_whitespace=True, pattern=r'^[^"\[\]*\s][^"\[\]*]*\*?$')
 ]
 TopicTerms = Annotated[list[TopicTerm], Field(min_length=1)]
+# A MeSH heading as NLM spells it, searched with [mh], which also matches the narrower headings
+# beneath it in the MeSH tree.
+MeshHeading = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r'^[^"\[\]*\s][^"\[\]*]*$')
+]
 
 
 class TopicMatch(StrEnum):
@@ -80,6 +85,11 @@ class QuestionConfig(Record):
     exposure_terms: TopicTerms
     outcome_terms: TopicTerms
     topic_match: TopicMatch = TopicMatch.TITLE_ABSTRACT
+    # Indexers assign MeSH headings from the full text, so these find records whose abstract
+    # words miss the topic. They join the terms in title_abstract scope only; title scope stays
+    # a test of the title alone.
+    exposure_mesh: list[MeshHeading] = Field(default_factory=list[MeshHeading])
+    outcome_mesh: list[MeshHeading] = Field(default_factory=list[MeshHeading])
     # The outcomes this question is about. Extraction keeps findings on these and counts the
     # rest as out of scope, so a broad search does not fill the map with unrelated outcomes.
     outcome_domain: Annotated[list[NonBlank], Field(min_length=1)]
@@ -98,6 +108,9 @@ class QuestionConfig(Record):
         for terms in (self.exposure_terms, self.outcome_terms):
             if len(set(terms)) != len(terms):
                 raise ValueError("topic terms must be unique")
+        for headings in (self.exposure_mesh, self.outcome_mesh):
+            if len(set(headings)) != len(headings):
+                raise ValueError("MeSH headings must be unique")
         if len(set(self.outcome_domain)) != len(self.outcome_domain):
             raise ValueError("outcome domain entries must be unique")
         names = [d.name for d in self.dimensions]
@@ -109,15 +122,21 @@ class QuestionConfig(Record):
         return self
 
     def topic_query(self, match: TopicMatch | None = None) -> str:
-        tag = (match or self.topic_match).field_tag
+        match = match or self.topic_match
+        tag = match.field_tag
 
-        def any_of(terms: list[str]) -> str:
+        def any_of(terms: list[str], headings: list[str]) -> str:
             # Truncated terms cannot be quoted in PubMed; whole terms are quoted as phrases.
-            return " OR ".join(
+            clauses = [
                 f"{term}[{tag}]" if term.endswith("*") else f'"{term}"[{tag}]' for term in terms
-            )
+            ]
+            if match is TopicMatch.TITLE_ABSTRACT:
+                clauses += [f'"{heading}"[mh]' for heading in headings]
+            return " OR ".join(clauses)
 
-        return f"({any_of(self.exposure_terms)}) AND ({any_of(self.outcome_terms)})"
+        exposure = any_of(self.exposure_terms, self.exposure_mesh)
+        outcome = any_of(self.outcome_terms, self.outcome_mesh)
+        return f"({exposure}) AND ({outcome})"
 
 
 def load_config(path: Path) -> QuestionConfig:
