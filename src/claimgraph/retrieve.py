@@ -493,7 +493,7 @@ def retrieve(
     if refresh or saved is None or {m: s.term for m, s in saved.scopes.items()} != terms:
         # The configured scope is searched last, so its history-server handle is the freshest.
         results: dict[TopicMatch, SearchResult] = {}
-        for match in sorted(TopicMatch, key=lambda m: m is scope):
+        for match in [m for m in TopicMatch if m is not scope] + [scope]:
             results[match] = client.search(terms[match])
         history = results[scope]
         saved = SavedSearch(
