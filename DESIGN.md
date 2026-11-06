@@ -210,15 +210,19 @@ studies that report the outcome secondarily.
 - Records typed "Retracted Publication" are dropped and counted, and the page's method section
   says how many were excluded. Retraction status is only as current as the cached record. Book
   records are dropped too.
-- Each run writes `runs/<id>/`: `search.json` (the exact term, the search date and the PMIDs),
-  `raw/<pmid>.xml`, `abstracts.jsonl` and `manifest.json`. A rerun with the same term reuses the
+- Each run searches both topic scopes and fetches only the configured one. It writes
+  `runs/<id>/`: `search.json` (the search date and, per scope, the exact term, count and PMIDs),
+  `raw/<pmid>.xml`, `abstracts.jsonl` and `manifest.json`. Title scope's records are a subset of
+  title-and-abstract scope's, so a broad cache holds both and scope can be compared on measured
+  pairs and cost without another fetch. A rerun with the same term reuses the
   saved search and the cached records and makes no requests; a changed query or filter searches
   again and fetches only records not already cached. Files are written whole or not at all, so
   an interrupted run resumes by fetching just the missing PMIDs. A PMID the search lists but
   EFetch never returns is recorded as unavailable and retried only on `--refresh`.
 - `--refresh` searches and re-fetches everything. A published run refreshes first, so retraction
   status is current.
-- The run manifest records the query, the date range in words, the search date and the counts:
+- The run manifest records the scope, its query, both scopes' counts, the date range in words,
+  the search date and the counts:
   found, fetched, cached, unavailable, kept, and dropped by reason. Its language report counts
   kept records by article language and dropped records by reason and language, so the evidence
   outside English is visible rather than silent. It also records the requests made and the raw

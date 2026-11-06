@@ -415,20 +415,31 @@ def _trial_ids(article: ElementTree.Element, text: str) -> list[str]:
 # The retrieve stage
 
 
-class SavedSearch(Record):
-    """search.json: the PMIDs a search returned, so reruns need not search again."""
-
+class ScopeSearch(Record):
     term: str
-    searched_at: datetime
     count: int
     pmids: list[Pmid]
+
+
+class SavedSearch(Record):
+    """search.json: what each scope's search returned, so reruns need not search again.
+
+    Both scopes are searched on every run, so their counts and PMIDs can be compared from one
+    cache; only the configured scope's records are fetched.
+    """
+
+    searched_at: datetime
+    scopes: dict[TopicMatch, ScopeSearch]
     # Asked for but not returned by EFetch; retried only on refresh, so reruns stay offline.
     unavailable: list[Pmid] = Field(default_factory=list[Pmid])
 
 
 class RetrieveManifest(Record):
     question: str
+    # The scope this run retrieved, its search term, and how many records each scope finds.
+    scope: TopicMatch
     term: str
+    scope_counts: dict[TopicMatch, int]
     # What the date bound means, in words, for the page's method section.
     date_range: str
     searched_at: datetime
@@ -473,27 +484,37 @@ def retrieve(
     raw_dir = run_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     requests_before = client.requests
-    term = build_term(config)
+    scope = config.topic_match
+    terms = {match: build_term(config, match) for match in TopicMatch}
 
     search_path = run_dir / "search.json"
-    saved = (
-        SavedSearch.model_validate_json(search_path.read_text()) if search_path.exists() else None
-    )
+    saved = _load_search(search_path)
     history: SearchResult | None = None
-    if refresh or saved is None or saved.term != term:
-        history = client.search(term)
-        saved = SavedSearch(term=term, searched_at=now(), count=history.count, pmids=history.pmids)
+    if refresh or saved is None or {m: s.term for m, s in saved.scopes.items()} != terms:
+        # The configured scope is searched last, so its history-server handle is the freshest.
+        results: dict[TopicMatch, SearchResult] = {}
+        for match in sorted(TopicMatch, key=lambda m: m is scope):
+            results[match] = client.search(terms[match])
+        history = results[scope]
+        saved = SavedSearch(
+            searched_at=now(),
+            scopes={
+                match: ScopeSearch(term=terms[match], count=result.count, pmids=result.pmids)
+                for match, result in sorted(results.items())
+            },
+        )
         _write(search_path, saved.model_dump_json(indent=2).encode())
+    pmids = saved.scopes[scope].pmids
 
     def raw_path(pmid: str) -> Path:
         return raw_dir / f"{pmid}.xml"
 
     skip = set(saved.unavailable)
-    missing = [p for p in saved.pmids if refresh or not (raw_path(p).exists() or p in skip)]
+    missing = [p for p in pmids if refresh or not (raw_path(p).exists() or p in skip)]
     if missing:
         # A fresh search pages through the history server; filling gaps left by an
         # interrupted run asks for the missing PMIDs by ID.
-        if history is not None and len(missing) == len(saved.pmids):
+        if history is not None and len(missing) == len(pmids):
             documents = client.fetch_history(history)
         else:
             documents = client.fetch_ids(missing)
@@ -504,13 +525,14 @@ def retrieve(
                     _write(raw_path(pmid), xml)
                     wanted.discard(pmid)
         fetched = len(missing) - len(wanted)
-        unavailable = [p for p in saved.pmids if p in wanted or p in skip]
+        # Kept across scopes, so switching scope and back does not ask for them again.
+        unavailable = sorted(skip | wanted)
         saved = saved.model_copy(update={"unavailable": unavailable})
         _write(search_path, saved.model_dump_json(indent=2).encode())
     else:
         fetched = 0
 
-    available = [p for p in saved.pmids if raw_path(p).exists()]
+    available = [p for p in pmids if raw_path(p).exists()]
     records = [parse_record(raw_path(p).read_bytes()) for p in available]
     abstracts = [r for r in records if isinstance(r, Abstract)]
     drops = [r for r in records if isinstance(r, Dropped)]
@@ -526,13 +548,15 @@ def retrieve(
     manifest = RunManifest(
         retrieve=RetrieveManifest(
             question=config.id,
-            term=term,
+            scope=scope,
+            term=terms[scope],
+            scope_counts={match: search.count for match, search in saved.scopes.items()},
             date_range=describe_dates(config),
             searched_at=saved.searched_at,
-            found=saved.count,
+            found=saved.scopes[scope].count,
             fetched=fetched,
             cached=len(available) - fetched,
-            unavailable=[p for p in saved.pmids if not raw_path(p).exists()],
+            unavailable=[p for p in pmids if not raw_path(p).exists()],
             kept=len(abstracts),
             dropped=dict(sorted(Counter(d.reason for d in drops).items())),
             languages_kept=dict(sorted(Counter(a.language for a in abstracts).items())),
@@ -546,6 +570,16 @@ def retrieve(
     )
     _write(run_dir / "manifest.json", manifest.model_dump_json(indent=2).encode())
     return manifest
+
+
+def _load_search(path: Path) -> SavedSearch | None:
+    """The saved search, or None when there is none or it is in an older format."""
+    if not path.exists():
+        return None
+    try:
+        return SavedSearch.model_validate_json(path.read_text())
+    except ValidationError:
+        return None
 
 
 def _write(path: Path, data: bytes) -> None:

@@ -51,6 +51,8 @@ RECORDS = {
     ),
 }
 PMIDS = [*RECORDS, "999000005"]
+# Title scope finds a subset of what title-and-abstract scope finds.
+TITLE_PMIDS = ["999000001", "999000003"]
 
 
 class FakeEutils:
@@ -62,9 +64,10 @@ class FakeEutils:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         if request.url.path.endswith("/esearch.fcgi"):
+            pmids = TITLE_PMIDS if "[ti]" in request.url.params["term"] else PMIDS
             result = {
-                "count": str(len(PMIDS)),
-                "idlist": PMIDS,
+                "count": str(len(pmids)),
+                "idlist": pmids,
                 "webenv": "SYNTHETIC_WEBENV",
                 "querykey": "1",
             }
@@ -106,14 +109,15 @@ def test_first_run_writes_the_stage_files(tmp_path: Path) -> None:
     run(tmp_path, server)
 
     run_dir = tmp_path / "synthetic-question"
-    assert server.paths() == ["GET esearch.fcgi", "GET efetch.fcgi"]
+    assert server.paths() == ["GET esearch.fcgi", "GET esearch.fcgi", "GET efetch.fcgi"]
     assert sorted(p.name for p in (run_dir / "raw").iterdir()) == [
         f"{pmid}.xml" for pmid in RECORDS
     ]
     lines = (run_dir / "abstracts.jsonl").read_text().splitlines()
     assert [json.loads(line)["pmid"] for line in lines] == ["999000001", "999000002"]
     saved = json.loads((run_dir / "search.json").read_text())
-    assert saved["pmids"] == PMIDS
+    assert saved["scopes"]["title_abstract"]["pmids"] == PMIDS
+    assert saved["scopes"]["title"]["pmids"] == TITLE_PMIDS
 
 
 def test_manifest_counts_and_reports_languages(tmp_path: Path) -> None:
@@ -123,6 +127,8 @@ def test_manifest_counts_and_reports_languages(tmp_path: Path) -> None:
     assert stage.question == "synthetic-question"
     assert stage.date_range == "records added to PubMed through October 31, 2026"
     assert stage.searched_at == SEARCHED_AT
+    assert stage.scope == "title_abstract"
+    assert stage.scope_counts == {"title": 2, "title_abstract": 5}
     assert stage.found == 5
     assert (stage.fetched, stage.cached) == (4, 0)
     assert stage.unavailable == ["999000005"]
@@ -133,7 +139,7 @@ def test_manifest_counts_and_reports_languages(tmp_path: Path) -> None:
         DropReason.NO_ABSTRACT: {"ger": 1},
         DropReason.RETRACTED: {"eng": 1},
     }
-    assert stage.requests == 2
+    assert stage.requests == 3
     assert stage.raw_bytes == sum(
         p.stat().st_size for p in (tmp_path / "synthetic-question" / "raw").iterdir()
     )
@@ -178,7 +184,7 @@ def test_changed_query_searches_again(tmp_path: Path) -> None:
 
     run(tmp_path, server, config=config(filters=["humans[mh]"]))
 
-    assert server.paths() == ["GET esearch.fcgi", "POST efetch.fcgi"]
+    assert server.paths() == ["GET esearch.fcgi", "GET esearch.fcgi", "POST efetch.fcgi"]
 
 
 def test_refresh_searches_and_fetches_everything_again(tmp_path: Path) -> None:
@@ -187,7 +193,7 @@ def test_refresh_searches_and_fetches_everything_again(tmp_path: Path) -> None:
 
     manifest = run(tmp_path, server, refresh=True)
 
-    assert server.paths() == ["GET esearch.fcgi", "GET efetch.fcgi"]
+    assert server.paths() == ["GET esearch.fcgi", "GET esearch.fcgi", "GET efetch.fcgi"]
     assert (manifest.retrieve.fetched, manifest.retrieve.cached) == (4, 0)
     assert manifest.retrieve.unavailable == ["999000005"]
 
@@ -197,6 +203,39 @@ def test_unavailable_records_are_remembered(tmp_path: Path) -> None:
 
     saved = json.loads((tmp_path / "synthetic-question" / "search.json").read_text())
     assert saved["unavailable"] == ["999000005"]
+
+
+def test_title_scope_fetches_only_its_own_records(tmp_path: Path) -> None:
+    server = FakeEutils()
+
+    manifest = run(tmp_path, server, config=config(topic_match="title"))
+
+    raw = tmp_path / "synthetic-question" / "raw"
+    assert sorted(p.stem for p in raw.iterdir()) == TITLE_PMIDS
+    assert manifest.retrieve.scope == "title"
+    assert manifest.retrieve.found == 2
+    assert manifest.retrieve.scope_counts == {"title": 2, "title_abstract": 5}
+
+
+def test_changing_scope_reuses_the_saved_searches(tmp_path: Path) -> None:
+    run(tmp_path, FakeEutils())
+    server = FakeEutils()
+
+    manifest = run(tmp_path, server, config=config(topic_match="title"))
+
+    assert server.requests == []
+    assert manifest.retrieve.kept == 1
+
+
+def test_unreadable_saved_search_is_searched_again(tmp_path: Path) -> None:
+    run_dir = tmp_path / "synthetic-question"
+    run_dir.mkdir()
+    (run_dir / "search.json").write_text('{"term": "an older format"}')
+    server = FakeEutils()
+
+    run(tmp_path, server)
+
+    assert server.paths()[:2] == ["GET esearch.fcgi", "GET esearch.fcgi"]
 
 
 def test_no_partial_files_are_left_behind(tmp_path: Path) -> None:
@@ -242,5 +281,6 @@ def test_run_stage_retrieve_from_the_cache(tmp_path: Path, monkeypatch: pytest.M
 
     assert result.exit_code == 0, result.output
     assert "0 requests" in result.output
+    assert "scope title_abstract (2 by title, 5 by title_abstract)" in result.output
     assert "2 kept" in result.output
     assert server.requests == []

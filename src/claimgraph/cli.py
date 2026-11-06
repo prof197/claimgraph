@@ -57,6 +57,8 @@ def run(
 
     stage_report = manifest.retrieve
     dropped = ", ".join(f"{n} {reason}" for reason, n in stage_report.dropped.items()) or "none"
+    counts = ", ".join(f"{n} by {m}" for m, n in stage_report.scope_counts.items())
+    typer.echo(f"scope {stage_report.scope} ({counts})")
     typer.echo(
         f"{stage_report.found} found ({stage_report.date_range}); "
         f"{stage_report.fetched} fetched, {stage_report.cached} cached, "
