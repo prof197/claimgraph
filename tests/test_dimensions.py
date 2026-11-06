@@ -20,7 +20,8 @@ def config(*dimensions: dict[str, Any]) -> QuestionConfig:
         {
             "id": "synthetic-question",
             "title": "Synthetic question for tests?",
-            "query": "synthetic[tiab]",
+            "exposure_terms": ["synthetic"],
+            "outcome_terms": ["placebo*"],
             "end_date": date(2026, 10, 31),
             "dimensions": list(dimensions),
         }

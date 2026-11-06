@@ -7,7 +7,7 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from claimgraph.config import QuestionConfig
+from claimgraph.config import QuestionConfig, TopicMatch
 from claimgraph.retrieve import (
     BATCH_SIZE,
     SEARCH_CEILING,
@@ -38,7 +38,8 @@ def config(**overrides: Any) -> QuestionConfig:
     fields: dict[str, Any] = {
         "id": "synthetic-question",
         "title": "Synthetic question for tests?",
-        "query": "synthetic[tiab] OR placeholder[tiab]",
+        "exposure_terms": ["synthetic"],
+        "outcome_terms": ["placebo*"],
         "end_date": date(2026, 10, 31),
     }
     return QuestionConfig.model_validate(fields | overrides)
@@ -78,21 +79,27 @@ def client(
 # Search term
 
 
+TOPIC = '(("synthetic"[tiab]) AND (placebo*[tiab]))'
+
+
 def test_term_bounds_entrez_date_with_no_start() -> None:
     term = build_term(config())
 
-    assert term == (
-        '(synthetic[tiab] OR placeholder[tiab]) AND ("1000/01/01"[edat] : "2026/10/31"[edat])'
-    )
+    assert term == f'{TOPIC} AND ("1000/01/01"[edat] : "2026/10/31"[edat])'
 
 
 def test_term_ands_each_filter_and_the_start_date() -> None:
     term = build_term(config(filters=["humans[mh]", "english[la]"], start_date=date(2001, 2, 3)))
 
     assert term == (
-        "(synthetic[tiab] OR placeholder[tiab]) AND (humans[mh]) AND (english[la])"
-        ' AND ("2001/02/03"[edat] : "2026/10/31"[edat])'
+        f'{TOPIC} AND (humans[mh]) AND (english[la]) AND ("2001/02/03"[edat] : "2026/10/31"[edat])'
     )
+
+
+def test_term_can_use_the_other_topic_match() -> None:
+    term = build_term(config(), TopicMatch.TITLE)
+
+    assert term.startswith('(("synthetic"[ti]) AND (placebo*[ti])) AND ')
 
 
 # Identity and rate

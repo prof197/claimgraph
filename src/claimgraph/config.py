@@ -16,6 +16,23 @@ NOT_REPORTED = "not_reported"
 
 QuestionId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")]
 DimensionName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
+# A word or phrase searched as typed; a trailing * matches any ending, as PubMed truncation does.
+# Quotes and field tags are added by the loader, so a term holds neither.
+TopicTerm = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r'^[^"\[\]*\s][^"\[\]*]*\*?$')
+]
+TopicTerms = Annotated[list[TopicTerm], Field(min_length=1)]
+
+
+class TopicMatch(StrEnum):
+    """Where both topics must appear: the title alone, or the title or abstract."""
+
+    TITLE = "title"
+    TITLE_ABSTRACT = "title_abstract"
+
+    @property
+    def field_tag(self) -> str:
+        return "ti" if self is TopicMatch.TITLE else "tiab"
 
 
 class DimensionType(StrEnum):
@@ -58,8 +75,12 @@ class Dimension(Record):
 class QuestionConfig(Record):
     id: QuestionId
     title: NonBlank
-    query: NonBlank
-    # PubMed-syntax clauses joined to the query with AND.
+    # The topic query is built from these: any exposure term AND any outcome term, each matched
+    # in the fields topic_match names.
+    exposure_terms: TopicTerms
+    outcome_terms: TopicTerms
+    topic_match: TopicMatch = TopicMatch.TITLE_ABSTRACT
+    # PubMed-syntax clauses joined to the topic query with AND.
     filters: list[NonBlank] = Field(default_factory=list)
     start_date: date | None = None
     # A fixed end date keeps reruns from drifting as PubMed grows.
@@ -71,6 +92,9 @@ class QuestionConfig(Record):
     def _consistent(self) -> Self:
         if self.start_date is not None and self.start_date > self.end_date:
             raise ValueError("start_date must not be after end_date")
+        for terms in (self.exposure_terms, self.outcome_terms):
+            if len(set(terms)) != len(terms):
+                raise ValueError("topic terms must be unique")
         names = [d.name for d in self.dimensions]
         if len(set(names)) != len(names):
             raise ValueError("dimension names must be unique")
@@ -78,6 +102,17 @@ class QuestionConfig(Record):
         if clashes:
             raise ValueError(f"dimension names clash with finding fields: {', '.join(clashes)}")
         return self
+
+    def topic_query(self, match: TopicMatch | None = None) -> str:
+        tag = (match or self.topic_match).field_tag
+
+        def any_of(terms: list[str]) -> str:
+            # Truncated terms cannot be quoted in PubMed; whole terms are quoted as phrases.
+            return " OR ".join(
+                f"{term}[{tag}]" if term.endswith("*") else f'"{term}"[{tag}]' for term in terms
+            )
+
+        return f"({any_of(self.exposure_terms)}) AND ({any_of(self.outcome_terms)})"
 
 
 def load_config(path: Path) -> QuestionConfig:

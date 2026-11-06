@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
-from claimgraph.config import QuestionConfig
+from claimgraph.config import QuestionConfig, TopicMatch
 from claimgraph.models import NonBlank, Pmid, Record, TrialId
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -32,13 +32,13 @@ class EutilsError(RuntimeError):
     pass
 
 
-def build_term(config: QuestionConfig) -> str:
+def build_term(config: QuestionConfig, match: TopicMatch | None = None) -> str:
     # The Entrez date ([edat]) is when PubMed added the record. Bounding it, rather than
     # the publication date, freezes the result set: nothing added after the end date can
     # appear on a later rerun.
     start = f"{config.start_date or EARLIEST:%Y/%m/%d}"
     end = f"{config.end_date:%Y/%m/%d}"
-    clauses = [config.query, *config.filters, f'"{start}"[edat] : "{end}"[edat]']
+    clauses = [config.topic_query(match), *config.filters, f'"{start}"[edat] : "{end}"[edat]']
     return " AND ".join(f"({clause})" for clause in clauses)
 
 

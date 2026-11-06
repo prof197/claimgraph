@@ -1,5 +1,8 @@
 id = "creatine-cognition"
 title = "Does creatine supplementation affect cognition?"
-query = '''(creatine[MeSH] OR creatine[tiab]) AND (supplement*[tiab] OR "dietary supplements"[MeSH]) AND (cognition[MeSH] OR cogniti*[tiab] OR memory[tiab])'''
-filters = []
+exposure_terms = ["creatine"]
+outcome_terms = ["cogniti*", "memory"]
+topic_match = "title_abstract"
+# Supplementation, not creatine as a lab marker such as creatine kinase.
+filters = ['''supplement*[tiab] OR "dietary supplements"[MeSH]''']
 end_date = 2026-10-31

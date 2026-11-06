@@ -32,7 +32,8 @@ def config(**overrides: Any) -> QuestionConfig:
     fields: dict[str, Any] = {
         "id": "synthetic-question",
         "title": "Synthetic question for tests?",
-        "query": "synthetic[tiab]",
+        "exposure_terms": ["synthetic"],
+        "outcome_terms": ["placebo*"],
         "end_date": date(2026, 10, 31),
     }
     return QuestionConfig.model_validate(fields | overrides)

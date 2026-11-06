@@ -1,6 +1,18 @@
 id = "vitamin-d-depression"
 title = "Does vitamin D affect depression?"
-query = '''("Vitamin D"[MeSH] OR "vitamin D"[tiab] OR cholecalciferol[tiab] OR ergocalciferol[tiab] OR "25-hydroxyvitamin D"[tiab]) AND (Depression[MeSH] OR "Depressive Disorder"[MeSH] OR depress*[tiab])'''
+# The topic query: any exposure term AND any outcome term, in the title or abstract.
+exposure_terms = [
+  "vitamin D",
+  "vitamin D3",
+  "vitamin D2",
+  "cholecalciferol",
+  "ergocalciferol",
+  "calcifediol",
+  "25-hydroxyvitamin D",
+  "25(OH)D",
+]
+outcome_terms = ["depress*", "mood"]
+topic_match = "title_abstract"
 # Set once the unfiltered record count has been measured.
 filters = []
 end_date = 2026-10-31

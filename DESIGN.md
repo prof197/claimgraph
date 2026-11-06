@@ -167,10 +167,18 @@ eval measures extraction rather than disagreement over the rule.
 Retrieval is plain, polite HTTP; extraction is one validated model call per abstract, with every
 quote checked against its source.
 
-**Question config.** `questions/<id>.toml` holds the id, title, PubMed query, a list of filters
-in PubMed syntax joined to the query with AND, a fixed date range, `exclude_designs` and the
-custom dimensions. The date range has a fixed end date so reruns cannot drift. The config is
+**Question config.** `questions/<id>.toml` holds the id, title, topic terms, a list of filters
+in PubMed syntax joined to the topic query with AND, a fixed date range, `exclude_designs` and
+the custom dimensions. The date range has a fixed end date so reruns cannot drift. The config is
 committed, so every run is reproducible.
+
+**Topic scope.** The config does not hold a hand-written query. It lists `exposure_terms` and
+`outcome_terms`, and `topic_match` says where they must appear: `title` or `title_abstract`.
+The loader builds the topic query as any exposure term AND any outcome term, each tagged with
+that field; a trailing `*` truncates, and every other term is searched as a quoted phrase.
+Scope is a config choice, not code, because it trades recall against review effort: title
+scope finds the studies that are about the question, while title-and-abstract scope also finds
+studies that report the outcome secondarily.
 
 **Retrieve.**
 
