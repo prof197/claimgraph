@@ -30,6 +30,8 @@ def article(
     journal: str = "<Title>Journal of Synthetic Studies</Title>"
     "<ISOAbbreviation>J Synth Stud</ISOAbbreviation>",
     pubmed_year: str = "2021",
+    article_ids: str = "",
+    references: str = "",
 ) -> bytes:
     abstract_xml = "" if abstract is None else f"<Abstract>{abstract}</Abstract>"
     other_xml = other_abstract or ""
@@ -62,6 +64,8 @@ def article(
     <History>
       <PubMedPubDate PubStatus="pubmed"><Year>{pubmed_year}</Year><Month>1</Month></PubMedPubDate>
     </History>
+    {article_ids}
+    {references}
   </PubmedData>
 </PubmedArticle>""".encode()
 
@@ -355,3 +359,30 @@ def test_recorded_structured_trial() -> None:
 def test_recorded_split_round_trips_each_record() -> None:
     for pmid, xml in split_articles(RECORDED.read_bytes()).items():
         assert split_articles(b"<PubmedArticleSet>" + xml + b"</PubmedArticleSet>").keys() == {pmid}
+
+
+def test_pmcid_comes_from_the_records_own_article_ids() -> None:
+    ids = (
+        '<ArticleIdList><ArticleId IdType="pubmed">999000001</ArticleId>'
+        '<ArticleId IdType="pmc">PMC9990001</ArticleId></ArticleIdList>'
+    )
+
+    assert parsed(article(article_ids=ids)).pmcid == "PMC9990001"
+
+
+def test_a_cited_papers_pmcid_is_not_the_records_own() -> None:
+    references = (
+        "<ReferenceList><Reference><Citation>Synthetic reference.</Citation>"
+        '<ArticleIdList><ArticleId IdType="pmc">PMC9990002</ArticleId></ArticleIdList>'
+        "</Reference></ReferenceList>"
+    )
+
+    assert parsed(article(references=references)).pmcid is None
+
+
+def test_recorded_records_carry_their_pmcids() -> None:
+    assert {pmid: r.pmcid for pmid, r in recorded().items()} == {
+        "35280228": "PMC8913152",
+        "32945627": "PMC7667301",
+        "26585952": "PMC4653865",
+    }

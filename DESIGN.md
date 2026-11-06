@@ -22,8 +22,9 @@ navigates existing evidence; it never generates hypotheses or gives medical advi
   weekends or between 9 pm and 5 am US Eastern on weekdays; `tool` and `email` parameters
   identify the client ([NLM][nlm-limits], [NCBI][ncbi-guidelines]).
 - **Licensing.** Abstracts may be under publisher copyright ([NLM][nlm-copyright]). The page
-  quotes single sentences with links, and committed gold data comes only from openly licensed
-  articles.
+  quotes single sentences with links, and committed abstract text comes only from articles under
+  CC BY or CC0. The rule governs what is committed: the dev sample may use any licence because
+  only its PMIDs are committed.
 - **Language.** 97% of MEDLINE citations from 2020–2023 are English-language articles
   ([NLM][nlm-lang]). Abstracts in other languages sit in PubMed's `OtherAbstract` element
   ([DTD][dtd-other]). v1 extracts from the English abstract.
@@ -400,10 +401,52 @@ data is labeled by hand, from openly licensed articles only.
 - **The ablation's question:** does multi-model deliberation beat the best single model at the
   same token budget? Prior work suggests ensembling, not deliberation, drives most of the gain.
   Either result goes in the README, and the table doubles as the guide to `--depth`.
+- **Results come from gold:** the README's results table is generated from the gold sample, never
+  from dev.
 - **Related work:** Evidence Inference 2.0 ([DeYoung et al. 2020][evinf]) is human-labeled, with
   MIT-licensed annotations, and covers the effect-and-quote task; it is a candidate external
   benchmark. Contradiction detection over biomedical claims is studied by
   [Sosa et al. 2023][sosa], [Alamri and Stevenson 2016][alamri] and [BioDivergence][biodivergence].
+
+### Gold and dev samples
+
+`claimgraph gold sample QUESTION` draws two disjoint samples of 50 from the retrieved abstracts,
+by the same quotas: 18 trials, 18 observational studies, 3 systematic reviews or meta-analyses,
+3 other reviews and 8 off-topic records. Off-topic records count inside the 50, so the
+extraction eval also checks that the outcome domain returns no findings for them.
+
+- **Gold** is drawn only from articles under CC BY or CC0, and its abstract text is committed
+  with a generated attribution file. Licences come from two sources that must agree: PMC's
+  licence search filters, queried through E-utilities, and the `license_code` in each article
+  version's metadata in the PMC Cloud Service bucket. A retracted version, any version under
+  another licence, or no metadata at all rules an article out. NCBI retired the PMC OA Web
+  Service API and the legacy FTP files in August 2026 ([NCBI][pmc-transition], [PMC][pmc-aws]);
+  the bucket's README documents the metadata fields ([PMC][pmc-bucket]).
+- **Dev** is drawn from the whole kept corpus less the gold sample, under any licence. Only its
+  PMIDs, strata and the seed are committed; the text is refetched by PMID into the gitignored
+  run directory, so dev is reproducible without redistributing it. Dev is for tuning prompts
+  and measuring tokens. CI never replays it, and a test fails if a committed replay file names a
+  PMID outside the gold set.
+- **Strata** come from PubMed's publication types: trials, systematic reviews or meta-analyses,
+  other reviews, and everything else as observational, since most observational studies carry
+  no design type. Case reports, excluded by default, and trial protocols are not sampled. The
+  hand labels record each study's actual design.
+- **Screening.** The walk visits records in a seeded order and takes each one that fits a quota
+  with room. Each record it reaches is first read and marked on or off topic in
+  `screening.toml`, with a one-line reason: on topic means the abstract reports, or for a review
+  summarizes, a result linking vitamin D to an outcome in the domain, null results included.
+  Screening only sorts records into quotas; the hand labels are authoritative.
+- **Trials are the scarce stratum.** Of 43 trial-tagged records under CC BY or CC0, 21 are on
+  topic, and gold takes 18. That is why dev draws from the whole corpus.
+- **Eval limitation: open-access selection.** Gold comes from the 538 of 1,901 kept records
+  that are CC BY or CC0. Their design mix matches the corpus, but they skew recent: none
+  predates 2010, against 14% of the corpus, and 73% are from 2020 on, against 48%. Extraction
+  scores may not carry over to older abstracts. `sample.json` records both compositions.
+
+| Records | Trials | Observational | Systematic reviews | Other reviews | Not sampled | Before 2010 | 2010–2019 | 2020 on |
+|---|---|---|---|---|---|---|---|---|
+| Kept corpus, 1,901 | 9% | 63% | 6% | 17% | 5% | 14% | 38% | 48% |
+| CC BY or CC0, 538 | 8% | 66% | 7% | 16% | 4% | 0% | 27% | 73% |
 
 ## Cost
 
@@ -433,6 +476,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   path or id; a config, not free text, keeps runs reproducible.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
   unmapped.
+- `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
+  records that need screening first.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
 - `claimgraph site QUESTION` writes the page data.
 
@@ -440,11 +485,12 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
-    models.py  dimensions.py  config.py  retrieve.py  extract.py  normalize.py
+    models.py  dimensions.py  config.py  retrieve.py  gold.py  extract.py  normalize.py
     compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
-  evals/       gold/  run.py  results/
+  evals/       gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml, sample.json,
+               ATTRIBUTION.md)  run.py  results/
   replay/      recorded model responses used by CI
   site/        React + TypeScript front end
   tests/
@@ -578,6 +624,9 @@ publication types and animal-only studies, apply to every row.
 - [NLM: MEDLINE citations by language][nlm-lang]
 - [PubMed DTD: OtherAbstract][dtd-other]
 - [NLM: MEDLINE DataBank sources and trial registries][nlm-databank]
+- [NCBI Insights: PMC article dataset distribution changes in 2026][pmc-transition]
+- [PMC: accessing the article datasets on AWS][pmc-aws]
+- [PMC Cloud Service bucket README][pmc-bucket]
 - [Claude API pricing][pricing]
 - [Cochrane Handbook 5.1, section 9.5.1: what is heterogeneity][cochrane]
 - [Cochrane Handbook 6.5.1, section 4.4.4: controlled vocabulary and text words][cochrane-search]
@@ -601,6 +650,9 @@ publication types and animal-only studies, apply to every row.
 [nlm-lang]: https://www.nlm.nih.gov/bsd/medline_lang_distr.html
 [dtd-other]: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/240101/el-OtherAbstract.html
 [nlm-databank]: https://www.nlm.nih.gov/bsd/medline_databank_source.html
+[pmc-transition]: https://ncbiinsights.ncbi.nlm.nih.gov/2026/02/12/pmc-article-dataset-distribution-services/
+[pmc-aws]: https://pmc.ncbi.nlm.nih.gov/tools/pmcaws/
+[pmc-bucket]: https://pmc-oa-opendata.s3.amazonaws.com/README.txt
 [pricing]: https://platform.claude.com/docs/en/about-claude/pricing
 [cochrane]: https://training-noproxy.cochrane.org/handbook/archive/v5.1/chapter_9/9_5_1_what_is_heterogeneity.htm
 [cochrane-search]: https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-04

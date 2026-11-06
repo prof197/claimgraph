@@ -205,6 +205,21 @@ def test_search_uses_the_history_server() -> None:
     assert result.query_key == "1"
 
 
+def test_a_long_search_term_is_posted() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=esearch_body(1, ["999000001"]))
+
+    term = " OR ".join(f"{999000000 + n}[uid]" for n in range(200))
+    client(handler).search(term, db="pmc")
+
+    assert seen[0].method == "POST"
+    assert params(seen[0])["term"] == term
+    assert params(seen[0])["db"] == "pmc"
+
+
 def test_search_refuses_more_than_the_ceiling() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=esearch_body(SEARCH_CEILING + 1, []))

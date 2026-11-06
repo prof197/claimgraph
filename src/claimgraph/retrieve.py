@@ -15,7 +15,7 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from claimgraph.config import QuestionConfig, TopicMatch
-from claimgraph.models import NonBlank, Pmid, Record, TrialId
+from claimgraph.models import NonBlank, Pmcid, Pmid, Record, TrialId
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 # EFetch pages through results this many records at a time.
@@ -25,6 +25,8 @@ SEARCH_CEILING = 10_000
 # Records PubMed has no Entrez date bound before; used when a config sets no start date.
 EARLIEST = date(1000, 1, 1)
 ATTEMPTS = 3
+# Longer search terms, such as a list of IDs, go by POST: NCBI rejects long GET URLs.
+LONG_TERM = 2_000
 TRANSIENT_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
@@ -128,12 +130,13 @@ class EutilsClient:
         self._sleep = sleep
         self.requests = 0
 
-    def search(self, term: str) -> SearchResult:
+    def search(self, term: str, db: str = "pubmed") -> SearchResult:
+        """Search an Entrez database; for PMC, the IDs returned are PMCIDs without "PMC"."""
         response = self._request(
-            "GET",
+            "POST" if len(term) > LONG_TERM else "GET",
             "esearch.fcgi",
             {
-                "db": "pubmed",
+                "db": db,
                 "term": term,
                 "usehistory": "y",
                 "retmax": str(SEARCH_CEILING),
@@ -148,7 +151,7 @@ class EutilsClient:
             raise EutilsError(f"ESearch error: {result.error}")
         not_found = [term for terms in result.errorlist.values() for term in terms]
         if not_found:
-            raise EutilsError(f"PubMed did not find: {', '.join(not_found)}")
+            raise EutilsError(f"ESearch did not find: {', '.join(not_found)}")
         if result.count > SEARCH_CEILING:
             raise EutilsError(
                 f"{result.count} records exceed the {SEARCH_CEILING} PubMed returns; "
@@ -190,26 +193,36 @@ class EutilsClient:
     def _request(self, method: str, endpoint: str, params: dict[str, str]) -> httpx.Response:
         params = params | self._identity.params()
         url = f"{EUTILS}/{endpoint}"
-        failure = ""
-        for attempt in range(1, ATTEMPTS + 1):
+
+        def send() -> httpx.Response:
             self._limiter.wait()
             self.requests += 1
-            try:
-                if method == "POST":
-                    response = self._http.post(url, data=params)
-                else:
-                    response = self._http.get(url, params=params)
-            except httpx.TransportError as error:
-                failure = f"{endpoint}: {error}"
-            else:
-                if response.status_code == 200:
-                    return response
-                failure = f"{endpoint}: HTTP {response.status_code} {response.text[:200]}".strip()
-                if response.status_code not in TRANSIENT_STATUSES:
-                    raise EutilsError(failure)
-            if attempt < ATTEMPTS:
-                self._sleep(2**attempt)
-        raise EutilsError(f"{failure} after {ATTEMPTS} attempts")
+            if method == "POST":
+                return self._http.post(url, data=params)
+            return self._http.get(url, params=params)
+
+        return send_with_retries(send, endpoint, self._sleep)
+
+
+def send_with_retries(
+    send: Callable[[], httpx.Response], name: str, sleep: Callable[[float], None]
+) -> httpx.Response:
+    """Send until a 200, retrying rate limits, server errors and network failures."""
+    failure = ""
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            response = send()
+        except httpx.TransportError as error:
+            failure = f"{name}: {error}"
+        else:
+            if response.status_code == 200:
+                return response
+            failure = f"{name}: HTTP {response.status_code} {response.text[:200]}".strip()
+            if response.status_code not in TRANSIENT_STATUSES:
+                raise EutilsError(failure)
+        if attempt < ATTEMPTS:
+            sleep(2**attempt)
+    raise EutilsError(f"{failure} after {ATTEMPTS} attempts")
 
 
 # Parsing
@@ -233,6 +246,8 @@ class Abstract(Record):
     """One PubMed record with an English abstract: a line of abstracts.jsonl."""
 
     pmid: Pmid
+    # Set when PubMed Central holds the article; its licence is looked up there.
+    pmcid: Pmcid | None
     title: str
     first_author: str | None
     journal: str
@@ -340,6 +355,7 @@ def parse_record(xml: bytes) -> Abstract | Dropped:
     text = " ".join([title, *(s.text for s in sections)])
     return Abstract(
         pmid=pmid,
+        pmcid=_pmcid(element),
         title=title,
         first_author=_first_author(article),
         journal=article.findtext("Journal/ISOAbbreviation") or _text(article.find("Journal/Title")),
@@ -375,6 +391,14 @@ def _first_author(article: ElementTree.Element) -> str | None:
     if author is None:
         return None
     return author.findtext("LastName") or author.findtext("CollectiveName")
+
+
+def _pmcid(element: ElementTree.Element) -> str | None:
+    # The record's own IDs only: each entry in its reference list carries IDs too.
+    for article_id in element.iterfind("PubmedData/ArticleIdList/ArticleId"):
+        if article_id.get("IdType") == "pmc":
+            return _text(article_id)
+    return None
 
 
 def _year(element: ElementTree.Element, pmid: str) -> int:
@@ -503,7 +527,7 @@ def retrieve(
                 for match, result in sorted(results.items())
             },
         )
-        _write(search_path, saved.model_dump_json(indent=2).encode())
+        write_atomic(search_path, saved.model_dump_json(indent=2).encode())
     pmids = saved.scopes[scope].pmids
 
     def raw_path(pmid: str) -> Path:
@@ -522,13 +546,13 @@ def retrieve(
         for document in documents:
             for pmid, xml in split_articles(document).items():
                 if pmid in wanted:
-                    _write(raw_path(pmid), xml)
+                    write_atomic(raw_path(pmid), xml)
                     wanted.discard(pmid)
         fetched = len(missing) - len(wanted)
         # Kept across scopes, so switching scope and back does not ask for them again.
         unavailable = sorted(skip | wanted)
         saved = saved.model_copy(update={"unavailable": unavailable})
-        _write(search_path, saved.model_dump_json(indent=2).encode())
+        write_atomic(search_path, saved.model_dump_json(indent=2).encode())
     else:
         fetched = 0
 
@@ -536,7 +560,7 @@ def retrieve(
     records = [parse_record(raw_path(p).read_bytes()) for p in available]
     abstracts = [r for r in records if isinstance(r, Abstract)]
     drops = [r for r in records if isinstance(r, Dropped)]
-    _write(
+    write_atomic(
         run_dir / "abstracts.jsonl",
         "".join(f"{a.model_dump_json()}\n" for a in abstracts).encode(),
     )
@@ -568,7 +592,7 @@ def retrieve(
             raw_bytes=sum(raw_path(p).stat().st_size for p in available),
         )
     )
-    _write(run_dir / "manifest.json", manifest.model_dump_json(indent=2).encode())
+    write_atomic(run_dir / "manifest.json", manifest.model_dump_json(indent=2).encode())
     return manifest
 
 
@@ -582,7 +606,7 @@ def _load_search(path: Path) -> SavedSearch | None:
         return None
 
 
-def _write(path: Path, data: bytes) -> None:
+def write_atomic(path: Path, data: bytes) -> None:
     # Write then rename, so an interrupted run never leaves a half-written cache file.
     partial = path.with_name(f"{path.name}.tmp")
     partial.write_bytes(data)

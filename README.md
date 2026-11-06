@@ -55,4 +55,6 @@ Placeholder until a real reader has used the page.
 
 ## Licence
 
-MIT. Abstracts and quotes come from PubMed and remain under their publishers' terms.
+Code: MIT. Gold-set abstracts: their original CC BY/CC0 licences; see
+[ATTRIBUTION](evals/gold/vitamin-d-depression/ATTRIBUTION.md). Quotes on the page come from
+PubMed abstracts and remain under their publishers' terms.
