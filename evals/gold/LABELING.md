@@ -120,6 +120,11 @@ D level. The quote stays verbatim.
 Co-primary outcomes are all `true`. A subgroup result on the primary outcome is `false`.
 Otherwise `false`, even when it is the only outcome reported.
 
+**`is_subgroup`**: `true` when the result covers only part of the analyzed sample, split by sex,
+age, baseline vitamin D status or similar. A study that enrolled only one group, such as only
+women or only deficient participants, reports that group as its population, not as a subgroup,
+so its results are `false`. A subgroup result is never primary.
+
 **`note`**: optional, for anything a reviewer of the label should know.
 
 ### Baseline vitamin D status
@@ -179,7 +184,9 @@ mapping review, not here.
 
 Each pair is two studies whose headline findings on one normalized outcome point different
 ways. A study's headline finding on an outcome is its primary finding on that outcome, else its
-first-reported one, the same finding the summary strip counts. `study_a` and `study_b` are
+first-reported finding there that is not a subgroup result, the same finding the summary strip
+counts. A study with only subgroup findings on an outcome has no headline finding there, so it
+is not paired on it. `study_a` and `study_b` are
 written in the order the candidate pair gives them.
 
 ```toml

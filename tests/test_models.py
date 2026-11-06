@@ -46,6 +46,7 @@ def finding(**overrides: Any) -> Finding:
         "outcome_reported": "synthetic depression score",
         "effect": Effect.DECREASED,
         "is_primary": True,
+        "is_subgroup": False,
         "population": "synthetic adults",
         "intervention": "synthetic vitamin D3, 2,000 IU daily",
         "comparator": "placebo",

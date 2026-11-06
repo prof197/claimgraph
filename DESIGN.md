@@ -74,6 +74,7 @@ several outcomes, arms or subgroups.
 | Finding | `outcome_reported` | str | The measure as reported, such as "PHQ-8 mood score" |
 | Finding | `effect` | Effect | `increased`, `decreased` or `no_change`, on the outcome as reported |
 | Finding | `is_primary` | bool | The abstract names this as its primary outcome |
+| Finding | `is_subgroup` | bool | The result covers only part of the analyzed sample, split by a characteristic such as sex, age or baseline status |
 | Finding | `population` | str | Who was enrolled, as reported |
 | Finding | `intervention` | str | Agent, dose, duration, route and form, as reported |
 | Finding | `comparator` | str | Placebo, active treatment or usual care, as reported |
@@ -307,9 +308,13 @@ them, at whatever depth the run asks for.
   effect, or benefit vs harm.
 - Each study enters a pair through its headline finding on that outcome, so pairs grow with
   studies, not findings. The headline finding is its primary finding on that outcome, else its
-  first-reported one: the finding the summary strip counts, chosen by the same function, so
-  observational studies, which rarely name a primary outcome, still pair. A study's other
-  findings, subgroups among them, show in the finding detail but are not paired in v1.
+  first-reported finding there that is not a subgroup result: the finding the summary strip
+  counts, chosen by the same function, so observational studies, which rarely name a primary
+  outcome, still pair. A study's other findings show in the finding detail but are not paired
+  in v1.
+- A study whose only findings on an outcome are subgroup results has no headline finding there.
+  It shows in the graph and the node detail but is not counted or paired on that outcome, since
+  a subgroup cannot speak for the whole sample. The run manifest counts these cases.
 - Pairs within one trial (same PMID or a shared trial ID) and review findings are skipped.
 - Every run prints and stores the block size per outcome.
 
@@ -348,8 +353,9 @@ The summary strip counts studies per normalized outcome; the graph holds the sam
 page to draw.
 
 - **Unit:** studies, per normalized outcome. A study's direction on an outcome is its headline
-  finding's: its primary finding on that outcome, failing that its first-reported one. Papers linked through any
-  shared trial registration count once.
+  finding's: its primary finding on that outcome, failing that its first-reported finding there
+  that is not a subgroup result. A study with only subgroup findings on an outcome is shown but
+  not counted there. Papers linked through any shared trial registration count once.
 - **Weighted share:** the sum of design weights per direction, divided by the total.
 - **Sensitivity line:** recompute with every study weighted 1, and with weight = sample size, a
   stand-in for inverse-variance weighting when abstracts give no effect sizes. The strip says
@@ -474,7 +480,7 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 - **Abstracts:** one file per gold abstract, `labels/PMID.toml`, with the design, the sample
   size, a summary for reviews, and one block per finding in the
   outcome domain: the verbatim quote, the outcome as reported, the effect, whether it is the
-  primary outcome, and a value for every config dimension. Population, intervention and
+  primary outcome, whether it is a subgroup result, and a value for every config dimension. Population, intervention and
   comparator are not labeled, because the eval does not score them. `claimgraph gold template`
   writes a file per abstract with the abstract shown as comments and every value blank.
 - **Every value is explicit.** TOML has no null, so a missing value is written
@@ -489,6 +495,9 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   depression measure as the outcome.
 - **Primary means named.** A finding is primary only when the abstract calls it the primary or
   a co-primary outcome; a subgroup result on the primary outcome is not.
+- **Subgroups are marked.** A subgroup result covers part of the analyzed sample, split by sex,
+  age, baseline vitamin D status or similar. A study that enrolled only one group reports that
+  group as its population, not as a subgroup.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
   ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
   the null study could not rule out the effect, by its own account or its confidence interval,
@@ -578,8 +587,8 @@ These are expectations, to be replaced with measurements.
 
 ### Failure modes
 
-- **Spin:** abstracts can overstate secondary or subgroup results. Counting primary findings and
-  showing every quote limits the damage.
+- **Spin:** abstracts can overstate secondary or subgroup results. Counting primary findings,
+  never subgroup results, and showing every quote limits the damage.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.

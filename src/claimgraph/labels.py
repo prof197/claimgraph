@@ -39,9 +39,16 @@ class FindingLabel(Record):
     outcome_reported: NonBlank
     effect: Effect
     is_primary: StrictBool
+    is_subgroup: StrictBool
     # One value per config dimension, checked against the config by check_abstract_label.
     dimensions: dict[str, str | float | bool] = Field(default_factory=dict[str, str | float | bool])
     note: str | None = None
+
+    @model_validator(mode="after")
+    def _a_subgroup_is_not_primary(self) -> Self:
+        if self.is_primary and self.is_subgroup:
+            raise ValueError("a subgroup result is never primary")
+        return self
 
 
 class AbstractLabel(Record):
@@ -322,7 +329,10 @@ def _finding_block(config: QuestionConfig) -> list[str]:
         'outcome_reported = ""',
         "# increased, decreased or no_change, with more vitamin D as the exposure side.",
         'effect = ""',
-        "is_primary = false",
+        "# true only when the abstract calls it the primary outcome; never for a subgroup.",
+        'is_primary = ""',
+        "# true when the result covers only part of the analyzed sample, such as one sex.",
+        'is_subgroup = ""',
     ]
     if config.dimensions:
         lines += ["", "[finding.dimensions]"]

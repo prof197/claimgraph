@@ -149,6 +149,15 @@ class FindingFields(Record):
     is_primary: bool = Field(
         description="True if the abstract names this as the study's primary outcome."
     )
+    # A subgroup result never stands for its study on an outcome, so a study with only
+    # subgroup results there is shown but not counted or paired.
+    is_subgroup: bool = Field(
+        description=(
+            "True if the result covers only part of the analyzed sample, split by a "
+            "characteristic such as sex, age or baseline exposure. A study that enrolled only "
+            "one group reports that group as its population, not as a subgroup."
+        )
+    )
     population: str = Field(description="Who was enrolled, as reported.")
     intervention: str = Field(description="Agent, dose, duration, route and form, as reported.")
     comparator: str = Field(description="Placebo, active treatment or usual care, as reported.")

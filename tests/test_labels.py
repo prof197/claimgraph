@@ -51,6 +51,7 @@ def label(**overrides: Any) -> AbstractLabel:
                 "outcome_reported": "synthetic remission",
                 "effect": "no_change",
                 "is_primary": False,
+                "is_subgroup": False,
                 "dimensions": {"baseline_vitamin_d_status": "not_reported"},
             }
         ],
@@ -125,6 +126,8 @@ def test_rejects_bad_abstract_labels(overrides: dict[str, Any]) -> None:
         pytest.param({"effect": ""}, id="unfilled effect"),
         pytest.param({"outcome_reported": " "}, id="blank outcome"),
         pytest.param({"is_primary": "yes"}, id="primary not a boolean"),
+        pytest.param({"is_subgroup": ""}, id="unfilled subgroup"),
+        pytest.param({"is_primary": True, "is_subgroup": True}, id="primary subgroup"),
     ],
 )
 def test_rejects_bad_findings(finding: dict[str, Any]) -> None:
@@ -132,6 +135,14 @@ def test_rejects_bad_findings(finding: dict[str, Any]) -> None:
 
     with pytest.raises(ValidationError):
         label(finding=[base | finding])
+
+
+def test_a_finding_must_say_whether_it_is_a_subgroup() -> None:
+    base = label().model_dump()["findings"][0]
+    del base["is_subgroup"]
+
+    with pytest.raises(ValidationError):
+        label(finding=[base])
 
 
 @pytest.mark.parametrize("design", ["systematic_review", "meta_analysis", "narrative_review"])
@@ -357,6 +368,9 @@ def test_template_shows_the_abstract_and_fails_until_filled() -> None:
     assert "# RESULTS: Synthetic depression scores fell" in text
     assert data["pmid"] == "999000001"
     assert set(data["finding"][0]["dimensions"]) == {"baseline_vitamin_d_status"}
+    # Booleans start blank too, so a forgotten one fails rather than passing as false.
+    assert data["finding"][0]["is_primary"] == ""
+    assert data["finding"][0]["is_subgroup"] == ""
     with pytest.raises(ValidationError):
         AbstractLabel.model_validate(data)
 
