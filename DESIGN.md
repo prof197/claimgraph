@@ -511,7 +511,37 @@ These are expectations, to be replaced with measurements.
 
 ## Measured numbers
 
-None yet. Counts, block sizes, token use, cost and eval scores land here as they are measured.
+Block sizes, token use, cost and eval scores land here as they are measured.
+
+**Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
+2026). The topic terms are the config's; both filters, non-research publication types and
+animal-only studies, apply to every row.
+
+| Scope | Found | Kept | Dropped |
+|---|---|---|---|
+| Title and abstract (`title_abstract`) | 1,940 | 1,910 | 14 no abstract, 12 books, 4 retracted |
+| Title (`title`) | 485 | 471 | 13 no abstract, 1 retracted |
+
+- **Filters.** Without them, the earlier hand-written query found 2,145 records. Dropping
+  non-research types removes 51, and dropping animal-only studies removes a further 217. Writing
+  the animal filter as `humans[mh]` instead would also drop about 390 records not yet indexed
+  with MeSH, most of them recent.
+- **Terms.** A phrase search for "vitamin D" does not match "vitamin D3", so the variants are
+  listed. Adding `25(OH)D` adds 8 records, and adding `mood` adds 142. In a spot check of 10
+  records those two terms add, judged by title, 1 was on topic, 1 marginal and 8 off topic, such
+  as quality-of-life or pain studies that mention mood in passing. The outcome domain keeps their
+  findings off the map.
+- **Raw cache.** About 19 KB per record; the vitamin D run directory is under 50 MB.
+- **What title scope costs.** Title-and-abstract scope keeps 1,439 records that title scope does
+  not. In a seeded random sample of 20 of them, read in full, 10 measured depression as a primary
+  or secondary outcome, and 8 reported a finding linking vitamin D to depression: 5 observational
+  or uncontrolled studies and 3 reviews. Three more reported only mood, and 7 were off topic. Two
+  of the 20 were missed for want of a term, not because of scope: titles reading
+  "25-hydroxyvitamin D3" and "25-hydroxy vitamin D". On this sample, title scope would drop
+  roughly two in five broad-only records that bear on the question, most of them studies that
+  report depression secondarily. The sample is small; the interval on 8 of 20 is wide.
+- **Which scope the demo uses** is decided at the dry run, from measured pairs, cost and mapping
+  review effort, and defaults to title and abstract.
 
 ## References
 

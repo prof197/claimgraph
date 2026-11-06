@@ -12,8 +12,11 @@ Research navigation demo, not medical advice.
 
 ## How it works
 
-1. **Retrieve** abstracts for a fixed PubMed query.
-2. **Extract** findings with a model; every quote must match its abstract word for word.
+1. **Retrieve** abstracts for a fixed PubMed query: any exposure term and any outcome term in the
+   title or abstract (scope `title_abstract`), added to PubMed through a fixed date, excluding
+   non-research items and animal-only studies.
+2. **Extract** findings on the question's outcomes with a model; every quote must match its
+   abstract word for word.
 3. **Normalize** outcome names through a mapping a person reviews.
 4. **Compare** only findings on the same outcome that point different ways; a model names the
    likely reason.

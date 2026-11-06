@@ -11,6 +11,12 @@ outcome_domain = [
   "executive function",
   "processing speed",
 ]
-# Supplementation, not creatine as a lab marker such as creatine kinase.
-filters = ['''supplement*[tiab] OR "dietary supplements"[MeSH]''']
+filters = [
+  # Supplementation, not creatine as a lab marker such as creatine kinase.
+  '''supplement*[tiab] OR "dietary supplements"[MeSH]''',
+  # Not research: editorials, letters, comments, news, errata and retraction notices.
+  '''all[sb] NOT (editorial[pt] OR letter[pt] OR comment[pt] OR news[pt] OR "published erratum"[pt] OR "retraction of publication"[pt])''',
+  # Animal-only studies. Records not yet indexed with MeSH carry neither heading and are kept.
+  '''all[sb] NOT (animals[mh] NOT humans[mh])''',
+]
 end_date = 2026-10-31
