@@ -296,8 +296,11 @@ them, at whatever depth the run asks for.
 
 - A pair is two studies on the same normalized outcome whose directions differ: effect vs no
   effect, or benefit vs harm.
-- Each study enters a pair through its primary finding on that outcome, so pairs grow with
-  studies, not findings. Subgroup findings show in the finding detail but are not paired in v1.
+- Each study enters a pair through its headline finding on that outcome, so pairs grow with
+  studies, not findings. The headline finding is its primary finding on that outcome, else its
+  first-reported one: the finding the summary strip counts, chosen by the same function, so
+  observational studies, which rarely name a primary outcome, still pair. A study's other
+  findings, subgroups among them, show in the finding detail but are not paired in v1.
 - Pairs within one trial (same PMID or a shared trial ID) and review findings are skipped.
 - Every run prints and stores the block size per outcome.
 
@@ -335,8 +338,8 @@ the panel, each with the classifier's one-line reason, such as "underpowered: n 
 The summary strip counts studies per normalized outcome; the graph holds the same data for the
 page to draw.
 
-- **Unit:** studies, per normalized outcome. A study's direction on an outcome is its primary
-  finding's; failing that, its first-reported finding on that outcome. Papers linked through any
+- **Unit:** studies, per normalized outcome. A study's direction on an outcome is its headline
+  finding's: its primary finding on that outcome, failing that its first-reported one. Papers linked through any
   shared trial registration count once.
 - **Weighted share:** the sum of design weights per direction, divided by the total.
 - **Sensitivity line:** recompute with every study weighted 1, and with weight = sample size, a
@@ -472,7 +475,16 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 - **Effect points from more vitamin D.** The exposure side of every finding is more vitamin D:
   a higher level, intake or dose, or supplementation against placebo. A result stated as
   deficiency against sufficiency is turned round, so that direction can be derived the same
-  way for trials and observational studies.
+  way for trials and observational studies. An association reported with depression as the
+  exposure, such as lower vitamin D in depressed patients, is read the same way round, with the
+  depression measure as the outcome.
+- **Primary means named.** A finding is primary only when the abstract calls it the primary or
+  a co-primary outcome; a subgroup result on the primary outcome is not.
+- **Genuine or apparent is about the results.** A genuine pair's results really point different
+  ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
+  the null study could not rule out the effect, by its own account or its confidence interval,
+  or the two findings measure different things. An apparent pair always names the reason and a
+  detail saying what dissolves the conflict.
 - **Outcome pairs** label whether two reported strings merge, including the ruled hard cases.
   **Contradiction pairs** label a candidate pair's verdict, reason, other differences and
   detail, under the same rules as the classifier's output.

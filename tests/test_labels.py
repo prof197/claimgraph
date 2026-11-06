@@ -286,6 +286,11 @@ def test_the_example_contradiction_pairs_load() -> None:
         pytest.param({"also_differs": ["unclear"]}, id="unclear as a difference"),
         pytest.param({"verdict": "likely"}, id="unknown verdict"),
         pytest.param({"reason": "dose"}, id="unknown reason"),
+        pytest.param({"verdict": "apparent"}, id="apparent without a detail"),
+        pytest.param(
+            {"verdict": "apparent", "reason": "unclear", "detail": "synthetic"},
+            id="apparent with an unclear reason",
+        ),
     ],
 )
 def test_rejects_bad_contradiction_labels(tmp_path: Path, overrides: dict[str, Any]) -> None:
@@ -302,6 +307,16 @@ def test_rejects_bad_contradiction_labels(tmp_path: Path, overrides: dict[str, A
 
     with pytest.raises(ValueError):
         load_contradiction_pairs(path)
+
+
+def test_a_genuine_pair_may_have_an_unclear_reason(tmp_path: Path) -> None:
+    path = tmp_path / "contradiction_pairs.toml"
+    path.write_text(
+        '[[pair]]\noutcome = "synthetic"\nstudy_a = "999000001"\nstudy_b = "999000002"\n'
+        'verdict = "genuine"\nreason = "unclear"\n'
+    )
+
+    assert load_contradiction_pairs(path)[0].reason is Reason.UNCLEAR
 
 
 def test_a_contradiction_pair_is_labeled_once(tmp_path: Path) -> None:

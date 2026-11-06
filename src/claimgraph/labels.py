@@ -101,6 +101,13 @@ class ContradictionLabel(Record):
         if not self.study_a < self.study_b:
             raise ValueError("study_a must sort strictly before study_b, as in candidate pairs")
         check_also_differs(self.reason, self.also_differs)
+        # A genuine conflict may have no standout reason; an apparent one is dissolved by a
+        # known difference, which the detail names, such as "underpowered: n = 40".
+        if self.verdict is Verdict.APPARENT:
+            if self.reason is Reason.UNCLEAR:
+                raise ValueError("an apparent pair names the reason the conflict dissolves")
+            if self.detail is None:
+                raise ValueError("an apparent pair needs a detail saying what dissolves it")
         return self
 
     @property

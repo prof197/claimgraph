@@ -72,7 +72,9 @@ Null results are findings.
 Leave out results on other outcomes, such as anxiety, mood swings, quality of life, fatigue or
 mania. Leave out measures that combine depression with something else, such as a total
 anxiety-and-depression score, psychological distress or the EQ-5D anxiety/depression item,
-unless the abstract reports the depression part on its own. An abstract with no finding in the
+unless the abstract reports the depression part on its own. Depression-specific subscales of
+mixed instruments count, such as HADS-D, the DASS-21 depression scale and POMS
+depression-dejection. An abstract with no finding in the
 domain has no `[[finding]]` blocks; add a one-line `note` saying why. Eight gold abstracts were
 sampled because they were screened off topic, and the eval checks that the model returns no
 findings for them.
@@ -86,9 +88,13 @@ curly versus straight quote marks.
 
 **`effect`**: what happened to the measure on the side with more vitamin D, compared with the
 side with less: `increased`, `decreased` or `no_change`. More vitamin D means a higher serum
-level, a higher intake, a higher dose, or supplementation compared with placebo or none. Turn a
-result stated the other way round, as deficiency compared with sufficiency, so that more vitamin
-D is the exposure side.
+level, a higher intake, a higher dose, or supplementation compared with placebo or none. In a
+trial, it is the arm that got more: vitamin D against placebo, or the higher dose against the
+lower. Turn a result stated the other way round, as deficiency compared with sufficiency, so that
+more vitamin D is the exposure side. When an abstract reports the association with depression as
+the exposure, as in "depressed patients had lower vitamin D", read it with vitamin D as the
+exposure: that is `decreased`, and `outcome_reported` is the depression measure, not the vitamin
+D level. The quote stays verbatim.
 
 | The abstract says | `effect` |
 |---|---|
@@ -97,10 +103,13 @@ D is the exposure side.
 | Serum 25(OH)D correlated inversely with a synthetic depression score | `decreased` |
 | Scores improved in both arms, with no difference between them | `no_change` |
 | A non-significant trend toward lower scores with vitamin D | `no_change` |
+| Synthetic scores fell more with the higher dose than with the lower dose | `decreased` |
+| Patients with synthetic depression had lower 25(OH)D than controls | `decreased`; the outcome is synthetic depression |
 | In an uncontrolled study, scores fell from baseline after supplementation | `decreased` |
 | Higher 25(OH)D was associated with more synthetic depressive symptoms | `increased` |
 
 **`is_primary`**: `true` only when the abstract calls this the primary outcome or endpoint.
+Co-primary outcomes are all `true`. A subgroup result on the primary outcome is `false`.
 Otherwise `false`, even when it is the only outcome reported.
 
 **`note`**: optional, for anything a reviewer of the label should know.
@@ -160,8 +169,10 @@ mapping review, not here.
 
 ## Contradiction pairs
 
-Each pair is two studies whose primary findings on one normalized outcome point different
-ways. `study_a` and `study_b` are written in the order the candidate pair gives them.
+Each pair is two studies whose headline findings on one normalized outcome point different
+ways. A study's headline finding on an outcome is its primary finding on that outcome, else its
+first-reported one, the same finding the summary strip counts. `study_a` and `study_b` are
+written in the order the candidate pair gives them.
 
 ```toml
 [[pair]]
@@ -174,16 +185,20 @@ also_differs = ["intervention"]
 detail = "baseline 25(OH)D: 12 vs 31 ng/mL"
 ```
 
-**`verdict`**:
+**`verdict`** is about the results, not whether a reason was found:
 
-- `genuine`: both findings hold up as reported, and they disagree because the studies differ in
-  a way that could change the result, such as who was enrolled, the dose or the measure.
-- `apparent`: the findings do not really conflict once read closely. One study was too small to
-  detect the effect the other found; a null was a non-significant trend the same way; or one
-  finding is a subgroup or secondary analysis that the other does not contradict.
+- `genuine`: the two results really point different ways. An observational association against
+  a null trial is genuine, with reason `design_or_bias`.
+- `apparent`: on a close read, they don't conflict. Either the null study could not rule out the
+  effect, because the abstract calls it a pilot, a feasibility study or underpowered, or its
+  confidence interval includes the other study's effect; or the two findings don't measure the
+  same thing despite the shared outcome. There is no sample-size cutoff for underpowered: use the
+  abstract's own signals.
 
-**`reason`**: the difference most likely to explain the disagreement. For an apparent pair, the
-reason the conflict dissolves; an underpowered null is `design_or_bias`.
+**`reason`**: for a genuine pair, the difference most likely to explain it, or `unclear` when
+none stands out. An apparent pair still gets a reason, never `unclear`: the one that dissolves
+the conflict. A null that could not rule out the effect is `design_or_bias`; findings that
+measure different things are `outcome_measure`.
 
 | Reason | Covers |
 |---|---|
@@ -191,9 +206,10 @@ reason the conflict dissolves; an underpowered null is `design_or_bias`.
 | `intervention` | Dose, duration, route, form, co-treatment |
 | `comparator` | Placebo, active treatment, usual care |
 | `outcome_measure` | Definition, instrument or timing, within one normalized outcome |
-| `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; too few participants |
-| `unclear` | None of the above fits |
+| `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; a null that could not rule out the effect |
+| `unclear` | For a genuine pair only: no difference stands out |
 
 **`also_differs`**: other differences present, never the primary reason again and never
 `unclear`. **`detail`**: a short specific, such as "duration: 8 weeks vs a median 5.3 years".
+An apparent pair needs one, saying what dissolves the conflict, such as "underpowered: n = 40".
 **`note`**: optional.
