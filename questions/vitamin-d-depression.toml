@@ -9,16 +9,22 @@ exposure_terms = [
   "ergocalciferol",
   "calcifediol",
   "25-hydroxyvitamin D",
+  "25-hydroxyvitamin D3",
   "25(OH)D",
 ]
-outcome_terms = ["depress*", "mood"]
+outcome_terms = ["depress*", "seasonal affective disorder"]
 topic_match = "title_abstract"
+# Added to the terms in title_abstract scope. "Vitamin D" also covers cholecalciferol,
+# ergocalciferols and calcifediol beneath it; "Mood Disorders" covers depressive disorders.
+exposure_mesh = ["Vitamin D"]
+outcome_mesh = ["Depression", "Mood Disorders"]
 # Findings on other outcomes are counted as out of scope, not stored.
 outcome_domain = [
   "depressive symptoms",
   "depression diagnosis or incidence",
   "remission",
   "response",
+  "seasonal affective disorder",
 ]
 filters = [
   # Not research: editorials, letters, comments, news, errata and retraction notices.

@@ -251,7 +251,8 @@ title alone.
 - Custom dimensions take their definition from the config. Operational criteria belong in the
   definition. Number dimensions name one unit and the model converts to it.
 - **Outcome domain.** The config names the outcomes the question is about; for vitamin D,
-  depressive symptoms, depression diagnosis or incidence, remission and response. Extraction
+  depressive symptoms, depression diagnosis or incidence, remission, response and seasonal
+  affective disorder. Extraction
   returns only findings in that domain. Findings on other outcomes are counted as out of scope
   in the run manifest and not stored, so a broad search adds recall without filling the map with
   unrelated outcomes.
@@ -522,30 +523,45 @@ These are expectations, to be replaced with measurements.
 Block sizes, token use, cost and eval scores land here as they are measured.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
-2026). The topic terms are the config's; both filters, non-research publication types and
-animal-only studies, apply to every row.
+2026). The topic terms and MeSH headings are the config's; both filters, non-research
+publication types and animal-only studies, apply to every row.
 
 | Scope | Found | Kept | Dropped |
 |---|---|---|---|
-| Title and abstract (`title_abstract`) | 1,940 | 1,910 | 14 no abstract, 12 books, 4 retracted |
-| Title (`title`) | 485 | 471 | 13 no abstract, 1 retracted |
+| Title and abstract (`title_abstract`) | 1,947 | 1,901 | 31 no abstract, 11 books, 4 retracted |
+| Title (`title`) | 470 | 456 | 13 no abstract, 1 retracted |
 
 - **Filters.** Without them, the earlier hand-written query found 2,145 records. Dropping
   non-research types removes 51, and dropping animal-only studies removes a further 217. Writing
   the animal filter as `humans[mh]` instead would also drop about 390 records not yet indexed
   with MeSH, most of them recent.
-- **Terms.** A phrase search for "vitamin D" does not match "vitamin D3", so the variants are
-  listed. Adding `25(OH)D` adds 8 records, and adding `mood` adds 142. In a spot check of 10
-  records those two terms add, judged by title, 1 was on topic, 1 marginal and 8 off topic, such
-  as quality-of-life or pain studies that mention mood in passing. The outcome domain keeps their
-  findings off the map.
-- **Raw cache.** About 19 KB per record; the vitamin D run directory is under 50 MB.
-- **What title scope costs.** Title-and-abstract scope keeps 1,439 records that title scope does
-  not. In a seeded random sample of 20 of them, read in full, 10 measured depression as a primary
+- **Terms.** A phrase search for "vitamin D" matches inside "25-hydroxy vitamin D" but not
+  "vitamin D3", so the variants are listed. Each candidate was measured against the rest of the
+  list and kept only if what it added was on topic, judged by title. `25(OH)D` adds 8 records.
+  "25-hydroxyvitamin D3" adds 2, and 3 in title scope, among them a study of depression
+  severity. "seasonal affective disorder" adds 5, 3 of them on seasonal depression. "25OHD" and
+  "calcidiol" add none, and "25(OH)D3" adds 4, all bone or kidney studies, so those three are not
+  listed.
+- **Mood.** A bare `mood` term added 142 records; of 10 sampled from what it and `25(OH)D`
+  added, 1 was on topic, 1 marginal and 8 off topic, such as quality-of-life or pain studies that mention mood in passing, so it was
+  dropped. In its place, "depressed mood" adds nothing that `depress*` does not already find, and
+  "low mood", "mood disorder" and "mood disorders" add 3, 2 and 22 records with none on the
+  outcome domain: a record they add never uses a word starting with "depress". None is listed.
+- **MeSH headings.** `Vitamin D`, `Depression` and `Mood Disorders` add 142 records to
+  title-and-abstract scope. Of 26 distinct records sampled from what each heading adds, read by
+  title and abstract, 1 was on topic (a review of add-on treatments for depression), 3 marginal
+  (premenstrual mood symptoms, psychological distress, parathyroid hormone and depression) and
+  22 off topic, mostly bone and mineral studies. `Mood Disorders` also brings in bipolar disorder
+  studies, which the outcome domain leaves off the map.
+- **Raw cache.** About 19 KB per record. The cache keeps records from earlier term lists, and the
+  vitamin D run directory is about 50 MB.
+- **What title scope costs.** Under the earlier term list, title-and-abstract scope kept 1,439
+  records that title scope did not; with the current list it keeps 1,445. In a seeded random
+  sample of 20 of the 1,439, read in full, 10 measured depression as a primary
   or secondary outcome, and 8 reported a finding linking vitamin D to depression: 5 observational
-  or uncontrolled studies and 3 reviews. Three more reported only mood, and 7 were off topic. Two
-  of the 20 were missed for want of a term, not because of scope: titles reading
-  "25-hydroxyvitamin D3" and "25-hydroxy vitamin D". On this sample, title scope would drop
+  or uncontrolled studies and 3 reviews. Three more reported only mood, and 7 were off topic. One
+  of the 20 was missed for want of a term, not because of scope: its title reads
+  "25-hydroxyvitamin D3", now a listed term. On this sample, title scope would drop
   roughly two in five broad-only records that bear on the question, most of them studies that
   report depression secondarily. The sample is small; the interval on 8 of 20 is wide.
 - **Which scope the demo uses** is decided at the dry run, from measured pairs, cost and mapping

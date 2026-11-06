@@ -51,7 +51,11 @@ def test_vitamin_d_config_loads() -> None:
         "depression diagnosis or incidence",
         "remission",
         "response",
+        "seasonal affective disorder",
     ]
+    assert cfg.outcome_terms == ["depress*", "seasonal affective disorder"]
+    assert cfg.exposure_mesh == ["Vitamin D"]
+    assert cfg.outcome_mesh == ["Depression", "Mood Disorders"]
     [baseline] = cfg.dimensions
     assert baseline.name == "baseline_vitamin_d_status"
     assert baseline.type is DimensionType.OPTIONS
