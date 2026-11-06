@@ -200,10 +200,15 @@ class Classification(Record):
 
     @model_validator(mode="after")
     def _also_differs_adds_new_reasons(self) -> Self:
-        if self.reason in self.also_differs:
-            raise ValueError("also_differs must not repeat the primary reason")
-        if len(set(self.also_differs)) != len(self.also_differs):
-            raise ValueError("also_differs must not repeat a reason")
-        if Reason.UNCLEAR in self.also_differs:
-            raise ValueError("unclear is not a difference")
+        check_also_differs(self.reason, self.also_differs)
         return self
+
+
+def check_also_differs(reason: Reason, also_differs: list[Reason]) -> None:
+    """Secondary reasons add differences beyond the primary one; shared with the gold labels."""
+    if reason in also_differs:
+        raise ValueError("also_differs must not repeat the primary reason")
+    if len(set(also_differs)) != len(also_differs):
+        raise ValueError("also_differs must not repeat a reason")
+    if Reason.UNCLEAR in also_differs:
+        raise ValueError("unclear is not a difference")

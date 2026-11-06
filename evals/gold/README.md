@@ -10,6 +10,8 @@ One directory per question:
   it in `runs/`.
 - `screening.toml`: the on- or off-topic reading of every record the sampler reached.
 - `sample.json`: the seed, quotas, and the composition of the corpus and the open pool.
+- `labels/`, `outcome_pairs.toml`, `contradiction_pairs.toml`: the hand labels, written by
+  the rules in [LABELING.md](LABELING.md).
 
 ## Licence
 

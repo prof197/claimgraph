@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import gold
+from claimgraph import gold, labels
 from claimgraph.config import load_config, resolve_question
 from claimgraph.retrieve import EutilsError, connect_eutils, retrieve
 
@@ -141,3 +141,38 @@ def gold_sample(
         f"dev abstracts in {run_dir / 'dev'}"
     )
     typer.echo(f"gold candidates skipped by the licence check: {skipped}")
+
+
+GoldDir = Annotated[Path, typer.Option(help="Where the samples and labels live.")]
+
+
+@gold_app.command("template")
+def gold_template(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Write a label template for each gold abstract that has none; never overwrites."""
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    written = labels.write_templates(out_dir, config)
+    typer.echo(f"wrote {len(written)} templates to {out_dir / 'labels'}")
+
+
+@gold_app.command("check")
+def gold_check(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Validate the question's label files; exits with status 1 if any has a problem."""
+    config = load_config(resolve_question(question))
+    report = labels.check_labels(gold_dir / config.id, config)
+    total = len(report.labeled) + len(report.missing) + len(report.problems)
+    for name, problems in report.problems.items():
+        for problem in problems:
+            typer.echo(f"{name}: {problem}", err=True)
+    typer.echo(
+        f"{len(report.labeled)} labeled, {len(report.problems)} with problems, "
+        f"{len(report.missing)} not started, of {total}"
+    )
+    if report.problems:
+        raise typer.Exit(1)

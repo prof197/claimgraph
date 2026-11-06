@@ -448,6 +448,29 @@ extraction eval also checks that the outcome domain returns no findings for them
 | Kept corpus, 1,901 | 9% | 63% | 6% | 17% | 5% | 14% | 38% | 48% |
 | CC BY or CC0, 538 | 8% | 66% | 7% | 16% | 4% | 0% | 27% | 73% |
 
+### Labels
+
+Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
+[the labeling guide](evals/gold/LABELING.md) gives the rules and worked examples.
+
+- **Abstracts:** one file per gold abstract, `labels/PMID.toml`, with the design, the sample
+  size, a summary for systematic reviews and meta-analyses, and one block per finding in the
+  outcome domain: the verbatim quote, the outcome as reported, the effect, whether it is the
+  primary outcome, and a value for every config dimension. Population, intervention and
+  comparator are not labeled, because the eval does not score them. `claimgraph gold template`
+  writes a file per abstract with the abstract shown as comments and every value blank.
+- **Every value is explicit.** TOML has no null, so a missing value is written
+  `"not_reported"`, and a blank template fails the check rather than passing as unlabeled.
+  The check also requires each quote to appear in its abstract, after the same whitespace and
+  quote-mark normalization the verbatim check uses.
+- **Effect points from more vitamin D.** The exposure side of every finding is more vitamin D:
+  a higher level, intake or dose, or supplementation against placebo. A result stated as
+  deficiency against sufficiency is turned round, so that direction can be derived the same
+  way for trials and observational studies.
+- **Outcome pairs** label whether two reported strings merge, including the ruled hard cases.
+  **Contradiction pairs** label a candidate pair's verdict, reason, other differences and
+  detail, under the same rules as the classifier's output.
+
 ## Cost
 
 Pair count, not price, sets the run cost, so the main levers control pairs and the depth spent on
@@ -478,6 +501,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   unmapped.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
+- `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
+  `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
 - `claimgraph site QUESTION` writes the page data.
 
@@ -485,12 +510,13 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
-    models.py  dimensions.py  config.py  retrieve.py  gold.py  extract.py  normalize.py
-    compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
+    normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
-  evals/       gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml, sample.json,
-               ATTRIBUTION.md)  run.py  results/
+  evals/       gold/LABELING.md  gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml,
+               sample.json, ATTRIBUTION.md, labels/, outcome_pairs.toml,
+               contradiction_pairs.toml)  run.py  results/
   replay/      recorded model responses used by CI
   site/        React + TypeScript front end
   tests/
