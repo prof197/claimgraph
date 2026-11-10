@@ -78,6 +78,8 @@ class AbstractLabel(Record):
                 raise ValueError("a review needs a review_summary")
         elif self.review_summary is not None:
             raise ValueError("only a review takes a review_summary")
+        elif not self.findings and not (self.note or "").strip():
+            raise ValueError("an abstract with no findings needs a note saying why")
         return self
 
     @property

@@ -117,6 +117,8 @@ def test_an_off_topic_abstract_has_no_findings() -> None:
         ),
         pytest.param({"design": "narrative_review", "finding": []}, id="review without summary"),
         pytest.param({"review_summary": "Synthetic summary."}, id="summary on a trial"),
+        pytest.param({"finding": []}, id="no findings without a note"),
+        pytest.param({"finding": [], "note": " "}, id="no findings with a blank note"),
     ],
 )
 def test_rejects_bad_abstract_labels(overrides: dict[str, Any]) -> None:
@@ -156,6 +158,12 @@ def test_a_review_carries_a_summary_and_no_findings(design: str) -> None:
     review = label(design=design, finding=[], review_summary="Synthetic summary.")
 
     assert review.review_summary == "Synthetic summary."
+
+
+def test_no_findings_with_a_note_saying_why() -> None:
+    off_topic = label(finding=[], note="Synthetic: reports only a synthetic anxiety score.")
+
+    assert off_topic.findings == []
 
 
 def test_quote_must_appear_in_the_abstract() -> None:
