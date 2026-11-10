@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gold labeling</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
+  --accent: #2c5fb3; --accent-ink: #ffffff; --accent-soft: #e6eefb;
+  --ok: #2e7d4f; --warn: #a86400; --bad: #b3261e; --warn-soft: #fff4e0;
+  --topic: #fff1a8; --measure: #d9f2e3; --cue: #efe3fb;
+  --f1: #2c5fb3; --f2: #b0472a; --f3: #2e7d4f; --f4: #7d3fb3; --f5: #a86400; --f6: #1f7a85;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+    --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+    --ok: #6cc28f; --warn: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17;
+    --topic: #5a4f12; --measure: #1e4a33; --cue: #43305a;
+    --f1: #7aa7f0; --f2: #f09a7a; --f3: #6cc28f; --f4: #c39af0; --f5: #f0b155; --f6: #6fd0db;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+  --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+  --ok: #6cc28f; --warn: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17;
+  --topic: #5a4f12; --measure: #1e4a33; --cue: #43305a;
+  --f1: #7aa7f0; --f2: #f09a7a; --f3: #6cc28f; --f4: #c39af0; --f5: #f0b155; --f6: #6fd0db;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, textarea { font: inherit; color: inherit; }
+.app { display: grid; grid-template-columns: 250px minmax(0, 1fr) 430px; height: 100vh; }
+.col { overflow-y: auto; padding: 16px; }
+.queue { border-right: 1px solid var(--line); background: var(--panel); }
+.form { border-left: 1px solid var(--line); background: var(--panel); }
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .col { overflow: visible; }
+  .queue { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; overflow-y: auto; }
+}
+h1 { font-size: 15px; margin: 0 0 4px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  margin: 18px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); display: flex; overflow: hidden;
+  margin: 8px 0 4px; }
+.bar span { display: block; height: 100%; }
+.queue ul { list-style: none; margin: 0; padding: 0; }
+.queue li button { width: 100%; text-align: left; border: 0; background: none; padding: 4px 6px;
+  border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.queue li button:hover { background: var(--accent-soft); }
+.queue li button.current { background: var(--accent); color: var(--accent-ink); }
+.queue .slot { font-size: 12px; color: var(--muted); margin: 12px 0 2px 6px; text-transform: uppercase;
+  letter-spacing: .04em; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none;
+  border: 2px solid var(--muted); }
+.dot.in_progress { border-color: var(--warn); background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); }
+.dot.labeled { border-color: var(--ok); background: var(--ok); }
+.flag { color: var(--warn); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.title { font-size: 18px; font-weight: 600; margin: 0; }
+.abstract p { margin: 0 0 10px; }
+.label { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--muted); margin-right: 4px; }
+.s { cursor: pointer; border-radius: 3px; padding: 1px 0; }
+.s:hover { background: var(--accent-soft); }
+.s.used { text-decoration: underline 2px; text-underline-offset: 3px; }
+.badge { font-size: 11px; font-weight: 700; color: #fff; border-radius: 4px; padding: 0 4px;
+  margin-right: 3px; vertical-align: 1px; }
+mark { color: inherit; border-radius: 2px; padding: 0 1px; }
+mark.topic { background: var(--topic); }
+mark.measure { background: var(--measure); }
+mark.cue { background: var(--cue); }
+.num { outline: 2px dashed var(--accent); border-radius: 3px; cursor: copy; padding: 0 2px; }
+.picking .s { cursor: default; }
+.rule { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 14px; }
+.rule table { border-collapse: collapse; font-size: 13px; margin: 6px 0; }
+.rule td, .rule th { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+.rule blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 3px; padding: 0 3px; }
+.opts { display: flex; flex-wrap: wrap; gap: 4px; }
+.opt { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 8px;
+  cursor: pointer; font-size: 13px; }
+.opt:hover { border-color: var(--accent); }
+.opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.opt.sep { margin-left: 8px; }
+.field { margin: 8px 0; }
+.field > .name { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+.blank { outline: 2px dashed var(--warn); outline-offset: 2px; border-radius: 6px; }
+input[type=text], input[type=number], textarea { width: 100%; border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 8px; background: var(--bg); }
+textarea { resize: vertical; min-height: 54px; }
+.card { border: 1px solid var(--line); border-left: 4px solid var(--fc); border-radius: 8px;
+  padding: 8px 10px; margin: 10px 0; }
+.card.active { box-shadow: 0 0 0 2px var(--fc); }
+.card header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.link { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 13px; }
+.link.bad { color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
+.btn.ghost { background: none; color: var(--accent); }
+.status { position: sticky; top: -16px; background: var(--panel); padding: 8px 0; margin: -16px 0 4px;
+  border-bottom: 1px solid var(--line); z-index: 2; display: flex; justify-content: space-between; gap: 8px; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+.problems { background: var(--warn-soft); border-radius: 6px; padding: 6px 10px; font-size: 13px; margin: 8px 0; }
+.problems ul { margin: 4px 0 0; padding-left: 18px; }
+.pop { position: fixed; z-index: 10; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 4px; display: flex; gap: 4px; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+.help { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 20; }
+.help > div { background: var(--panel); border-radius: 10px; padding: 16px 20px; max-width: 520px; }
+.help td { padding: 2px 10px 2px 0; }
+kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 4px; }
+.banner { background: var(--bad); color: #fff; padding: 6px 16px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="col queue" id="queue"></nav>
+  <main class="col" id="main"><p class="muted">Loading…</p></main>
+  <aside class="col form" id="form"></aside>
+</div>
+<script>
+"use strict";
+// Every value here is set by a click or by typing; nothing is filled in for the labeler.
+const SLOT_NAMES = { trial: "Trials", observational: "Observational", systematic_review: "Systematic reviews",
+  review: "Other reviews", off_topic: "Screened off topic" };
+const CUES = ["co-primary", "primary", "secondary", "subgroups?", "stratified", "pilot", "feasibility",
+  "underpowered", "randomi[sz]ed", "placebo", "single-arm", "open-label", "uncontrolled", "pre-post",
+  "before and after", "historical controls?", "systematic(?:ally)?", "meta-analy\\w*", "scoping", "umbrella",
+  "narrative", "eligib\\w*", "inclusion criteria", "screened", "searched", "protocol", "enrolled", "recruited"];
+const MEASURE = "[<>≤≥]?\\s?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:ng\\/ml|nmol\\/l|iu|µg|μg|mcg|mg)\\b";
+const EFFECTS = [["increased", "i"], ["decreased", "d"], ["no_change", "n"]];
+
+let S = null, idx = 0, draft = null, active = 0, picking = false, rule = "design";
+let saveTimer = null, saving = Promise.resolve(), lastInput = Date.now(), marksDirty = false;
+const stash = {};
+let topicRe = null, cueRe = null, measureRe = null;
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === false || v == null) continue;
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k === "style") n.setAttribute("style", v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid);
+  return n;
+}
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const human = (v) => String(v).replace(/_/g, " ");
+const cur = () => S.abstracts[idx];
+const isReview = (d) => S.review_designs.includes(d);
+const fcolor = (i) => `var(--f${(i % 6) + 1})`;
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+  return res.json();
+}
+function banner(text) {
+  let b = document.querySelector(".banner");
+  if (!text) { b && b.remove(); return; }
+  if (!b) { b = el("div", { class: "banner" }); document.body.append(b); }
+  b.textContent = text;
+}
+
+// Highlighting
+
+function buildPatterns() {
+  const terms = [...S.terms].sort((a, b) => b.length - a.length).map((t) => {
+    const stem = t.endsWith("*") ? t.slice(0, -1) : t;
+    return stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+") + (t.endsWith("*") ? "\\w*" : "\\b");
+  });
+  topicRe = new RegExp(`\\b(?:${terms.join("|")})`, "gi");
+  cueRe = new RegExp(`\\b(?:${CUES.join("|")})\\b`, "gi");
+  measureRe = new RegExp(MEASURE, "gi");
+}
+function spans(text) {
+  // The highlight kinds, earliest first; overlapping later ones are dropped.
+  const found = [];
+  for (const [kind, re] of [["measure", measureRe], ["topic", topicRe], ["cue", cueRe]]) {
+    re.lastIndex = 0;
+    for (let m; (m = re.exec(text)); ) if (m[0]) found.push([m.index, m.index + m[0].length, kind]);
+  }
+  if (picking) {
+    const re = /\b\d{1,3}(?:,\d{3})+\b|\b\d+\b/g;
+    for (let m; (m = re.exec(text)); ) found.push([m.index, m.index + m[0].length, "num"]);
+  }
+  found.sort((a, b) => a[0] - b[0] || (a[2] === "num" ? -1 : 1));
+  const out = []; let at = 0;
+  for (const [s, e, kind] of found) {
+    if (s < at) continue;
+    if (s > at) out.push(text.slice(at, s));
+    const piece = text.slice(s, e);
+    if (kind === "num") {
+      const value = Number(piece.replace(/,/g, ""));
+      out.push(el("span", { class: "num", title: "Set as sample size", onclick: (ev) => {
+        ev.stopPropagation(); setSampleSize(value); } }, piece));
+    } else out.push(el("mark", { class: kind }, piece));
+    at = e;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+
+// Rules, from the labeling guide
+
+function inline(text) {
+  const out = []; const re = /\*\*`([^`]+)`\*\*|\*\*([^*]+)\*\*|`([^`]+)`/g; let at = 0;
+  for (let m; (m = re.exec(text)); ) {
+    if (m.index > at) out.push(text.slice(at, m.index));
+    if (m[1]) out.push(el("strong", {}, el("code", {}, m[1])));
+    else if (m[2]) out.push(el("strong", {}, m[2]));
+    else out.push(el("code", {}, m[3]));
+    at = m.index + m[0].length;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+function markdown(md) {
+  const out = [];
+  for (const block of md.split(/\n\s*\n/)) {
+    const lines = block.split("\n");
+    if (lines[0].startsWith("|")) {
+      const rows = lines.filter((l) => !/^\|[-\s|]+\|$/.test(l))
+        .map((l) => l.replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+      out.push(el("table", {}, rows.map((r, i) => el("tr", {}, r.map((c) => el(i ? "td" : "th", {}, inline(c)))))));
+    } else if (lines[0].startsWith(">")) {
+      out.push(el("blockquote", {}, inline(lines.map((l) => l.replace(/^>\s?/, "")).join(" "))));
+    } else if (lines[0].startsWith("- ")) {
+      out.push(el("ul", {}, block.split(/\n(?=- )/).map((i) => el("li", {}, inline(i.slice(2).replace(/\n\s*/g, " "))))));
+    } else if (lines[0].startsWith("#")) {
+      out.push(el("h2", {}, lines[0].replace(/^#+\s*/, "")), ...markdown(lines.slice(1).join("\n")));
+    } else out.push(el("p", {}, inline(block.replace(/\n/g, " "))));
+  }
+  return out;
+}
+function showRule(key) { rule = key; renderRule(); }
+function renderRule() {
+  const box = $("rule"); if (!box) return;
+  const dim = S.dimensions.find((d) => d.name === rule);
+  const parts = rule === "quote" ? ["findings", "quote"] : [rule];
+  const text = parts.map((k) => S.rules[k]).filter(Boolean).join("\n\n") || (dim ? dim.definition : "");
+  box.replaceChildren(el("h2", {}, `Rule: ${human(rule)}`), ...markdown(text || "No rule in the guide for this field."));
+}
+
+// Queue
+
+function counts() {
+  const c = { labeled: 0, in_progress: 0, not_started: 0 };
+  for (const a of S.abstracts) c[a.status]++;
+  return c;
+}
+function renderQueue() {
+  const c = counts(), n = S.abstracts.length;
+  const seconds = Object.values(S.marks).reduce((t, m) => t + (m.seconds || 0), 0);
+  const groups = [];
+  let slot = null, list = null;
+  S.abstracts.forEach((a, i) => {
+    if (a.slot !== slot) { slot = a.slot; list = el("ul"); groups.push(el("div", { class: "slot" }, SLOT_NAMES[slot] || human(slot)), list); }
+    const mark = S.marks[a.pmid];
+    list.append(el("li", {}, el("button", { class: i === idx ? "current" : "", onclick: () => go(i) },
+      el("span", { class: `dot ${a.status}` }), el("span", {}, a.pmid),
+      mark && mark.flagged ? el("span", { class: "flag", title: mark.flag_note || "Flagged" }, "⚑") : null)));
+  });
+  $("queue").replaceChildren(
+    el("h1", {}, S.title),
+    el("div", { class: "bar", title: "labeled, in progress, not started" },
+      el("span", { style: `width:${100 * c.labeled / n}%;background:var(--ok)` }),
+      el("span", { style: `width:${100 * c.in_progress / n}%;background:var(--warn)` })),
+    el("div", { class: "small" }, `${c.labeled} labeled, ${c.in_progress} in progress, ${c.not_started} not started, of ${n}`),
+    el("div", { class: "small muted" }, `${Math.round(seconds / 60)} min so far · `, el("button", { class: "link", onclick: () => toggleHelp() }, "keys (?)")),
+    el("div", { class: "actions" }, el("button", { class: "btn", onclick: nextUnfinished }, "Next unfinished ⏎")),
+    ...groups);
+}
+
+// Abstract
+
+function usedBy(sentence) {
+  const norm = (t) => t.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+  const s = norm(sentence);
+  return draft.finding.map((f, i) => [f, i]).filter(([f]) => f.quote && s.includes(norm(f.quote))).map(([, i]) => i);
+}
+function renderMain() {
+  const a = cur();
+  const mark = S.marks[a.pmid];
+  const paragraphs = a.sections.map((sec) => el("p", {},
+    sec.label ? el("span", { class: "label" }, sec.label) : null,
+    sec.sentences.flatMap((s) => {
+      const used = usedBy(s);
+      return [el("span", { class: used.length ? "s used" : "s", title: "Click: quote for a finding · Shift-click: new finding",
+        onclick: (ev) => sentenceClick(s, ev.shiftKey) },
+        used.map((i) => el("span", { class: "badge", style: `background:${fcolor(i)}` }, `F${i + 1}`)), spans(s)), " "];
+    })));
+  $("main").replaceChildren(
+    el("p", { class: "title" }, a.title),
+    el("div", { class: "meta" },
+      el("a", { class: "chip", href: `https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/`, target: "_blank", rel: "noopener" }, `PMID ${a.pmid}`),
+      el("span", { class: "chip" }, `${a.journal} ${a.year}`),
+      ...a.publication_types.map((t) => el("span", { class: "chip" }, t)),
+      el("span", { class: "chip" }, `sampled as ${human(a.slot)}`),
+      a.on_topic ? null : el("span", { class: "chip warn" }, "screened off topic: findings are expected to be none"),
+      mark && mark.flagged ? el("span", { class: "chip warn" }, `⚑ ${mark.flag_note || "flagged"}`) : null),
+    el("div", { class: "small muted" }, "Highlights: ", el("mark", { class: "topic" }, "topic"), " ",
+      el("mark", { class: "measure" }, "measure"), " ", el("mark", { class: "cue" }, "design or outcome cue"),
+      picking ? el("strong", {}, " · Click a number to set the sample size (Esc to stop)") : null),
+    el("div", { class: picking ? "abstract picking" : "abstract" }, paragraphs),
+    el("div", { class: "rule", id: "rule" }));
+  renderRule();
+}
+
+// Form
+
+function optButtons(values, current, onPick, keyHint = {}) {
+  return el("div", { class: "opts" }, values.map((v) => el("button", {
+    class: v === current ? "opt on" : "opt", onclick: () => onPick(v),
+    title: keyHint[v] ? `key ${keyHint[v]}` : null }, human(v) + (keyHint[v] ? ` (${keyHint[v]})` : ""))));
+}
+function field(name, ruleKey, blank, ...body) {
+  return el("div", { class: blank ? "field blank" : "field", onfocusin: () => showRule(ruleKey), onclick: () => showRule(ruleKey) },
+    el("div", { class: "name" }, el("span", {}, name)), ...body);
+}
+function textInput(value, onValue, attrs = {}) {
+  return el(attrs.multiline ? "textarea" : "input", { type: "text", ...attrs, multiline: null, value: attrs.multiline ? null : value,
+    oninput: (ev) => { onValue(ev.target.value); changed(false); } }, attrs.multiline ? value : null);
+}
+function renderForm() {
+  const a = cur(), d = draft;
+  if (a.draft === null && a.status !== "not_started") {
+    $("form").replaceChildren(el("div", { class: "problems" },
+      el("strong", {}, "This file no longer reads as a label. Fix it by hand, then reload the page."),
+      el("ul", {}, a.problems.map((p) => el("li", {}, p)))));
+    return;
+  }
+  const review = isReview(d.design);
+  const designs = a.review_stratum ? [...S.review_designs, ...S.designs.filter((x) => !isReview(x))] : S.designs;
+  const ss = d.sample_size;
+  const nodes = [
+    statusBar(),
+    el("h2", {}, "Study"),
+    field("design", "design", d.design === "", optButtons(designs, d.design, setDesign)),
+    field("sample size", "sample_size", ss === "",
+      el("div", { class: "opts" },
+        el("input", { type: "number", min: 1, style: "width:110px", value: typeof ss === "number" ? ss : "",
+          oninput: (ev) => { const v = ev.target.value; d.sample_size = v === "" ? "" : Math.trunc(Number(v)); changed(false); } }),
+        el("button", { class: ss === "not_reported" ? "opt on" : "opt", onclick: () => setSampleSize("not_reported") }, "not reported"),
+        el("button", { class: picking ? "opt on" : "opt", onclick: togglePicking }, "pick from abstract (s)"))),
+  ];
+  if (review) {
+    nodes.push(field("review summary: its conclusion in one sentence", "review_summary", !(d.review_summary || "").trim(),
+      textInput(d.review_summary || "", (v) => { d.review_summary = v; }, { multiline: true })));
+  }
+  const needsNote = !review && !d.finding.length && !(d.note || "").trim();
+  nodes.push(field(needsNote ? "note: say why there are no findings" : "note (optional)", "note", needsNote,
+    textInput(d.note || "", (v) => { d.note = v.trim() ? v : null; }, { placeholder: review ? "" : "Say why if there are no findings in the domain" })));
+  if (!review) {
+    nodes.push(el("h2", {}, `Findings (${d.finding.length})`));
+    d.finding.forEach((f, i) => nodes.push(findingCard(f, i)));
+    nodes.push(el("div", { class: "actions" },
+      el("button", { class: "btn ghost", onclick: () => addFinding("") }, "Add finding (a)"),
+      el("button", { class: "btn ghost", onclick: noFindings }, "No findings in the domain")),
+      el("p", { class: "small muted" }, "Click a sentence in the abstract to quote it. Select words to set a quote or an outcome."));
+  }
+  $("form").replaceChildren(...nodes);
+}
+function statusBar() {
+  const a = cur();
+  const text = { labeled: ["ok", "Labeled: passes the check"], in_progress: ["warn", "In progress"], not_started: ["muted", "Not started"] }[a.status];
+  const problems = a.status === "in_progress" && a.problems.length ? el("details", { class: "problems", open: a.problems.length <= 3 },
+    el("summary", {}, `${a.problems.length} left to fix (as gold check prints them)`), el("ul", {}, a.problems.map((p) => el("li", {}, p)))) : null;
+  const mark = S.marks[a.pmid] || {};
+  return el("div", {}, el("div", { class: "status" },
+    el("span", { class: text[0], id: "savestate" }, text[1]),
+    el("span", {}, el("button", { class: "link", onclick: toggleFlag }, mark.flagged ? "⚑ unflag (f)" : "flag to come back (f)"), " · ",
+      el("button", { class: "link", onclick: () => go(idx - 1) }, "← k"), " ",
+      el("button", { class: "link", onclick: () => go(idx + 1) }, "j →"))), problems);
+}
+function findingCard(f, i) {
+  const prev = draft.finding[i - 1];
+  const dims = S.dimensions.map((dim) => {
+    const v = f.dimensions[dim.name] ?? "";
+    let input;
+    if (dim.type === "options") input = optButtons(dim.options, v, (o) => { f.dimensions[dim.name] = o; changed(true); });
+    else input = el("div", { class: "opts" },
+      el("input", { type: dim.type === "number" ? "number" : "text", style: "width:160px", value: v === "not_reported" ? "" : v,
+        oninput: (ev) => { const t = ev.target.value; f.dimensions[dim.name] = t === "" ? "" : dim.type === "number" ? Number(t) : t; changed(false); } }),
+      el("button", { class: v === "not_reported" ? "opt on" : "opt", onclick: () => { f.dimensions[dim.name] = "not_reported"; changed(true); } }, "not reported"));
+    return field(human(dim.name) + (dim.unit ? ` (${dim.unit})` : ""), dim.name, v === "", input);
+  });
+  const bool = (key, label, hint) => field(label, key, f[key] === "", el("div", { class: "opts" },
+    [true, false].map((b) => el("button", { class: f[key] === b ? "opt on" : "opt", onclick: () => { f[key] = b; if (key === "is_subgroup" && b) f.is_primary = false; changed(true); } },
+      (b ? "yes" : "no") + (b ? ` (${hint})` : "")))));
+  return el("div", { class: i === active ? "card active" : "card", style: `--fc:${fcolor(i)}`, onfocusin: () => setActive(i), onmousedown: () => setActive(i) },
+    el("header", {}, el("span", {}, `F${i + 1}${i < 9 ? ` · key ${i + 1}` : ""}`),
+      el("span", {}, prev ? el("button", { class: "link", title: "key c", onclick: (ev) => { ev.stopPropagation(); copyDimensions(i); } }, "same dimensions as F" + i + " (c)") : null, " ",
+        el("button", { class: "link bad", onclick: (ev) => { ev.stopPropagation(); removeFinding(i); } }, "remove"))),
+    field("quote: click a sentence", "quote", !f.quote.trim(), textInput(f.quote, (v) => { f.quote = v; renderMain(); }, { multiline: true })),
+    field("outcome as reported: select it in the quote or type", "outcome_reported", !f.outcome_reported.trim(),
+      textInput(f.outcome_reported, (v) => { f.outcome_reported = v; }, { list: "outcomes" })),
+    field("effect, from the side with more of the exposure", "effect", f.effect === "", optButtons(EFFECTS.map((e) => e[0]), f.effect, (v) => { f.effect = v; changed(true); }, Object.fromEntries(EFFECTS))),
+    bool("is_primary", "primary outcome, named as such", "p"),
+    bool("is_subgroup", "subgroup result: part of the analyzed sample", "g"),
+    ...dims,
+    field("finding note (optional)", "note", false, textInput(f.note || "", (v) => { f.note = v.trim() ? v : null; })));
+}
+
+// Edits
+
+// Marks the active card without redrawing, so a click into one of its fields keeps focus.
+function setActive(i) {
+  if (active === i) return;
+  active = i;
+  document.querySelectorAll(".card").forEach((c, j) => c.classList.toggle("active", j === i));
+}
+function blankFinding() {
+  return { quote: "", outcome_reported: "", effect: "", is_primary: "", is_subgroup: "",
+    dimensions: Object.fromEntries(S.dimensions.map((d) => [d.name, ""])), note: null };
+}
+function setDesign(v) {
+  const was = isReview(draft.design), now = isReview(v);
+  draft.design = v;
+  if (now && !was) {
+    stash[cur().pmid] = draft.finding; draft.finding = [];
+    if (draft.review_summary == null) draft.review_summary = "";
+  } else if (!now && (was || draft.review_summary != null)) {
+    draft.review_summary = null;
+    if (!draft.finding.length && stash[cur().pmid]) draft.finding = stash[cur().pmid];
+  }
+  changed(true);
+}
+function setSampleSize(v) { draft.sample_size = v; picking = false; changed(true); }
+function togglePicking() { picking = !picking; renderMain(); renderForm(); }
+function addFinding(quote) {
+  draft.finding.push({ ...blankFinding(), quote });
+  active = draft.finding.length - 1; showRule(quote ? "outcome_reported" : "quote"); changed(true);
+}
+function removeFinding(i) { draft.finding.splice(i, 1); active = Math.max(0, Math.min(active, draft.finding.length - 1)); changed(true); }
+function noFindings() {
+  draft.finding = []; changed(true);
+  const note = document.querySelector('.form input[placeholder^="Say why"]'); if (note) note.focus();
+}
+function copyDimensions(i) { if (i > 0) { draft.finding[i].dimensions = clone(draft.finding[i - 1].dimensions); changed(true); } }
+function sentenceClick(s, forceNew) {
+  if (picking || isReview(draft.design) || window.getSelection().toString().trim()) return;
+  const used = usedBy(s);
+  if (used.length && !forceNew) { active = used[0]; renderForm(); renderMain(); return; }
+  const target = forceNew ? -1 : (draft.finding[active] && !draft.finding[active].quote.trim() ? active : draft.finding.findIndex((f) => !f.quote.trim()));
+  if (target >= 0) { draft.finding[target].quote = s; active = target; showRule("outcome_reported"); changed(true); }
+  else addFinding(s);
+}
+function changed(rerender) {
+  lastInput = Date.now();
+  if (rerender) { renderForm(); renderMain(); }
+  clearTimeout(saveTimer);
+  const state = $("savestate"); if (state) { state.className = "muted"; state.textContent = "Saving…"; }
+  saveTimer = setTimeout(save, 400);
+}
+function save() {
+  clearTimeout(saveTimer); saveTimer = null;
+  const a = cur(), body = clone(draft);
+  saving = saving.then(() => api(`/api/label/${a.pmid}`, body)).then((r) => {
+    a.status = r.status; a.problems = r.problems; a.draft = body; S.outcomes = r.outcomes;
+    banner(null); renderOutcomes(); renderQueue();
+    if (a === cur()) { const bar = document.querySelector(".form > div"); if (bar) bar.replaceWith(statusBar()); }
+  }).catch((e) => banner(`Not saved: ${e.message}. Is gold review still running?`));
+  return saving;
+}
+function renderOutcomes() { $("outcomes").replaceChildren(...S.outcomes.map((o) => el("option", { value: o }))); }
+
+// Navigation and marks
+
+async function go(i) {
+  if (i < 0 || i >= S.abstracts.length) return;
+  if (saveTimer) save();
+  await saving; await saveMarks();
+  idx = i; const a = cur();
+  draft = clone(a.draft ?? a.blank); active = 0; picking = false; rule = "design";
+  history.replaceState(null, "", `#${a.pmid}`);
+  renderQueue(); renderMain(); renderForm(); $("main").scrollTop = 0; $("form").scrollTop = 0;
+}
+function nextUnfinished() {
+  const n = S.abstracts.length;
+  for (let k = 1; k <= n; k++) { const j = (idx + k) % n; if (S.abstracts[j].status !== "labeled") return go(j); }
+}
+function markOf(pmid) { return (S.marks[pmid] = S.marks[pmid] || { flagged: false, flag_note: "", seconds: 0 }); }
+function toggleFlag() {
+  const m = markOf(cur().pmid);
+  if (m.flagged) { m.flagged = false; m.flag_note = ""; }
+  else { const note = prompt("Why come back to this one? (optional)", ""); if (note === null) return; m.flagged = true; m.flag_note = note; }
+  marksDirty = true; saveMarks(); renderQueue(); renderMain(); renderForm();
+}
+async function saveMarks() {
+  if (!marksDirty || !S) return; marksDirty = false;
+  const pmid = cur().pmid;
+  try { await api(`/api/mark/${pmid}`, S.marks[pmid]); } catch (e) { marksDirty = true; }
+}
+// Active time only: the tab is visible and there was input in the last minute.
+setInterval(() => {
+  if (!S || document.visibilityState !== "visible" || Date.now() - lastInput > 60000) return;
+  markOf(cur().pmid).seconds += 1; marksDirty = true;
+}, 1000);
+setInterval(saveMarks, 15000);
+for (const kind of ["keydown", "mousedown", "wheel", "mousemove"]) {
+  document.addEventListener(kind, () => { lastInput = Date.now(); }, { passive: true });
+}
+window.addEventListener("pagehide", () => { if (saveTimer) save(); saveMarks(); });
+
+// Selection: a quote or outcome from words selected in the abstract or a quote box
+
+document.addEventListener("mouseup", (ev) => {
+  const old = document.querySelector(".pop");
+  if (old && old.contains(ev.target)) return;
+  if (old) old.remove();
+  if (!S || isReview(draft.design) || picking) return;
+  const sel = window.getSelection(), text = sel.toString().replace(/\s+/g, " ").trim();
+  const inAbstract = sel.anchorNode && $("main").contains(sel.anchorNode);
+  if (!text || !inAbstract) return;
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  const f = () => {
+    if (!draft.finding.length) { draft.finding.push(blankFinding()); active = 0; }
+    return draft.finding[Math.min(active, draft.finding.length - 1)];
+  };
+  const pop = el("div", { class: "pop", style: `left:${r.left}px;top:${r.bottom + 6}px` },
+    el("button", { class: "opt", onclick: () => { f().quote = text; pop.remove(); sel.removeAllRanges(); changed(true); } }, `Quote for F${active + 1}`),
+    el("button", { class: "opt", onclick: () => { f().outcome_reported = text; pop.remove(); sel.removeAllRanges(); showRule("effect"); changed(true); } }, `Outcome for F${active + 1}`),
+    el("button", { class: "opt", onclick: () => { pop.remove(); addFinding(text); } }, "New finding"));
+  document.body.append(pop);
+});
+
+// Keys
+
+function toggleHelp() {
+  const open = document.querySelector(".help"); if (open) { open.remove(); return; }
+  const rows = [["click sentence", "quote for the active finding, or a new one"], ["shift-click", "new finding with that sentence"],
+    ["select words", "set quote or outcome"], ["1–9", "make finding N active"], ["i d n", "effect: increased, decreased, no change"],
+    ["p", "primary: yes, then no"], ["g", "subgroup: yes, then no"], ["b", "next option of the first dimension"],
+    ["c", "same dimensions as the finding above"], ["a", "add a finding"], ["s", "pick the sample size from the abstract"],
+    ["j k", "next, previous abstract"], ["Enter", "next unfinished abstract"], ["f", "flag to come back"], ["Esc", "leave a field, stop picking"]];
+  document.body.append(el("div", { class: "help", onclick: (ev) => { if (ev.target.classList.contains("help")) toggleHelp(); } },
+    el("div", {}, el("h1", {}, "Keys"), el("table", {}, rows.map(([k, v]) => el("tr", {}, el("td", {}, el("kbd", {}, k)), el("td", {}, v)))))));
+}
+document.addEventListener("keydown", (ev) => {
+  if (!S) return;
+  const typing = /^(INPUT|TEXTAREA)$/.test(ev.target.tagName);
+  if (ev.key === "Escape") { if (typing) ev.target.blur(); if (picking) togglePicking(); document.querySelector(".help")?.remove(); return; }
+  if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.target.tagName === "BUTTON" && (ev.key === "Enter" || ev.key === " ")) return;
+  const f = draft.finding[active], review = isReview(draft.design);
+  const cycleBool = (key) => { f[key] = f[key] === true ? false : true; if (key === "is_subgroup" && f[key]) f.is_primary = false; showRule(key); changed(true); };
+  const k = ev.key;
+  if (k === "?") toggleHelp();
+  else if (k === "j") go(idx + 1);
+  else if (k === "k") go(idx - 1);
+  else if (k === "Enter") nextUnfinished();
+  else if (k === "f") toggleFlag();
+  else if (k === "s") togglePicking();
+  else if (k === "a" && !review) addFinding("");
+  else if (/^[1-9]$/.test(k) && Number(k) <= draft.finding.length) { active = Number(k) - 1; renderForm(); }
+  else if (!f || review) return;
+  else if (k === "i" || k === "d" || k === "n") { f.effect = { i: "increased", d: "decreased", n: "no_change" }[k]; showRule("effect"); changed(true); }
+  else if (k === "p") cycleBool("is_primary");
+  else if (k === "g") cycleBool("is_subgroup");
+  else if (k === "c") copyDimensions(active);
+  else if (k === "b") {
+    const dim = S.dimensions.find((d) => d.type === "options"); if (!dim) return;
+    const opts = dim.options, at = opts.indexOf(f.dimensions[dim.name]);
+    f.dimensions[dim.name] = opts[(at + 1) % opts.length]; showRule(dim.name); changed(true);
+  } else return;
+  ev.preventDefault();
+});
+
+// Start
+
+(async () => {
+  try { S = await api("/api/state"); }
+  catch (e) { $("main").replaceChildren(el("p", { class: "bad" }, "Open this page through: uv run claimgraph gold review QUESTION")); return; }
+  document.title = `Labeling: ${S.question}`;
+  document.body.append(el("datalist", { id: "outcomes" }));
+  buildPatterns(); renderOutcomes();
+  const fromHash = S.abstracts.findIndex((a) => a.pmid === location.hash.slice(1));
+  const firstOpen = S.abstracts.findIndex((a) => a.status !== "labeled");
+  await go(fromHash >= 0 ? fromHash : Math.max(0, firstOpen));
+})();
+</script>
+</body>
+</html>

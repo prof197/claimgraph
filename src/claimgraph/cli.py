@@ -1,3 +1,4 @@
+import errno
 import os
 from datetime import date
 from enum import StrEnum
@@ -8,7 +9,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import gold, labels
+from claimgraph import gold, labels, review
 from claimgraph.config import load_config, resolve_question
 from claimgraph.retrieve import EutilsError, connect_eutils, retrieve
 
@@ -176,3 +177,25 @@ def gold_check(
     )
     if report.problems:
         raise typer.Exit(1)
+
+
+@gold_app.command("review")
+def gold_review(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    page_dir: Annotated[
+        Path, typer.Option(help="Where the local page and its notes are kept; never committed.")
+    ] = review.PAGE_DIR,
+    port: Annotated[int, typer.Option(help="Port on 127.0.0.1; 0 picks a free one.")] = 8765,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open a browser.")] = True,
+) -> None:
+    """Serve a local page for labeling the gold abstracts; each edit is saved and checked."""
+    config = load_config(resolve_question(question))
+    session = review.ReviewSession(gold_dir / config.id, config, gold_dir / "LABELING.md", page_dir)
+    try:
+        review.serve(session, review.write_page(page_dir), port, open_browser)
+    except OSError as error:
+        if error.errno != errno.EADDRINUSE:
+            raise
+        typer.echo(f"port {port} is in use; pass --port 0 to pick a free one", err=True)
+        raise typer.Exit(1) from error

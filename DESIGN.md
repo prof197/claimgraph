@@ -497,6 +497,15 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   primary outcome, whether it is a subgroup result, and a value for every config dimension. Population, intervention and
   comparator are not labeled, because the eval does not score them. `claimgraph gold template`
   writes a file per abstract with the abstract shown as comments and every value blank.
+- **Labeling page.** `claimgraph gold review` serves a page on 127.0.0.1 that writes the same
+  label files and runs the same check on every edit, so the files stay the source of truth and
+  can still be edited by hand. It cuts labeling time without deciding anything: a clicked
+  sentence becomes a quote, verbatim by construction; selected words become the outcome; closed
+  fields are buttons and keys; topic terms, measures and design cues are highlighted; and the
+  guide's rule for the field in focus sits beside the abstract. It fills in no value, so the
+  labels stay independent of any model. The page, its flags and its timings live in the
+  gitignored `local-data/`. Requests must name the local host and send JSON, so another site
+  open in the browser cannot write labels through it.
 - **Every value is explicit.** TOML has no null, so a missing value is written
   `"not_reported"`, and a blank template fails the check rather than passing as unlabeled.
   The check also requires each quote to appear in its abstract, after the same whitespace and

@@ -17,9 +17,14 @@ double quotes or backslashes needs no escaping. Synthetic examples of all three 
 ## Abstracts
 
 ```
-uv run claimgraph gold template vitamin-d-depression   # one template per gold abstract
+uv run claimgraph gold review vitamin-d-depression     # label on a local page
+uv run claimgraph gold template vitamin-d-depression   # or: one template per abstract, by hand
 uv run claimgraph gold check vitamin-d-depression      # run as often as you like
 ```
+
+The review page serves on 127.0.0.1 only. Clicking a sentence makes it a finding's quote,
+selected words set the outcome, keys set the closed fields (press `?` for the list), and every
+edit is saved to the label file and checked. It never fills in a value for you.
 
 Each template shows the abstract as comments above the fields. Its blank values fail the check,
 so an unfilled template never passes as a label. Templates are never overwritten.

@@ -11,6 +11,7 @@ uv run --env-file .env claimgraph gold sample vitamin-d-depression
                                           # draw the gold and dev eval samples
 uv run claimgraph gold template vitamin-d-depression   # label files to fill in by hand
 uv run claimgraph gold check vitamin-d-depression      # validate the labels
+uv run claimgraph gold review vitamin-d-depression     # local labeling page on 127.0.0.1
 uv run pytest                             # tests
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .
