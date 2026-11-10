@@ -14,12 +14,17 @@ from claimgraph.config import QuestionConfig, load_config
 from claimgraph.gold import GoldAbstract, Licence, Stratum
 from claimgraph.labels import (
     AbstractLabel,
+    FindingDraft,
+    LabelDraft,
+    blank_draft,
     check_abstract_label,
+    check_label_file,
     check_labels,
     label_template,
     load_abstract_label,
     load_contradiction_pairs,
     load_outcome_pairs,
+    render_label,
 )
 from claimgraph.models import Design, Effect, Reason, Verdict
 from claimgraph.retrieve import Abstract, parse_record
@@ -393,6 +398,54 @@ def test_template_wraps_long_abstract_lines_as_comments() -> None:
     text = label_template(entry, VITAMIN_D)
 
     assert all(len(line) <= 100 for line in text.splitlines() if line.startswith("#"))
+
+
+def test_a_template_reads_back_as_the_blank_draft() -> None:
+    for entry in (gold_entry(), gold_entry(Stratum.REVIEW)):
+        data = tomllib.loads(label_template(entry, VITAMIN_D))
+
+        assert LabelDraft.model_validate(data) == blank_draft(entry, VITAMIN_D)
+
+
+def test_a_draft_round_trips_through_its_label_file() -> None:
+    draft = LabelDraft(
+        pmid="999000001",
+        design="rct",
+        sample_size=120,
+        note='Synthetic note with "double quotes" and a back\\slash.',
+        finding=[
+            FindingDraft(
+                quote="Synthetic depression scores fell more with synthetic vitamin D than with "
+                "placebo (p = 0.01).",
+                outcome_reported="synthetic depression score",
+                effect="decreased",
+                is_primary=True,
+                is_subgroup=False,
+                dimensions={"baseline_vitamin_d_status": "below_20_ng_ml"},
+            ),
+            FindingDraft(
+                # Neither can sit in a literal string, so this quote falls back to a basic one.
+                quote="A synthetic quote with ''' inside, ending in a quote mark'",
+                is_primary="",
+                dimensions={"baseline_vitamin_d_status": "", "synthetic_extra": 1.5},
+                note="Synthetic finding note.",
+            ),
+        ],
+    )
+
+    text = render_label(gold_entry(), VITAMIN_D, draft)
+
+    assert text.startswith("# Synthetic trial of placeholder supplementation.")
+    assert "quote = '''Synthetic depression scores" in text
+    assert LabelDraft.model_validate(tomllib.loads(text)) == draft
+
+
+def test_a_filled_draft_passes_the_check(tmp_path: Path) -> None:
+    filled = LabelDraft.model_validate(tomllib.loads((EXAMPLES / "999000001.toml").read_text()))
+    path = tmp_path / "999000001.toml"
+    path.write_text(render_label(gold_entry(), VITAMIN_D, filled))
+
+    assert check_label_file(path, {"999000001": gold_entry()}, VITAMIN_D) == []
 
 
 # Checking a question's labels
