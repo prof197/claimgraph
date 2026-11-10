@@ -1,5 +1,6 @@
 """Gold label files: abstracts, outcome pairs and contradiction pairs."""
 
+import subprocess
 import tomllib
 from datetime import date
 from pathlib import Path
@@ -435,11 +436,25 @@ def test_check_reports_an_unfilled_template(tmp_path: Path) -> None:
 
 
 def test_committed_labels_are_valid() -> None:
+    # Labels in progress sit uncommitted beside these; gold check and the review page check them.
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", "evals/gold"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout
+    tracked = {ROOT / name for name in listed.split("\0") if name}
     for out in sorted((ROOT / "evals" / "gold").glob("*/")):
         if not (out / "labels").exists():
             continue
         report = check_labels(out, load_config(ROOT / "questions" / f"{out.name}.toml"))
-        assert report.problems == {}, out.name
+        committed = {
+            name: problems
+            for name, problems in report.problems.items()
+            if {out / "labels" / name, out / name} & tracked
+        }
+        assert committed == {}, out.name
 
 
 def test_check_requires_the_file_name_to_match_the_pmid(tmp_path: Path) -> None:
