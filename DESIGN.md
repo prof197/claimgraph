@@ -488,6 +488,10 @@ extraction eval also checks that the outcome domain returns no findings for them
   another licence, or no metadata at all rules an article out. NCBI retired the PMC OA Web
   Service API and the legacy FTP files in August 2026 ([NCBI][pmc-transition], [PMC][pmc-aws]);
   the bucket's README documents the metadata fields ([PMC][pmc-bucket]).
+- **Gold is what was labeled.** `claimgraph gold trim QUESTION` keeps only the gold records
+  with a passing label and regenerates `gold.jsonl` and the attribution file from them. It
+  refuses while a label is in progress, deletes only untouched templates, and leaves the draw's
+  counts in `sample.json` beside the labeled ones.
 - **Dev** is drawn from the whole kept corpus less the gold sample, under any licence. Only its
   PMIDs, strata and the seed are committed; the text is refetched by PMID into the gitignored
   run directory, so dev is reproducible without redistributing it. Dev is for tuning prompts

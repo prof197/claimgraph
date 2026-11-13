@@ -12,7 +12,14 @@ from test_retrieve_parse import article
 
 from claimgraph.config import QuestionConfig, load_config
 from claimgraph.design_tree import answers_for
-from claimgraph.gold import GoldAbstract, Licence, Stratum
+from claimgraph.gold import (
+    Composition,
+    GoldAbstract,
+    Licence,
+    SampleManifest,
+    Split,
+    Stratum,
+)
 from claimgraph.labels import (
     AbstractLabel,
     FindingDraft,
@@ -25,7 +32,9 @@ from claimgraph.labels import (
     load_abstract_label,
     load_contradiction_pairs,
     load_outcome_pairs,
+    read_gold,
     render_label,
+    trim_gold,
 )
 from claimgraph.models import Design, Effect, Reason, Verdict
 from claimgraph.retrieve import Abstract, parse_record
@@ -578,6 +587,93 @@ def test_check_requires_the_file_name_to_match_the_pmid(tmp_path: Path) -> None:
     assert report.problems == {"label.toml": ["file name must be 999000001.toml"]}
 
 
+# Trimming gold to the labeled records
+
+
+def write_manifest(out: Path) -> SampleManifest:
+    pool = Composition(records=3, by_design={"trial": 3}, by_years={"2020-2024": 3})
+    manifest = SampleManifest(
+        question="vitamin-d-depression",
+        seed=1,
+        checked_on=date(2026, 11, 5),
+        quotas={Stratum.TRIAL: 3},
+        corpus=pool,
+        with_pmcid=3,
+        open_pool=pool,
+        skipped={},
+        splits={Split.GOLD: {Stratum.TRIAL: 3}, Split.DEV: {Stratum.TRIAL: 3}},
+    )
+    (out / "sample.json").write_text(manifest.model_dump_json(indent=2) + "\n")
+    return manifest
+
+
+def three_drawn(out: Path) -> list[GoldAbstract]:
+    """999000001 labeled, 999000002 an untouched template, 999000003 with no file."""
+    entries = [gold_entry(abstract=synthetic_abstract(pmid=f"99900000{n}")) for n in (1, 2, 3)]
+    write_gold(out, *entries)
+    write_manifest(out)
+    (out / "labels").mkdir()
+    (out / "labels" / "999000001.toml").write_text((EXAMPLES / "999000001.toml").read_text())
+    (out / "labels" / "999000002.toml").write_text(label_template(entries[1], VITAMIN_D))
+    return entries
+
+
+def test_trim_keeps_the_labeled_records(tmp_path: Path) -> None:
+    out = tmp_path / "vitamin-d-depression"
+    three_drawn(out)
+
+    trimmed = trim_gold(out, VITAMIN_D)
+
+    assert trimmed.kept == ["999000001"]
+    assert trimmed.dropped == ["999000002", "999000003"]
+    assert [g.abstract.pmid for g in read_gold(out)] == ["999000001"]
+    # An untouched template holds nothing gold template would not write again.
+    assert sorted(p.name for p in (out / "labels").iterdir()) == ["999000001.toml"]
+    attribution = (out / "ATTRIBUTION.md").read_text()
+    assert "999000001" in attribution
+    assert "999000002" not in attribution
+    manifest = SampleManifest.model_validate_json((out / "sample.json").read_text())
+    assert manifest.labeled == {Stratum.TRIAL: 1}
+    # The draw itself is still recorded as drawn.
+    assert manifest.splits[Split.GOLD] == {Stratum.TRIAL: 3}
+    assert check_labels(out, VITAMIN_D).problems == {}
+
+
+def test_trim_twice_changes_nothing(tmp_path: Path) -> None:
+    out = tmp_path / "vitamin-d-depression"
+    three_drawn(out)
+    trim_gold(out, VITAMIN_D)
+    before = {p.name: p.read_bytes() for p in out.rglob("*") if p.is_file()}
+
+    again = trim_gold(out, VITAMIN_D)
+
+    assert again.kept == ["999000001"]
+    assert again.dropped == []
+    assert {p.name: p.read_bytes() for p in out.rglob("*") if p.is_file()} == before
+
+
+def test_trim_refuses_while_a_label_is_in_progress(tmp_path: Path) -> None:
+    out = tmp_path / "vitamin-d-depression"
+    entries = three_drawn(out)
+    started = blank_draft(entries[1], VITAMIN_D).model_copy(update={"design": "rct"})
+    (out / "labels" / "999000002.toml").write_text(render_label(entries[1], VITAMIN_D, started))
+    before = {p.name: p.read_bytes() for p in out.rglob("*") if p.is_file()}
+
+    with pytest.raises(ValueError, match=r"999000002\.toml"):
+        trim_gold(out, VITAMIN_D)
+
+    assert {p.name: p.read_bytes() for p in out.rglob("*") if p.is_file()} == before
+
+
+def test_trim_refuses_when_nothing_is_labeled(tmp_path: Path) -> None:
+    out = tmp_path / "vitamin-d-depression"
+    three_drawn(out)
+    (out / "labels" / "999000001.toml").unlink()
+
+    with pytest.raises(ValueError, match="nothing is labeled"):
+        trim_gold(out, VITAMIN_D)
+
+
 # Command line
 
 
@@ -603,3 +699,21 @@ def test_template_then_check_from_the_command_line(tmp_path: Path) -> None:
     ).read_text()
     assert checked.exit_code == 1
     assert "1 labeled, 1 with problems, 0 not started, of 2" in checked.output
+
+
+def test_trim_from_the_command_line(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from claimgraph import cli
+
+    out = tmp_path / "vitamin-d-depression"
+    three_drawn(out)
+    config = str(ROOT / "questions" / "vitamin-d-depression.toml")
+    runner = CliRunner()
+
+    trimmed = runner.invoke(cli.app, ["gold", "trim", config, "--gold-dir", str(tmp_path)])
+    checked = runner.invoke(cli.app, ["gold", "check", config, "--gold-dir", str(tmp_path)])
+
+    assert trimmed.exit_code == 0, trimmed.output
+    assert "kept 1 labeled gold abstracts; dropped 2" in trimmed.output
+    assert "1 labeled, 0 with problems, 0 not started, of 1" in checked.output

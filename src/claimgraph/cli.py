@@ -179,6 +179,21 @@ def gold_check(
         raise typer.Exit(1)
 
 
+@gold_app.command("trim")
+def gold_trim(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Keep only the labeled gold abstracts; drops the rest of the draw and its blank templates."""
+    config = load_config(resolve_question(question))
+    try:
+        trimmed = labels.trim_gold(gold_dir / config.id, config)
+    except ValueError as error:
+        typer.echo(f"not trimmed: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"kept {len(trimmed.kept)} labeled gold abstracts; dropped {len(trimmed.dropped)}")
+
+
 @gold_app.command("review")
 def gold_review(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],

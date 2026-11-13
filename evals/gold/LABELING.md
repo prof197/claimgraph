@@ -20,6 +20,7 @@ double quotes or backslashes needs no escaping. Synthetic examples of all three 
 uv run claimgraph gold review vitamin-d-depression     # label on a local page
 uv run claimgraph gold template vitamin-d-depression   # or: one template per abstract, by hand
 uv run claimgraph gold check vitamin-d-depression      # run as often as you like
+uv run claimgraph gold trim vitamin-d-depression       # when done: keep only the labeled records
 ```
 
 The review page serves on 127.0.0.1 only. Clicking a sentence makes it a finding's quote,

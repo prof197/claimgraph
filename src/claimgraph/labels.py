@@ -7,6 +7,7 @@ number or text is written "not_reported", because TOML has no null.
 import json
 import textwrap
 import tomllib
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
@@ -24,7 +25,7 @@ from pydantic import (
 
 from claimgraph.config import NOT_REPORTED, Dimension, DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, follow
-from claimgraph.gold import GoldAbstract, Stratum
+from claimgraph.gold import GoldAbstract, SampleManifest, Stratum, attribution
 from claimgraph.models import (
     REVIEW_DESIGNS,
     Design,
@@ -36,7 +37,7 @@ from claimgraph.models import (
     Verdict,
     check_also_differs,
 )
-from claimgraph.retrieve import Abstract
+from claimgraph.retrieve import Abstract, write_atomic
 
 Participants = Annotated[int, Field(strict=True, gt=0)]
 # Abstract lines in a template are wrapped to this width, after the "# " comment prefix.
@@ -509,3 +510,55 @@ def write_templates(out_dir: Path, config: QuestionConfig) -> list[str]:
             path.write_text(label_template(entry, config))
             written.append(entry.abstract.pmid)
     return written
+
+
+class Trimmed(Record):
+    kept: list[Pmid]
+    dropped: list[Pmid]
+
+
+def trim_gold(out_dir: Path, config: QuestionConfig) -> Trimmed:
+    """Keep only the gold abstracts with a passing label, so the eval runs on what was labeled.
+
+    The rest of the draw is dropped from gold.jsonl and the attribution file, and an untouched
+    template of a dropped record is deleted, since `gold template` would write it again.
+    sample.json keeps the draw and adds the kept counts. Raises ValueError, changing nothing,
+    while any label file is in progress or nothing is labeled.
+    """
+    gold = read_gold(out_dir)
+    by_pmid = {g.abstract.pmid: g for g in gold}
+    kept: list[GoldAbstract] = []
+    untouched: list[Path] = []
+    in_progress: list[Path] = []
+    for path in sorted((out_dir / "labels").glob("*.toml")):
+        entry = by_pmid.get(path.stem)
+        if entry is not None and not check_label_file(path, by_pmid, config):
+            continue
+        try:
+            blank = entry is not None and load_draft(path) == blank_draft(entry, config)
+        except (tomllib.TOMLDecodeError, ValidationError):
+            blank = False
+        (untouched if blank else in_progress).append(path)
+    if in_progress:
+        names = ", ".join(p.name for p in in_progress)
+        raise ValueError(f"finish or remove the labels in progress first: {names}")
+    for entry in gold:
+        path = out_dir / "labels" / f"{entry.abstract.pmid}.toml"
+        if path.exists() and path not in untouched:
+            kept.append(entry)
+    if not kept:
+        raise ValueError("nothing is labeled yet")
+
+    manifest = SampleManifest.model_validate_json((out_dir / "sample.json").read_bytes())
+    labeled = dict(Counter(e.slot for e in kept).most_common())
+    manifest = manifest.model_copy(update={"labeled": labeled})
+    write_atomic(out_dir / "gold.jsonl", "".join(e.model_dump_json() + "\n" for e in kept).encode())
+    write_atomic(out_dir / "ATTRIBUTION.md", attribution(kept, manifest.checked_on).encode())
+    write_atomic(out_dir / "sample.json", manifest.model_dump_json(indent=2).encode() + b"\n")
+    for path in untouched:
+        path.unlink()
+    pmids = {e.abstract.pmid for e in kept}
+    return Trimmed(
+        kept=[e.abstract.pmid for e in kept],
+        dropped=[g.abstract.pmid for g in gold if g.abstract.pmid not in pmids],
+    )
