@@ -10,18 +10,23 @@ from test_labels import ROOT, VITAMIN_D, gold_entry, label, synthetic_abstract
 from claimgraph.design_tree import full_answers
 from claimgraph.evaluation import (
     EXTRACTION_BLOCK,
+    MODELS_BLOCK,
+    RERUN_BLOCK,
     ExtractionScores,
     ModelRow,
     extraction_table,
     gold_scores,
     models_table,
+    recorded_models,
+    rerun_agreement,
     score_extraction,
 )
 from claimgraph.extract import ExtractionResult, read_extraction
 from claimgraph.gold import GoldAbstract, Stratum
 from claimgraph.labels import AbstractLabel
 from claimgraph.models import Design
-from claimgraph.relabel import replace_block
+from claimgraph.prices import PRICES_FILE, load_prices
+from claimgraph.relabel import agreement_table, replace_block
 from claimgraph.retrieve import Abstract
 
 SCORES = (
@@ -239,13 +244,34 @@ def test_the_model_table_puts_each_model_on_one_row_with_its_cost() -> None:
     )
 
     table = models_table(
-        [ModelRow(scores=haiku, cost_usd=0.0082), ModelRow(scores=sonnet, cost_usd=0.21)]
+        [
+            ModelRow(name="claude-haiku-5-5", scores=haiku, cost_usd=0.0082),
+            ModelRow(name="claude-haiku-5-5, second run", scores=haiku, cost_usd=0.0084),
+            ModelRow(name="claude-sonnet-5-5", scores=sonnet, cost_usd=0.21),
+        ]
     )
 
     rows = [line for line in table.splitlines() if line.startswith("| claude-")]
     assert rows == [
         "| claude-haiku-5-5 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 "
         "| 1 of 1 | $0.0082 |",
+        "| claude-haiku-5-5, second run | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 "
+        "| 1 of 1 | 1 of 1 | $0.0084 |",
         "| claude-sonnet-5-5 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 0 of 1 "
         "| 0 of 1 | $0.2100 |",
     ]
+
+
+def test_the_readme_shows_the_run_to_run_agreement_and_the_model_table() -> None:
+    # Both generated from the committed recordings, never typed by hand.
+    readme = (ROOT / "README.md").read_text()
+    gold, replay, second = ROOT / "evals" / "gold", ROOT / "replay", ROOT / "replay" / "second-run"
+    rerun = agreement_table(
+        rerun_agreement(gold, replay, second, VITAMIN_D), passes="Second live run", unit="run"
+    )
+    models = models_table(
+        recorded_models(gold, replay, VITAMIN_D, load_prices(ROOT / PRICES_FILE), second)
+    )
+
+    assert replace_block(readme, RERUN_BLOCK, rerun) == readme
+    assert replace_block(readme, MODELS_BLOCK, models) == readme

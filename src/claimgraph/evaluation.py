@@ -206,6 +206,8 @@ def extraction_table(scores: ExtractionScores) -> str:
 
 
 class ModelRow(Record):
+    # The model, or the model and which run, such as a second live run.
+    name: str
     scores: ExtractionScores
     # What the recorded responses cost at batch prices.
     cost_usd: float
@@ -231,7 +233,7 @@ def models_table(rows: Sequence[ModelRow]) -> str:
         by_name = {f.name: f for f in s.findings}
         found, effect = by_name["finding"], by_name["effect"]
         lines.append(
-            f"| {s.model} | {counted(s.design)} | {counted(s.design_publication_types_first)} | "
+            f"| {row.name} | {counted(s.design)} | {counted(s.design_publication_types_first)} | "
             f"{counted(s.design_answers_alone)} | {counted(s.sample_size)} | "
             f"{found.correct} of {found.model} | {found.correct} of {found.gold} | "
             f"{effect.correct} of {effect.model} | {effect.correct} of {effect.gold} | "
@@ -292,24 +294,39 @@ def gold_scores(
 
 
 def model_row(
-    gold_root: Path, replay_root: Path, config: QuestionConfig, choice: ModelChoice, prices: Prices
+    gold_root: Path,
+    replay_root: Path,
+    config: QuestionConfig,
+    choice: ModelChoice,
+    prices: Prices,
+    run_name: str | None = None,
 ) -> ModelRow:
     gold, labels = _gold(gold_root, config)
     run = _replayed_run(gold, gold_replay_dir(replay_root, config, choice), config, choice)
+    model = SETTINGS[choice].model
     return ModelRow(
+        name=model if run_name is None else f"{model}, {run_name}",
         scores=score_extraction(gold, labels, run.results, config),
         cost_usd=summarize(run, SETTINGS[choice].model, prices).cost_usd,
     )
 
 
 def recorded_models(
-    gold_root: Path, replay_root: Path, config: QuestionConfig, prices: Prices
+    gold_root: Path,
+    replay_root: Path,
+    config: QuestionConfig,
+    prices: Prices,
+    second_root: Path | None = None,
 ) -> list[ModelRow]:
-    """A row for every model with gold recordings, in the order of ModelChoice."""
+    """A row for every model with gold recordings, in the order of ModelChoice, and a row for
+    each model a second live run recorded, so the spread between runs shows beside the gap
+    between models."""
+    runs = [(replay_root, None)] + ([] if second_root is None else [(second_root, "second run")])
     return [
-        model_row(gold_root, replay_root, config, choice, prices)
+        model_row(gold_root, root, config, choice, prices, name)
         for choice in ModelChoice
-        if gold_replay_dir(replay_root, config, choice).is_dir()
+        for root, name in runs
+        if gold_replay_dir(root, config, choice).is_dir()
     ]
 
 

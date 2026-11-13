@@ -469,6 +469,10 @@ def eval_models(
     replay_dir: Annotated[
         Path, typer.Option(help="Where the committed model recordings live.")
     ] = Path("replay"),
+    second_run: Annotated[
+        Path | None,
+        typer.Option(help="Recordings of a second live run, shown as rows of their own."),
+    ] = None,
     prices_file: PricesFile = PRICES_FILE,
     readme: Annotated[
         Path | None, typer.Option(help="Also write the table into this README's block.")
@@ -476,8 +480,9 @@ def eval_models(
 ) -> None:
     """Every model with gold recordings side by side, with what its responses cost."""
     config = load_config(resolve_question(question))
+    prices = load_prices(prices_file)
     try:
-        rows = evaluation.recorded_models(gold_dir, replay_dir, config, load_prices(prices_file))
+        rows = evaluation.recorded_models(gold_dir, replay_dir, config, prices, second_run)
     except ValueError as error:
         typer.echo(f"no scores: {error}", err=True)
         raise typer.Exit(1) from error

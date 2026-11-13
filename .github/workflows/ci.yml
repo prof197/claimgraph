@@ -28,3 +28,5 @@ jobs:
         run: |
           set -o pipefail
           uv run claimgraph eval extraction vitamin-d-depression | tee -a "$GITHUB_STEP_SUMMARY"
+          uv run claimgraph eval models vitamin-d-depression --second-run replay/second-run \
+            | tee -a "$GITHUB_STEP_SUMMARY"
