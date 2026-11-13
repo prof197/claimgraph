@@ -512,15 +512,24 @@ def gold_question(tmp_path: Path) -> Path:
 
 
 def batches_from(transport: Scripted) -> Any:
-    """A stand-in for the live batch sender that answers through a scripted transport."""
+    """A stand-in for the live batch API that answers through a scripted transport."""
 
-    def connect(env: Mapping[str, str], on_poll: Any = None) -> batch.BatchSender:
-        def send(requests: Mapping[str, Mapping[str, Any]]) -> batch.BatchOutcome:
+    class Api:
+        def __init__(self) -> None:
+            self.sent: list[Mapping[str, Mapping[str, Any]]] = []
+
+        def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
+            self.sent.append(requests)
+            return f"msgbatch_synthetic_{len(self.sent)}"
+
+        def collect(self, batch_id: str) -> batch.BatchOutcome:
+            requests = self.sent[int(batch_id.rsplit("_", 1)[1]) - 1]
             return batch.BatchOutcome(
                 responses={k: transport(p) for k, p in requests.items()}, failures={}
             )
 
-        return send
+    def connect(env: Mapping[str, str], on_poll: Any = None) -> Any:
+        return Api()
 
     return connect
 

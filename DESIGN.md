@@ -314,6 +314,11 @@ title alone.
   the batch fails, errored or expired, is reported and not sent again in that run. Batch
   responses are recorded exactly as direct ones, so a run replays the same either way; dev and
   corpus runs share recordings, since a dev abstract makes the same request in both.
+- **A stopped run is picked up, not paid twice.** Each batch's id is written to
+  `pending-batches.txt` in the recordings directory before the run waits on it, and removed
+  once its results are recorded. The next live run collects any batch left there first and
+  records each result whose key is a request it needs; the rest are dropped, since a result can
+  only be recorded beside the exact request it answers.
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
   normalization: curly and straight marks match, and so do runs of spaces and line breaks;
   anything else, a dropped mark or a changed number, is a miss. The abstract's sections are the

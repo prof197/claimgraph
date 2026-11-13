@@ -29,15 +29,19 @@ VALID = response(json.dumps(output()))
 
 
 class FakeBatches:
-    """A batch sender that answers each request through a responder, one call per batch."""
+    """A batch API that answers each request through a responder."""
 
     def __init__(self, respond: Responder, fail: set[str] | None = None) -> None:
         self.respond = respond
         self.fail = fail or set()
         self.batches: list[dict[str, Mapping[str, Any]]] = []
 
-    def __call__(self, requests: Mapping[str, Mapping[str, Any]]) -> BatchOutcome:
+    def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
         self.batches.append(dict(requests))
+        return f"msgbatch_synthetic_{len(self.batches)}"
+
+    def collect(self, batch_id: str) -> BatchOutcome:
+        requests = self.batches[int(batch_id.rsplit("_", 1)[1]) - 1]
         failed = {k for k, p in requests.items() if p["messages"][0]["content"] in self.fail}
         return BatchOutcome(
             responses={k: self.respond(p) for k, p in requests.items() if k not in failed},
@@ -177,16 +181,18 @@ class FakeSdk:
         self.messages = SimpleNamespace(batches=Batches())
 
 
-def test_the_sender_submits_polls_and_sorts_the_results() -> None:
+def test_the_api_submits_polls_and_sorts_the_results() -> None:
     sdk = FakeSdk(polls=3)
     sleeps: list[float] = []
-    sender = batch.batch_sender(cast(Any, sdk), sleep=sleeps.append, poll_seconds=30)
+    api = batch.AnthropicBatches(cast(Any, sdk), sleep=sleeps.append, poll_seconds=30)
     requests = {k * 64: {"model": "synthetic"} for k in "abc"}
 
-    outcome = sender(requests)
+    batch_id = api.submit(requests)
+    outcome = api.collect(batch_id)
 
+    assert batch_id == "msgbatch_synthetic"
     assert sdk.created == [{"custom_id": k, "params": p} for k, p in requests.items()]
-    assert sleeps == [30, 30, 30]
+    assert sleeps == [30, 30]
     assert outcome.responses == {"a" * 64: VALID}
     assert outcome.failures == {"b" * 64: "errored: overloaded_error", "c" * 64: "expired"}
 
@@ -269,7 +275,7 @@ def dev_sample(tmp_path: Path) -> Path:
     return run_dir
 
 
-def never_send(env: Mapping[str, str], on_poll: Any = None) -> batch.BatchSender:
+def never_send(env: Mapping[str, str], on_poll: Any = None) -> batch.BatchApi:
     raise AssertionError("nothing may be sent")
 
 
@@ -330,3 +336,66 @@ def test_stale_covers_recordings_and_shared_files_nothing_uses(tmp_path: Path) -
     (tmp_path / "shared" / f"{'1' * 64}.json").write_text("{}\n")
 
     assert batch.stale(tmp_path, run.used) == [f"{'0' * 64}.json", f"shared/{'1' * 64}.json"]
+
+
+# Picking up a stopped run
+
+
+class Stopped(FakeBatches):
+    """Sends its batch, then is stopped while waiting, as an interrupted run is."""
+
+    def collect(self, batch_id: str) -> BatchOutcome:
+        raise KeyboardInterrupt
+
+
+class Resumed(FakeBatches):
+    """Holds the batches a stopped run sent; must not send any more."""
+
+    def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
+        raise AssertionError("a stopped run's requests must not be sent again")
+
+
+def test_a_stopped_run_leaves_its_batch_and_the_next_run_collects_it(tmp_path: Path) -> None:
+    abstracts = [titled("First."), titled("Second.", "999000002")]
+    respond = by_title({"First.": [VALID], "Second.": [VALID]})
+    stopped = Stopped(respond)
+
+    with pytest.raises(KeyboardInterrupt):
+        extract_batched(abstracts, VITAMIN_D, tmp_path, ModelChoice.HAIKU, stopped)
+    assert batch.pending_batches(tmp_path) == ["msgbatch_synthetic_1"]
+    assert list(tmp_path.glob("*.json")) == []
+
+    resumed = Resumed(respond)
+    resumed.batches = stopped.batches
+    run = extract_batched(abstracts, VITAMIN_D, tmp_path, ModelChoice.HAIKU, resumed)
+
+    assert run.resumed == 1
+    assert run.batches == 0
+    assert run.missing == {}
+    assert len(run.results) == 2
+    assert batch.pending_batches(tmp_path) == []
+    assert "collected 1 batches a stopped run left" in batch.describe(run, PRICES)[0]
+
+
+def test_a_collected_result_no_request_needs_is_not_recorded(tmp_path: Path) -> None:
+    old = Stopped(by_title({"An older prompt.": [VALID]}))
+    with pytest.raises(KeyboardInterrupt):
+        extract_batched([titled("An older prompt.")], VITAMIN_D, tmp_path, ModelChoice.HAIKU, old)
+    current = FakeBatches(by_title({"An older prompt.": [VALID], "Current.": [VALID]}))
+    current.batches = list(old.batches)
+
+    run = extract_batched([titled("Current.")], VITAMIN_D, tmp_path, ModelChoice.HAIKU, current)
+
+    # The old batch is collected and dropped; the current request is sent as usual.
+    assert run.resumed == 1
+    assert run.batches == 1
+    assert len(list(tmp_path.glob("*.json"))) == 1
+
+
+def test_replay_never_collects(tmp_path: Path) -> None:
+    (tmp_path / batch.PENDING_FILE).write_text("msgbatch_synthetic_1\n")
+
+    run = extract_batched([titled("First.")], VITAMIN_D, tmp_path, ModelChoice.HAIKU, None)
+
+    assert run.resumed == 0
+    assert batch.pending_batches(tmp_path) == ["msgbatch_synthetic_1"]

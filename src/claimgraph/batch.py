@@ -12,7 +12,7 @@ import json
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import anthropic
 
@@ -21,7 +21,7 @@ from claimgraph.extract import SETTINGS, ExtractionResult, ModelChoice, extract_
 from claimgraph.llm import SHARED_DIR, ModelClient, ReplayMiss, request_key
 from claimgraph.models import Record
 from claimgraph.prices import Prices, cost, model_prices
-from claimgraph.retrieve import Abstract
+from claimgraph.retrieve import Abstract, write_atomic
 
 MAX_ROUNDS = 3
 POLL_SECONDS = 30
@@ -34,33 +34,48 @@ class BatchOutcome(Record):
     failures: dict[str, str]
 
 
-# Sends one batch of requests, keyed by request key, and waits for its results.
-type BatchSender = Callable[[Mapping[str, Mapping[str, Any]]], BatchOutcome]
+class BatchApi(Protocol):
+    def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
+        """Send one batch of requests, keyed by request key; returns the batch's id."""
+        ...
+
+    def collect(self, batch_id: str) -> BatchOutcome:
+        """Wait for a batch to end and return its results."""
+        ...
 
 
-def batch_sender(
-    client: anthropic.Anthropic,
-    sleep: Callable[[float], None] = time.sleep,
-    poll_seconds: float = POLL_SECONDS,
-    on_poll: Callable[[str], None] = lambda _: None,
-) -> BatchSender:
-    def send(requests: Mapping[str, Mapping[str, Any]]) -> BatchOutcome:
+class AnthropicBatches:
+    def __init__(
+        self,
+        client: anthropic.Anthropic,
+        sleep: Callable[[float], None] = time.sleep,
+        poll_seconds: float = POLL_SECONDS,
+        on_poll: Callable[[str], None] = lambda _: None,
+    ) -> None:
+        self.client = client
+        self.sleep = sleep
+        self.poll_seconds = poll_seconds
+        self.on_poll = on_poll
+
+    def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
         # The request key is 64 hex digits, which a batch accepts as a custom_id.
         entries: Any = [{"custom_id": key, "params": params} for key, params in requests.items()]
-        created = client.messages.batches.create(requests=entries)
-        status = created.processing_status
-        while status != "ended":
-            sleep(poll_seconds)
-            current = client.messages.batches.retrieve(created.id)
-            status = current.processing_status
+        return self.client.messages.batches.create(requests=entries).id
+
+    def collect(self, batch_id: str) -> BatchOutcome:
+        while True:
+            current = self.client.messages.batches.retrieve(batch_id)
+            if current.processing_status == "ended":
+                break
             counts = current.request_counts
-            on_poll(
-                f"batch {created.id}: {counts.processing} processing, "
+            self.on_poll(
+                f"batch {batch_id}: {counts.processing} processing, "
                 f"{counts.succeeded} succeeded, {counts.errored} errored"
             )
+            self.sleep(self.poll_seconds)
         responses: dict[str, dict[str, Any]] = {}
         failures: dict[str, str] = {}
-        for item in client.messages.batches.results(created.id):
+        for item in self.client.messages.batches.results(batch_id):
             result = item.result
             if result.type == "succeeded":
                 responses[item.custom_id] = result.message.model_dump(mode="json")
@@ -70,15 +85,32 @@ def batch_sender(
                 failures[item.custom_id] = result.type
         return BatchOutcome(responses=responses, failures=failures)
 
-    return send
-
 
 def anthropic_batches(
     env: Mapping[str, str], on_poll: Callable[[str], None] = lambda _: None
-) -> BatchSender:
+) -> BatchApi:
     if not env.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set; live runs need it (see .env.example)")
-    return batch_sender(anthropic.Anthropic(api_key=env["ANTHROPIC_API_KEY"]), on_poll=on_poll)
+    return AnthropicBatches(anthropic.Anthropic(api_key=env["ANTHROPIC_API_KEY"]), on_poll=on_poll)
+
+
+# Batches sent but not yet collected, one id per line, so a run stopped while it waits can be
+# picked up by the next one instead of paying again.
+PENDING_FILE = "pending-batches.txt"
+
+
+def pending_batches(replay_dir: Path) -> list[str]:
+    path = replay_dir / PENDING_FILE
+    return path.read_text().split() if path.exists() else []
+
+
+def _set_pending(replay_dir: Path, batch_ids: Sequence[str]) -> None:
+    path = replay_dir / PENDING_FILE
+    if batch_ids:
+        replay_dir.mkdir(parents=True, exist_ok=True)
+        write_atomic(path, "".join(f"{b}\n" for b in batch_ids).encode())
+    else:
+        path.unlink(missing_ok=True)
 
 
 class BatchRun(Record):
@@ -86,6 +118,8 @@ class BatchRun(Record):
     # Abstracts without a complete extraction, by PMID, and why.
     missing: dict[str, str]
     batches: int
+    # Batches an earlier, stopped run sent, collected here instead of sent again.
+    resumed: int
     # Keys of the recordings the final replay used, so unused ones can be found.
     used: frozenset[str]
 
@@ -95,13 +129,21 @@ def extract_batched(
     config: QuestionConfig,
     replay_dir: Path,
     choice: ModelChoice,
-    send: BatchSender | None,
+    api: BatchApi | None,
 ) -> BatchRun:
     """Every abstract's extraction from the recordings, sending batches for what is missing.
 
-    With no sender, this is replay: nothing is sent and unrecorded abstracts are reported.
+    With no batch API, this is replay: nothing is sent and unrecorded abstracts are reported.
+    A live run first collects the batches a stopped run left, and records each result whose key
+    is a request it needs, so no request is paid for twice.
     """
     failures: dict[str, str] = {}
+    collected: dict[str, dict[str, Any]] = {}
+    left = pending_batches(replay_dir) if api is not None else []
+    for batch_id in left:
+        assert api is not None
+        collected |= api.collect(batch_id).responses
+        _set_pending(replay_dir, pending_batches(replay_dir)[1:])
     batches = 0
     while True:
         client = ModelClient(replay_dir)
@@ -115,14 +157,27 @@ def extract_batched(
                 missing[abstract.pmid] = failures.get(miss.key, "not recorded")
                 if miss.key not in failures:
                     pending[miss.key] = miss.params
-        if not pending or send is None or batches == MAX_ROUNDS:
+        found = [key for key in pending if key in collected]
+        if found:
+            for key in found:
+                client.record(pending[key], collected.pop(key))
+            continue
+        if not pending or api is None or batches == MAX_ROUNDS:
             return BatchRun(
-                results=results, missing=missing, batches=batches, used=frozenset(client.used)
+                results=results,
+                missing=missing,
+                batches=batches,
+                resumed=len(left),
+                used=frozenset(client.used),
             )
-        outcome = send(pending)
+        batch_id = api.submit(pending)
+        # Written before the wait, so a stop while waiting leaves the batch to collect.
+        _set_pending(replay_dir, [*pending_batches(replay_dir), batch_id])
+        outcome = api.collect(batch_id)
         batches += 1
         for key, response in outcome.responses.items():
             client.record(pending[key], response)
+        _set_pending(replay_dir, [b for b in pending_batches(replay_dir) if b != batch_id])
         failures |= outcome.failures
 
 
@@ -210,7 +265,13 @@ def describe(run: BatchRun, prices: Prices) -> list[str]:
     studies = [r.study for r in results if r.study is not None]
     usage = [(u, r.model) for r in results for u in r.usage]
     spend = sum(cost(u, model, prices, batch=True) for u, model in usage)
+    resumed = (
+        [f"collected {run.resumed} batches a stopped run left, instead of sending them again"]
+        if run.resumed
+        else []
+    )
     return [
+        *resumed,
         f"{len(results)} extracted, {len(run.missing)} missing; "
         f"{sum(r.study is None for r in results)} invalid after the retry",
         f"{sum(len(s.findings) for s in studies)} findings; quotes: "
