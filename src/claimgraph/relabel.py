@@ -1,8 +1,9 @@
 """A blind second labeling pass over a few gold records, to measure how consistent the labels are.
 
-The records are drawn at random, with a fixed seed, from the labeled gold set. Their templates go
-in the question's relabel/ directory, blank, and the review page labels them there without
-showing the first pass. Agreement between the passes is counted field by field.
+The records are drawn at random, with a fixed seed, from the labeled gold records that have
+findings, since a review or an off-topic record carries only its design and sample size. Their
+templates go in the question's relabel/ directory, blank, and the review page labels them there
+without showing the first pass. Agreement between the passes is counted field by field.
 """
 
 import random
@@ -31,7 +32,9 @@ def pick(labeled: Sequence[str], seed: int = SEED, count: int = COUNT) -> list[s
     """The records for the second pass: a seeded random draw, whatever order they come in."""
     pool = sorted(labeled, key=int)
     if len(pool) < count:
-        raise ValueError(f"only {len(pool)} labeled records; the second pass takes {count}")
+        raise ValueError(
+            f"only {len(pool)} labeled records with findings; the second pass takes {count}"
+        )
     return sorted(random.Random(seed).sample(pool, count), key=int)
 
 
@@ -47,7 +50,10 @@ def write_templates(out_dir: Path, config: QuestionConfig, count: int = COUNT) -
     if unfinished:
         raise ValueError(f"label every gold record first: {', '.join(unfinished)}")
     gold = {g.abstract.pmid: g for g in read_gold(out_dir)}
-    picks = pick(report.labeled, count=count)
+    with_findings = [
+        p for p in report.labeled if load_abstract_label(out_dir / "labels" / f"{p}.toml").findings
+    ]
+    picks = pick(with_findings, count=count)
     target.mkdir(parents=True, exist_ok=True)
     for pmid in picks:
         (target / f"{pmid}.toml").write_text(label_template(gold[pmid], config))

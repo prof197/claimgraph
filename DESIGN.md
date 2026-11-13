@@ -581,8 +581,8 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   recurrence, so findings may share a quote. A finding is identified by its quote, outcome and
   subgroup name together, and a subgroup result is named whenever another finding shares its
   quote and outcome.
-- **Consistency check.** Five labeled records, drawn at random with a fixed seed, are labeled a
-  second time, blind: `claimgraph gold relabel` writes blank templates to `relabel/`, the
+- **Consistency check.** Five labeled records with findings, drawn at random with a fixed seed,
+  are labeled a second time, blind: `claimgraph gold relabel` writes blank templates to `relabel/`, the
   labeling page labels them there without showing the first pass, and `claimgraph gold
   agreement` counts agreement field by field. Findings pair as the extraction eval pairs them,
   on quote, outcome and subgroup, then on quote and subgroup alone, so a reworded outcome counts

@@ -6,7 +6,9 @@ from typing import Any
 import pytest
 from test_labels import EXAMPLES, ROOT, VITAMIN_D, gold_entry, label, synthetic_abstract, write_gold
 
-from claimgraph.labels import label_template, load_abstract_label
+from claimgraph.design_tree import answers_for
+from claimgraph.labels import LabelDraft, label_template, load_abstract_label, render_label
+from claimgraph.models import Design
 from claimgraph.relabel import agreement, agreement_table, match_findings, pick, write_templates
 
 PMIDS = [str(999000001 + n) for n in range(27)]
@@ -48,6 +50,24 @@ def test_templates_are_blank_and_written_once(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="already"):
         write_templates(out, VITAMIN_D, count=1)
+
+
+def test_the_second_pass_draws_only_records_with_findings(tmp_path: Path) -> None:
+    out = labeled_gold(tmp_path)
+    off_topic = gold_entry(abstract=synthetic_abstract(pmid="999000002"))
+    write_gold(out, gold_entry(), off_topic)
+    no_findings = LabelDraft(
+        pmid="999000002",
+        design="rct",
+        sample_size=40,
+        note="Synthetic: nothing in the outcome domain.",
+        design_answers=answers_for(Design.RCT),
+    )
+    (out / "labels" / "999000002.toml").write_text(render_label(off_topic, VITAMIN_D, no_findings))
+
+    with pytest.raises(ValueError, match="only 1 labeled records with findings"):
+        write_templates(out, VITAMIN_D, count=2)
+    assert write_templates(out, VITAMIN_D, count=1) == ["999000001"]
 
 
 def test_templates_wait_until_every_gold_record_is_labeled(tmp_path: Path) -> None:
