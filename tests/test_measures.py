@@ -52,6 +52,12 @@ def test_abbreviations_come_from_the_abstract() -> None:
         pytest.param("incident depression", "depression incidence", True, id="order and endings"),
         pytest.param("depressive symptoms", "symptoms of depression", True, id="filler words"),
         pytest.param("depression severity", "depressive symptoms", False, id="other words"),
+        pytest.param(
+            "Edinburgh Postnatal Depression scores",
+            "Edinburgh Postnatal Depression scale",
+            True,
+            id="score or scale, one measure",
+        ),
     ],
 )
 def test_synthetic_pairs(a: str, b: str, same: bool) -> None:

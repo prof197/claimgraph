@@ -468,7 +468,7 @@ data is labeled by hand, from openly licensed articles only.
   outcome is scored as a field of the pair, or the eval would score wording.
 - **Scoring the outcome:** two outcome strings count as the same measure when they share an
   instrument, or, when neither names one, when they have the same content words, ignoring order,
-  word endings and filler such as "score". An instrument is an abbreviation in either string,
+  word endings and filler such as "score" or "scale". An instrument is an abbreviation in either string,
   such as PHQ-2 or CES-D, or a full name the abstract defines beside its abbreviation, found by
   Schwartz and Hearst's algorithm ([Schwartz and Hearst 2003][schwartz-hearst]). Case and
   hyphens are ignored, but versions count: PHQ-2 is not PHQ-9. So "PHQ-2" and "depression risk

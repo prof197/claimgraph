@@ -12,7 +12,7 @@ from claimgraph.retrieve import Abstract
 # Words that say how a measure is reported rather than which measure it is.
 _FILLER = frozenset(
     {"a", "an", "and", "at", "by", "for", "in", "of", "on", "or", "the", "to", "with"}
-    | {"score", "scores", "level", "levels", "value", "values"}
+    | {"score", "scores", "scale", "scales", "level", "levels", "value", "values"}
 )
 # Word endings dropped so that "depression" and "depressive", or "incident" and "incidence",
 # compare equal. Longest first, and only while four letters remain.
