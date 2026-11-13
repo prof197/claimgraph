@@ -82,6 +82,8 @@ mark.cue { background: var(--cue); }
 .rule { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 14px; }
 .rule table { border-collapse: collapse; font-size: 13px; margin: 6px 0; }
 .rule td, .rule th { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+.rule pre { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 6px; padding: 6px 8px; overflow-x: auto; }
 .rule blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); }
 code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
   border-radius: 3px; padding: 0 3px; }
@@ -92,6 +94,7 @@ code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
 .opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .opt.sep { margin-left: 8px; }
 .field { margin: 8px 0; }
+.q { margin: 4px 0 10px; }
 .field > .name { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
 .blank { outline: 2px dashed var(--warn); outline-offset: 2px; border-radius: 6px; }
 input[type=text], input[type=number], textarea { width: 100%; border: 1px solid var(--line);
@@ -231,8 +234,12 @@ function inline(text) {
   return out;
 }
 function markdown(md) {
+  // Fenced code first, since a code block may hold blank lines.
+  const parts = md.split(/```[a-z]*\n([\s\S]*?)```/);
+  if (parts.length > 1) return parts.flatMap((part, i) => (i % 2 ? [el("pre", {}, part)] : markdown(part)));
   const out = [];
   for (const block of md.split(/\n\s*\n/)) {
+    if (!block.trim()) continue;
     const lines = block.split("\n");
     if (lines[0].startsWith("|")) {
       const rows = lines.filter((l) => !/^\|[-\s|]+\|$/.test(l))
@@ -271,20 +278,34 @@ function renderQueue() {
   let slot = null, list = null;
   S.abstracts.forEach((a, i) => {
     if (a.slot !== slot) { slot = a.slot; list = el("ul"); groups.push(el("div", { class: "slot" }, SLOT_NAMES[slot] || human(slot)), list); }
-    const mark = S.marks[a.pmid];
+    const mark = S.marks[a.pmid], check = designCheck(a);
     list.append(el("li", {}, el("button", { class: i === idx ? "current" : "", onclick: () => go(i) },
       el("span", { class: `dot ${a.status}` }), el("span", {}, a.pmid),
+      check ? el("span", { class: "flag", title: check === "differs" ? "answers lead to another design than your earlier pick" : "earlier design pick to check" }, check === "differs" ? "≠" : "?") : null,
       mark && mark.flagged ? el("span", { class: "flag", title: mark.flag_note || "Flagged" }, "⚑") : null)));
   });
+  const checks = S.abstracts.map(designCheck);
   $("queue").replaceChildren(
     el("h1", {}, S.title),
     el("div", { class: "bar", title: "labeled, in progress, not started" },
       el("span", { style: `width:${100 * c.labeled / n}%;background:var(--ok)` }),
       el("span", { style: `width:${100 * c.in_progress / n}%;background:var(--warn)` })),
     el("div", { class: "small" }, `${c.labeled} labeled, ${c.in_progress} in progress, ${c.not_started} not started, of ${n}`),
+    checks.some(Boolean) ? el("div", { class: "small warn" }, `Designs to check: ${checks.filter((c) => c === "unanswered").length} unanswered (?), ${checks.filter((c) => c === "differs").length} differ (≠)`) : null,
     el("div", { class: "small muted" }, `${Math.round(seconds / 60)} min so far · `, el("button", { class: "link", onclick: () => toggleHelp() }, "keys (?)")),
     el("div", { class: "actions" }, el("button", { class: "btn", onclick: nextUnfinished }, "Next unfinished ⏎")),
     ...groups);
+}
+
+// A record whose design was picked by name before the questions: unanswered, or answered to a
+// different design. Saved answers are what count, so the marker matches the file.
+function designCheck(a) {
+  const mark = S.marks[a.pmid];
+  if (!mark || !mark.earlier_design) return null;
+  const answers = (a === cur() ? draft : a.draft || {}).design_answers || {};
+  const { result } = treeWalk(answers);
+  if (!result) return "unanswered";
+  return result !== mark.earlier_design ? "differs" : null;
 }
 
 // Abstract
@@ -346,13 +367,13 @@ function renderForm() {
       el("ul", {}, a.problems.map((p) => el("li", {}, p)))));
     return;
   }
-  const review = isReview(d.design);
-  const designs = a.review_stratum ? [...S.review_designs, ...S.designs.filter((x) => !isReview(x))] : S.designs;
+  // A review summary and findings never coexist: the summary box shows exactly when the label has one.
+  const review = d.review_summary != null;
   const ss = d.sample_size;
   const nodes = [
     statusBar(),
     el("h2", {}, "Study"),
-    field("design", "design", d.design === "", optButtons(designs, d.design, setDesign)),
+    treeField(),
     field("sample size", "sample_size", ss === "",
       el("div", { class: "opts" },
         el("input", { type: "number", min: 1, style: "width:110px", value: typeof ss === "number" ? ss : "",
@@ -443,17 +464,60 @@ function setBool(f, key, value) {
   if (key === "is_subgroup" && value) f.is_primary = false;
   if (key === "is_subgroup" && !value) f.subgroup = null;
 }
-function setDesign(v) {
-  const was = isReview(draft.design), now = isReview(v);
-  draft.design = v;
-  if (now && !was) {
-    stash[cur().pmid] = draft.finding; draft.finding = [];
-    if (draft.review_summary == null) draft.review_summary = "";
-  } else if (!now && (was || draft.review_summary != null)) {
-    draft.review_summary = null;
-    if (!draft.finding.length && stash[cur().pmid]) draft.finding = stash[cur().pmid];
+// The design questions: each answer settles the design or asks the next question. Only
+// answers on the path the tree takes are kept, and the design is set only once it settles.
+function treeWalk(answers) {
+  const byKey = Object.fromEntries(S.design_tree.map((q) => [q.key, q]));
+  const path = []; let key = S.design_tree[0].key, result = null;
+  while (key) {
+    const q = byKey[key], option = q.options.find((o) => o.value === answers[key]);
+    path.push([q, option]);
+    if (!option) break;
+    if (option.design) { result = option.design; break; }
+    key = option.next;
   }
-  changed(true);
+  return { path, result };
+}
+function answer(key, value) {
+  const { path, result } = treeWalk({ ...draft.design_answers, [key]: value });
+  draft.design_answers = Object.fromEntries(path.filter(([, o]) => o).map(([q, o]) => [q.key, o.value]));
+  if (result) applyDesign(result); else draft.design = "";
+  const mark = S.marks[cur().pmid];
+  // An earlier pick the answers confirm needs no further look.
+  if (mark && mark.earlier_design && result === mark.earlier_design) { mark.earlier_design = null; marksDirty = true; saveMarks(); }
+  showRule("design"); changed(true);
+}
+function keepTreeResult() {
+  const mark = S.marks[cur().pmid]; if (!mark) return;
+  mark.earlier_design = null; marksDirty = true; saveMarks(); renderQueue(); renderForm();
+}
+function treeField() {
+  const d = draft, mark = S.marks[cur().pmid] || {}, { path, result } = treeWalk(d.design_answers);
+  const rows = path.map(([q, option], n) => el("div", { class: "q" },
+    el("div", { class: "small" }, `${n + 1}. ${q.text}`),
+    el("div", { class: "opts" }, q.options.map((o) => el("button", { class: option === o ? "opt on" : "opt", onclick: () => answer(q.key, o.value) },
+      o.label + (o.design ? ` → ${human(o.design)}` : ""))))));
+  const earlier = mark.earlier_design;
+  let check = null;
+  if (earlier && result && result !== earlier) {
+    check = el("div", { class: "problems" }, el("strong", {}, `The answers lead to ${human(result)}, but you picked ${human(earlier)} before.`),
+      " Fix an answer, or ", el("button", { class: "link", onclick: keepTreeResult }, `keep ${human(result)}`), ".");
+  } else if (earlier) {
+    check = el("div", { class: "small warn" }, `You picked ${human(earlier)} before; answer the questions to check it.`);
+  }
+  return field(result ? `design: ${human(result)}` : "design: answer the questions", "design", !result, check, ...rows);
+}
+// Reviews carry a summary, other designs findings; whichever is set aside is kept for a switch back.
+function applyDesign(v) {
+  const now = isReview(v), st = (stash[cur().pmid] = stash[cur().pmid] || {});
+  draft.design = v;
+  if (now && draft.review_summary == null) {
+    st.finding = draft.finding; draft.finding = [];
+    draft.review_summary = st.summary ?? "";
+  } else if (!now && draft.review_summary != null) {
+    st.summary = draft.review_summary; draft.review_summary = null;
+    if (!draft.finding.length && st.finding) draft.finding = st.finding;
+  }
 }
 function setSampleSize(v) { draft.sample_size = v; picking = false; changed(true); }
 function togglePicking() { picking = !picking; renderMain(); renderForm(); }
@@ -468,7 +532,7 @@ function noFindings() {
 }
 function copyDimensions(i) { if (i > 0) { draft.finding[i].dimensions = clone(draft.finding[i - 1].dimensions); changed(true); } }
 function sentenceClick(s, forceNew) {
-  if (picking || isReview(draft.design) || window.getSelection().toString().trim()) return;
+  if (picking || draft.review_summary != null || window.getSelection().toString().trim()) return;
   // A sentence already quoted can back another finding: it fills the active finding when that
   // has no quote yet; otherwise a click selects the finding that quotes it.
   const used = usedBy(s), open = draft.finding[active] && !draft.finding[active].quote.trim();
@@ -540,7 +604,7 @@ document.addEventListener("mouseup", (ev) => {
   const old = document.querySelector(".pop");
   if (old && old.contains(ev.target)) return;
   if (old) old.remove();
-  if (!S || isReview(draft.design) || picking) return;
+  if (!S || draft.review_summary != null || picking) return;
   const sel = window.getSelection(), text = sel.toString().replace(/\s+/g, " ").trim();
   const inAbstract = sel.anchorNode && $("main").contains(sel.anchorNode);
   if (!text || !inAbstract) return;
@@ -576,7 +640,7 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") { if (typing) ev.target.blur(); if (picking) togglePicking(); document.querySelector(".help")?.remove(); return; }
   if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (ev.target.tagName === "BUTTON" && (ev.key === "Enter" || ev.key === " ")) return;
-  const f = draft.finding[active], review = isReview(draft.design);
+  const f = draft.finding[active], review = draft.review_summary != null;
   const cycleBool = (key) => { setBool(f, key, f[key] !== true); showRule(key); changed(true); };
   const k = ev.key;
   if (k === "?") toggleHelp();

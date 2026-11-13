@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from test_labels import EXAMPLES, VITAMIN_D, gold_entry, synthetic_abstract, write_gold
 
-from claimgraph.labels import LabelDraft, label_template, normalize_quote, read_gold
+from claimgraph.labels import LabelDraft, label_template, normalize_quote, read_gold, render_label
 from claimgraph.review import (
     Mark,
     ReviewSession,
@@ -135,6 +135,21 @@ def test_saving_refuses_a_pmid_outside_the_gold_sample(tmp_path: Path) -> None:
         s.save("999000009", filled().model_copy(update={"pmid": "999000009"}))
     with pytest.raises(KeyError):
         s.save("999000002", filled())
+
+
+def test_a_design_picked_by_name_is_remembered(tmp_path: Path) -> None:
+    out = tmp_path / "vitamin-d-depression"
+    write_gold(out, gold_entry(), gold_entry(abstract=synthetic_abstract(pmid="999000002")))
+    (out / "labels").mkdir()
+    by_name = filled().model_copy(update={"design": "cohort", "design_answers": {}})
+    answered = filled().model_copy(update={"pmid": "999000002"})
+    (out / "labels" / "999000001.toml").write_text(render_label(gold_entry(), VITAMIN_D, by_name))
+    (out / "labels" / "999000002.toml").write_text(render_label(gold_entry(), VITAMIN_D, answered))
+
+    marks = ReviewSession(out, VITAMIN_D, GOLD / "LABELING.md", tmp_path / "page").state().marks
+
+    assert marks["999000001"].earlier_design == "cohort"
+    assert "999000002" not in marks
 
 
 def test_marks_stay_in_the_page_directory(tmp_path: Path) -> None:

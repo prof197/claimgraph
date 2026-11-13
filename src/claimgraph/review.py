@@ -18,6 +18,7 @@ from pathlib import Path
 from pydantic import Field, NonNegativeFloat, ValidationError
 
 from claimgraph.config import DimensionType, QuestionConfig
+from claimgraph.design_tree import QUESTIONS, Question
 from claimgraph.gold import GoldAbstract, Stratum
 from claimgraph.labels import (
     LabelDraft,
@@ -115,6 +116,9 @@ class Mark(Record):
     flag_note: str = ""
     # Active time on this abstract, measured by the page.
     seconds: NonNegativeFloat = 0
+    # A design picked by name before the design questions existed, so the page can flag a label
+    # whose answers now lead somewhere else.
+    earlier_design: str | None = None
 
 
 class PageSection(Record):
@@ -159,6 +163,7 @@ class PageState(Record):
     abstracts: list[PageAbstract]
     marks: dict[str, Mark]
     outcomes: list[str]
+    design_tree: list[Question]
 
 
 class Saved(Record):
@@ -182,6 +187,21 @@ class ReviewSession:
         # Grouped by slot, so trials are labeled together, then observational studies and so on.
         ordered = sorted(enumerate(gold), key=lambda p: (_SLOT_ORDER.index(p[1].slot), p[0]))
         self.gold = {g.abstract.pmid: g for _, g in ordered}
+        self._remember_earlier_designs()
+
+    def _remember_earlier_designs(self) -> None:
+        marks = self._marks()
+        found: dict[str, Mark] = {}
+        for pmid in self.gold:
+            try:
+                draft = load_draft(self._path(pmid))
+            except (ValueError, OSError):
+                continue
+            mark = marks.get(pmid, Mark())
+            if draft.design and not draft.design_answers and mark.earlier_design is None:
+                found[pmid] = mark.model_copy(update={"earlier_design": draft.design})
+        if found:
+            self._write_marks(marks | found)
 
     def _path(self, pmid: str) -> Path:
         return self.out_dir / "labels" / f"{pmid}.toml"
@@ -261,6 +281,7 @@ class ReviewSession:
             abstracts=abstracts,
             marks=self._marks(),
             outcomes=self._outcomes(),
+            design_tree=list(QUESTIONS),
         )
 
     def save(self, pmid: str, draft: LabelDraft) -> Saved:
@@ -281,7 +302,9 @@ class ReviewSession:
     def mark(self, pmid: str, mark: Mark) -> None:
         if pmid not in self.gold:
             raise KeyError(pmid)
-        marks = self._marks() | {pmid: mark}
+        self._write_marks(self._marks() | {pmid: mark})
+
+    def _write_marks(self, marks: dict[str, Mark]) -> None:
         self.marks_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {p: m.model_dump(mode="json") for p, m in marks.items()}
         self.marks_path.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n")
