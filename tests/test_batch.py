@@ -102,7 +102,10 @@ def test_a_batch_recording_replays_like_a_direct_one(tmp_path: Path) -> None:
     params = request(abstract, VITAMIN_D, ModelChoice.HAIKU)
     for name, text in recording_files(params, VALID).items():
         assert (tmp_path / name).read_text() == text
-    assert extract_abstract(abstract, VITAMIN_D, ModelClient(tmp_path)) == run.results[0]
+    assert (
+        extract_abstract(abstract, VITAMIN_D, ModelClient(tmp_path), ModelChoice.HAIKU)
+        == run.results[0]
+    )
 
 
 def test_replay_sends_nothing_and_reports_what_is_missing(tmp_path: Path) -> None:
@@ -288,7 +291,8 @@ def test_the_dry_run_prices_the_dev_set_and_sends_nothing(
     result = run_extract(tmp_path, "--dry-run", "--live")
 
     assert result.exit_code == 0, result.output
-    assert "dry run: 2 abstracts to send to claude-haiku-5-5" in result.output
+    # Without --model, the run uses the model the extraction eval chose.
+    assert "dry run: 2 abstracts to send to claude-sonnet-5-5" in result.output
     assert "at batch prices" in result.output
 
 
@@ -308,13 +312,13 @@ def test_a_live_dev_run_records_through_batches_then_replays(
     assert "0 extracted, 2 missing" in unrecorded.output
     assert live.exit_code == 0, live.output
     assert [len(b) for b in sender.batches] == [2]
-    assert len(list((run_dir / "replay" / "extraction" / "haiku").glob("*.json"))) == 2
+    assert len(list((run_dir / "replay" / "extraction" / "sonnet").glob("*.json"))) == 2
     assert replayed.exit_code == 0, replayed.output
     assert "2 extracted, 0 missing" in replayed.output
     manifest = json.loads((run_dir / "extract" / "manifest.json").read_text())
-    assert manifest["runs"]["dev-haiku"]["extracted"] == 2
-    assert manifest["runs"]["dev-haiku"]["requests"] == 2
-    lines = (run_dir / "extract" / "dev-haiku.jsonl").read_text().splitlines()
+    assert manifest["runs"]["dev-sonnet"]["extracted"] == 2
+    assert manifest["runs"]["dev-sonnet"]["requests"] == 2
+    lines = (run_dir / "extract" / "dev-sonnet.jsonl").read_text().splitlines()
     assert [json.loads(line)["pmid"] for line in lines] == ["999000001", "999000002"]
 
 

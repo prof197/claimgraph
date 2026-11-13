@@ -14,6 +14,7 @@ from claimgraph.batch import BatchRun, extract_batched, summarize
 from claimgraph.config import QuestionConfig
 from claimgraph.design_tree import diverges, settle
 from claimgraph.extract import (
+    DEFAULT_MODEL,
     SETTINGS,
     TAGGED_DESIGNS,
     DesignSource,
@@ -286,7 +287,7 @@ def gold_scores(
     gold_root: Path,
     replay_root: Path,
     config: QuestionConfig,
-    choice: ModelChoice = ModelChoice.HAIKU,
+    choice: ModelChoice = DEFAULT_MODEL,
 ) -> ExtractionScores:
     gold, labels = _gold(gold_root, config)
     results = _replayed(gold, gold_replay_dir(replay_root, config, choice), config, choice)
@@ -335,7 +336,7 @@ def rerun_agreement(
     replay_root: Path,
     second_root: Path,
     config: QuestionConfig,
-    choice: ModelChoice = ModelChoice.HAIKU,
+    choice: ModelChoice = DEFAULT_MODEL,
 ) -> Agreement:
     """How far two live runs of the same requests agree, since sampling cannot be pinned."""
     gold, _ = _gold(gold_root, config)

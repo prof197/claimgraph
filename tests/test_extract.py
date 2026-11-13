@@ -488,7 +488,7 @@ def test_a_valid_first_response_needs_no_retry(tmp_path: Path) -> None:
     assert result.study is not None
     assert result.errors == []
     assert len(transport.requests) == 1
-    assert result.model == "claude-haiku-5-5"
+    assert result.model == "claude-sonnet-5-5"
 
 
 def test_a_rerun_replays_both_attempts_with_no_api_key(
@@ -572,7 +572,7 @@ def test_recording_the_gold_set_then_checking_it(
     gold_question(tmp_path)
     transport = Scripted(response(json.dumps(output())), response(json.dumps(output(findings=[]))))
     monkeypatch.setattr(batch, "anthropic_batches", batches_from(transport))
-    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
+    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "sonnet"
 
     unrecorded = record(tmp_path)
     live = record(tmp_path, "--live")
@@ -593,7 +593,7 @@ def test_a_live_recording_removes_recordings_no_request_uses(
     gold_question(tmp_path)
     transport = Scripted(response(json.dumps(output())), response(json.dumps(output())))
     monkeypatch.setattr(batch, "anthropic_batches", batches_from(transport))
-    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
+    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "sonnet"
     recordings.mkdir(parents=True)
     # Left behind by an earlier prompt: no current request has this key.
     (recordings / f"{'0' * 64}.json").write_text("{}\n")

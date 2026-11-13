@@ -49,7 +49,8 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
 - Replay is the default everywhere. Live model calls are opt-in (`--live`) and are run by hand.
 - A recording is keyed by its whole request, so any change to the extraction prompt, schema or
   model settings leaves the gold recordings in `replay/` behind, and `gold record` exits 1.
-  Re-record them with `gold record --live` (add `--model sonnet` for the mid-tier model), only
+  Re-record them with `gold record --live`, which runs Sonnet 5.5, the extraction model, and
+  again with `--model haiku` for the comparison row, only
   after the owner approves a dry-run estimate, and commit the new recordings with the change.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
 - Commits: one small, reviewable change each, conventional-commit style, imperative subject of

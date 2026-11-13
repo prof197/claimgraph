@@ -40,6 +40,11 @@ class ModelChoice(StrEnum):
     SONNET = "sonnet"
 
 
+# The model extraction runs on, chosen by the extraction eval on design (see DESIGN.md). Haiku
+# stays recorded on gold as the comparison.
+DEFAULT_MODEL = ModelChoice.SONNET
+
+
 class ModelSettings(Record):
     model: str
     # Fixed per model: a change to effort or thinking invalidates the cached prefix.
@@ -326,7 +331,7 @@ def check_schema(schema: Mapping[str, Any]) -> list[str]:
 
 
 def request(
-    abstract: Abstract, config: QuestionConfig, choice: ModelChoice = ModelChoice.HAIKU
+    abstract: Abstract, config: QuestionConfig, choice: ModelChoice = DEFAULT_MODEL
 ) -> dict[str, Any]:
     """The Messages API request for one abstract. No sampling parameters: the API rejects them."""
     schema = response_schema(config)
@@ -562,7 +567,7 @@ def extract_abstract(
     abstract: Abstract,
     config: QuestionConfig,
     client: ModelClient,
-    choice: ModelChoice = ModelChoice.HAIKU,
+    choice: ModelChoice = DEFAULT_MODEL,
 ) -> ExtractionResult:
     """One abstract's extraction, checked twice over.
 

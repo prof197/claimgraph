@@ -68,7 +68,7 @@ def run(
     dev: Annotated[
         bool, typer.Option(help="Extract the dev sample instead of every kept abstract.")
     ] = False,
-    model: Model = extract.ModelChoice.HAIKU,
+    model: Model = extract.DEFAULT_MODEL,
     dry_run: DryRun = False,
     live: Live = False,
     prices_file: PricesFile = PRICES_FILE,
@@ -352,7 +352,7 @@ def gold_record(
     replay_dir: Annotated[
         Path, typer.Option(help="Where the committed model recordings live.")
     ] = Path("replay"),
-    model: Model = extract.ModelChoice.HAIKU,
+    model: Model = extract.DEFAULT_MODEL,
     dry_run: DryRun = False,
     live: Live = False,
     prices_file: PricesFile = PRICES_FILE,
@@ -428,7 +428,7 @@ def eval_extraction(
         Path | None,
         typer.Option(help="Recordings of a second live run, to report run-to-run agreement."),
     ] = None,
-    model: Model = extract.ModelChoice.HAIKU,
+    model: Model = extract.DEFAULT_MODEL,
     readme: Annotated[
         Path | None, typer.Option(help="Also write the tables into this README's blocks.")
     ] = None,
