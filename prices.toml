@@ -1,0 +1,20 @@
+# Claude prices in US dollars per million tokens, standard rates for prompts of up to 100,000
+# tokens, from https://platform.claude.com/docs/en/about-claude/pricing. Cache writes are for the
+# five-minute cache. Update the date with the numbers; the dry run and the cost report read them.
+checked = 2026-11-13
+# The Message Batches API bills every token at this share, cache reads and writes included.
+batch_discount = 0.5
+# Haiku 5.5 bills longer prompts at a higher tier, so the estimate refuses them.
+max_prompt_tokens = 100000
+
+[models.claude-haiku-5-5]
+input = 0.10
+output = 0.50
+cache_write = 0.125
+cache_read = 0.01
+
+[models.claude-sonnet-5-5]
+input = 2.00
+output = 10.00
+cache_write = 2.50
+cache_read = 0.10
