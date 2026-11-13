@@ -189,7 +189,10 @@ either, and historical controls are long known to inflate the apparent benefit o
 treatments ([Goodacre 2015][goodacre]). Extraction reports how many kept records are single-arm.
 
 **Design from publication types.** A publication type that names a design sets it, such as
-Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. Review alone
+Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. When several
+do, the most specific wins: Meta-Analysis, then Systematic Review or Scoping Review, a scoping
+review having systematic methods without pooling, then Randomized Controlled Trial. The model's
+design answers are kept either way, so a disagreement with the tag stays visible. Review alone
 names no design: the model decides from the abstract whether the review is systematic or
 narrative. Among the kept records, at least 21 tagged only Review are systematic reviews,
 meta-analyses or scoping reviews by their own title or stated methods, while 1 of 109 tagged
@@ -271,10 +274,23 @@ title alone.
 
 **Extract.**
 
-- One request per abstract through the batch API, using tool-use structured output. The
-  extraction model is built from the fixed fields plus the config's custom dimensions; the tool's
-  input schema is generated from that model, and the tool input is validated against it. Invalid
-  output gets one retry with the validation error; a second failure is logged and counted.
+- One request per abstract through the batch API, using structured output: the response is JSON
+  that must follow a schema. A forced tool call would do the same job, but Sonnet 5.5 rejects
+  forcing one, and an unforced call can be skipped. The extraction model is built from the fixed
+  fields plus the config's custom dimensions, and the schema is generated from that model.
+- **Schema limits.** The API enforces only part of JSON Schema, so keywords it ignores, such as
+  `pattern` and `exclusiveMinimum`, are left out of what is sent. A check fails before any
+  request when a schema breaks the API's limits: an object open to extra properties, more than
+  24 optional parameters, or more than 16 union-type parameters, a nullable field counting as
+  one. The largest config the loader allows, five text or number dimensions, stays inside them.
+- **Validation.** Every response is validated against the extraction model, whatever the API
+  enforced. Closed values match whatever their case. A response that stops for `refusal` or
+  `max_tokens` is invalid. Invalid output gets one retry: the request again, with the invalid
+  output and a note naming what was wrong. A second failure is logged and counted.
+- **Thinking off.** Extraction runs without thinking, at a fixed effort, the same on both
+  models. Haiku 5.5 takes `disabled`; Sonnet 5.5 rejects it, so it takes `between_tools`, its
+  lowest setting, which gives text only when there are no tools. The settings stay fixed per
+  model because changing them invalidates the cached prefix.
 - The static instructions and schema form a cached prompt prefix. Cache reads cost 0.1× the input
   price on Haiku 5.5 and 0.05× on Sonnet 5.5 and Opus 5.5, and they stack with the batch
   discount ([pricing][pricing]).
@@ -287,7 +303,7 @@ title alone.
   edits. The rules:
   - The effect is read from the side with more of the exposure.
   - Measures that combine the outcome domain with something else don't count, and neither do
-    scales for a neighbouring construct, such as anhedonia scales for depression.
+    scales for a neighbouring construct.
   - The quote is the Results sentence that reports the finding, a Conclusion sentence only when
     no Results sentence does, and without headings the sentence that reports the measured
     comparison.

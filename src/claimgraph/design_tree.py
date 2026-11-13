@@ -124,6 +124,41 @@ QUESTIONS: tuple[Question, ...] = (
 )
 _BY_KEY = {q.key: q for q in QUESTIONS}
 
+# How to read the harder questions, in the same general terms. The labeling guide gives the same
+# readings in a question's own words, so labels and the model answer alike.
+READINGS: dict[str, str] = {
+    "systematic_methods": (
+        "Saying how it searched means more than naming the databases; saying how it chose "
+        "studies means eligibility criteria, screening, or a count of included studies. A "
+        "review that says it followed PRISMA answers yes. A review titled narrative that says "
+        "both is systematic. Guidelines, position statements and perspectives that review "
+        "others' results are summaries, so this question decides them too."
+    ),
+    "gave_exposure": (
+        "An exposure the participants chose to take themselves was not given by the "
+        "researchers. A follow-up analysis of trial participants that does not compare the "
+        "randomized arms answers no."
+    ),
+    "concurrent_comparison": (
+        "A single-arm study, where everyone gets the exposure and outcomes are compared before "
+        "and after, answers no, as does a comparison with historical controls only, an earlier "
+        "group that did not get the exposure. Both are case series, even when the abstract calls "
+        "them a trial. A comparison group got none of the exposure or a different amount; a "
+        "group that differs only by outcome status, such as healthy controls beside treated "
+        "patients, is not one."
+    ),
+    "by_chance": "Allocation by alternation, date of birth or clinic is not by chance.",
+    "proxy_or_event": "Mendelian randomization and natural experiments answer yes.",
+    "selected_by_outcome": (
+        "Yes when the study picked people with the outcome and people without it to compare; a "
+        "sample of people with the outcome alone answers no."
+    ),
+    "measured_before": (
+        "A study that measures the exposure and the outcome at the same visit answers no, even "
+        "inside a cohort study that reports only that visit."
+    ),
+}
+
 
 def follow(answers: Mapping[str, str]) -> Design:
     """The design the answers lead to, stopping at the first result.
