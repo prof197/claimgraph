@@ -7,7 +7,15 @@ from pathlib import Path
 import pytest
 from test_labels import EXAMPLES, VITAMIN_D, gold_entry, synthetic_abstract, write_gold
 
-from claimgraph.labels import LabelDraft, label_template, normalize_quote, read_gold, render_label
+from claimgraph.labels import (
+    FindingDraft,
+    LabelDraft,
+    blank_draft,
+    label_template,
+    normalize_quote,
+    read_gold,
+    render_label,
+)
 from claimgraph.review import (
     Mark,
     ReviewSession,
@@ -199,16 +207,45 @@ def test_requests(tmp_path: Path) -> None:
     assert request(s, page, "GET", "/labels/999000001.toml").status == HTTPStatus.NOT_FOUND
 
 
-def test_the_second_pass_shows_only_its_blank_records(tmp_path: Path) -> None:
+# A marker no guide text, abstract or config holds, planted in every first-pass value.
+PLANTED = "Plantedfirstpass"
+
+
+def planted_first_pass() -> LabelDraft:
+    def v(field: str) -> str:
+        return f"{PLANTED} {field}"
+
+    return LabelDraft(
+        pmid="999000001",
+        design=v("design"),
+        sample_size=987654,
+        review_summary=v("summary"),
+        note=v("note"),
+        design_answers={"subjects": v("answer")},
+        finding=[
+            FindingDraft(
+                quote=v("quote"),
+                outcome_reported=v("outcome"),
+                effect=v("effect"),
+                is_primary=True,
+                is_subgroup=True,
+                subgroup=v("subgroup"),
+                dimensions={"baseline_vitamin_d_status": v("dimension")},
+                note=v("finding note"),
+            )
+        ],
+    )
+
+
+def test_the_second_pass_shows_nothing_from_the_first(tmp_path: Path) -> None:
     s = session(tmp_path)
     (s.out_dir / "labels").mkdir()
-    first = filled().model_copy(update={"note": "Synthetic first-pass note."})
-    (s.out_dir / "labels" / "999000001.toml").write_text(
-        render_label(gold_entry(), VITAMIN_D, first)
-    )
+    first = render_label(gold_entry(), VITAMIN_D, planted_first_pass())
+    (s.out_dir / "labels" / "999000001.toml").write_text(first)
     (s.out_dir / "relabel").mkdir()
     (s.out_dir / "relabel" / "999000001.toml").write_text(label_template(gold_entry(), VITAMIN_D))
-    s.mark("999000001", Mark(flagged=True, flag_note="Synthetic first-pass flag."))
+    s.mark("999000001", Mark(flagged=True, flag_note=f"{PLANTED} flag", seconds=4242.5))
+    assert PLANTED not in (GOLD / "LABELING.md").read_text()
 
     second = ReviewSession(
         s.out_dir, VITAMIN_D, GOLD / "LABELING.md", tmp_path / "page", relabel=True
@@ -217,15 +254,16 @@ def test_the_second_pass_shows_only_its_blank_records(tmp_path: Path) -> None:
     second.save("999000001", filled())
 
     assert [a.pmid for a in state.abstracts] == ["999000001"]
+    # The shown draft is the blank template, booleans included, and no planted value, the
+    # sample size, the flag or the timing appears anywhere in what the page receives.
+    assert state.abstracts[0].draft == blank_draft(gold_entry(), VITAMIN_D)
     assert state.abstracts[0].status is Status.NOT_STARTED
-    # Nothing from the first pass: not its outcomes, its notes or its flags.
     assert state.outcomes == []
+    assert state.marks == {}
     shown = state.model_dump_json()
-    assert "Synthetic first-pass note." not in shown
-    assert "Synthetic first-pass flag." not in shown
+    for leaked in (PLANTED, "987654", "4242.5"):
+        assert leaked not in shown
     assert (s.out_dir / "relabel" / "999000001.toml").read_text() == render_label(
         gold_entry(), VITAMIN_D, filled()
     )
-    assert (s.out_dir / "labels" / "999000001.toml").read_text() == render_label(
-        gold_entry(), VITAMIN_D, first
-    )
+    assert (s.out_dir / "labels" / "999000001.toml").read_text() == first
