@@ -75,6 +75,7 @@ several outcomes, arms or subgroups.
 | Finding | `effect` | Effect | `increased`, `decreased` or `no_change`, on the outcome as reported |
 | Finding | `is_primary` | bool | The abstract names this as its primary outcome |
 | Finding | `is_subgroup` | bool | The result covers only part of the analyzed sample, split by a characteristic such as sex, age or baseline status |
+| Finding | `subgroup` | str or None | For a subgroup result, which part of the sample, as the abstract names it |
 | Finding | `population` | str | Who was enrolled, as reported |
 | Finding | `intervention` | str | Agent, dose, duration, route and form, as reported |
 | Finding | `comparator` | str | Placebo, active treatment or usual care, as reported |
@@ -432,6 +433,9 @@ data is labeled by hand, from openly licensed articles only.
   their differences. The README states the width so close results aren't over-read.
 - **Reason classes:** six classes leave about 25 labeled pairs each, so per-class accuracy is
   reported with its interval, not as a headline.
+- **Matching findings:** the extraction eval pairs each gold finding with a model finding on
+  quote, outcome and subgroup together, not on the quote alone, because one sentence can back
+  several findings.
 - **Replay cache:** responses are keyed by a hash of model, parameters and request. CI fails on a
   missing response rather than calling out.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
@@ -521,6 +525,10 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 - **Subgroups are marked.** A subgroup result covers part of the analyzed sample, split by sex,
   age, baseline vitamin D status or similar. A study that enrolled only one group reports that
   group as its population, not as a subgroup.
+- **One sentence, several findings.** A sentence often reports two subgroups, or incidence and
+  recurrence, so findings may share a quote. A finding is identified by its quote, outcome and
+  subgroup name together, and a subgroup result is named whenever another finding shares its
+  quote and outcome.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
   ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
   the null study could not rule out the effect, by its own account or its confidence interval,

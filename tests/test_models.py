@@ -47,6 +47,7 @@ def finding(**overrides: Any) -> Finding:
         "effect": Effect.DECREASED,
         "is_primary": True,
         "is_subgroup": False,
+        "subgroup": None,
         "population": "synthetic adults",
         "intervention": "synthetic vitamin D3, 2,000 IU daily",
         "comparator": "placebo",

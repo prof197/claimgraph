@@ -49,6 +49,9 @@ class FindingLabel(Record):
     effect: Effect
     is_primary: StrictBool
     is_subgroup: StrictBool
+    # Which part of the sample, as the abstract names it; it tells apart two subgroup findings
+    # backed by one sentence.
+    subgroup: NonBlank | None = None
     # One value per config dimension, checked against the config by check_abstract_label.
     dimensions: dict[str, str | float | bool] = Field(default_factory=dict[str, str | float | bool])
     note: str | None = None
@@ -57,6 +60,8 @@ class FindingLabel(Record):
     def _a_subgroup_is_not_primary(self) -> Self:
         if self.is_primary and self.is_subgroup:
             raise ValueError("a subgroup result is never primary")
+        if self.subgroup is not None and not self.is_subgroup:
+            raise ValueError("only a subgroup result names a subgroup")
         return self
 
 
@@ -189,15 +194,19 @@ def check_abstract_label(
     if label.pmid != abstract.pmid:
         problems.append(f"label is for PMID {label.pmid}, not {abstract.pmid}")
     source = normalize_quote(" ".join(s.text for s in abstract.sections))
-    seen: dict[tuple[str, str], int] = {}
+    # One sentence can back several findings, on different outcomes or different subgroups; only
+    # the same quote, outcome and subgroup together is one finding entered twice.
+    seen: dict[tuple[str, str, str | None], int] = {}
     for n, finding in enumerate(label.findings, start=1):
         quote = normalize_quote(finding.quote)
         if quote not in source:
             problems.append(f"finding {n}: quote not found in the abstract")
         problems += [f"finding {n}: {p}" for p in _dimension_problems(finding, config)]
-        key = (quote, finding.outcome_reported)
+        key = (quote, finding.outcome_reported, finding.subgroup)
         if key in seen:
-            problems.append(f"finding {n} repeats finding {seen[key]}")
+            problems.append(
+                f"finding {n} repeats finding {seen[key]}; name each subgroup if they differ"
+            )
         seen.setdefault(key, n)
     return problems
 
@@ -303,6 +312,7 @@ class FindingDraft(Record):
     effect: str = ""
     is_primary: StrictBool | Literal[""] = ""
     is_subgroup: StrictBool | Literal[""] = ""
+    subgroup: str | None = None
     dimensions: dict[str, StrictStr | StrictInt | StrictFloat | StrictBool] = Field(
         default_factory=dict[str, StrictStr | StrictInt | StrictFloat | StrictBool]
     )
@@ -404,6 +414,11 @@ def _finding_block(finding: FindingDraft, config: QuestionConfig) -> list[str]:
         "# true when the result covers only part of the analyzed sample, such as one sex.",
         f"is_subgroup = {_toml_value(finding.is_subgroup)}",
     ]
+    if finding.subgroup is not None:
+        lines += [
+            "# Which part of the sample, as the abstract names it.",
+            f"subgroup = {_toml_value(finding.subgroup)}",
+        ]
     if finding.note is not None:
         lines.append(f"note = {_toml_value(finding.note)}")
     hints = {d.name: _dimension_hint(d) for d in config.dimensions}

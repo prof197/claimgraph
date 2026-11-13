@@ -78,7 +78,7 @@ def test_every_gold_sentence_is_a_verbatim_quote() -> None:
 def test_the_guide_has_a_rule_for_every_abstract_field() -> None:
     rules = field_rules((GOLD / "LABELING.md").read_text())
     fields = {"design", "sample_size", "review_summary", "findings", "quote", "outcome_reported"}
-    fields |= {"effect", "is_primary", "is_subgroup", "note"}
+    fields |= {"effect", "is_primary", "is_subgroup", "subgroup", "note"}
 
     assert fields | {d.name for d in VITAMIN_D.dimensions} <= rules.keys()
     assert rules["effect"].startswith("**`effect`**")

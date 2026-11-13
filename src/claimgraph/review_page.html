@@ -289,10 +289,11 @@ function renderQueue() {
 
 // Abstract
 
+// The same normalization as the check: whitespace collapsed, curly quote marks straightened.
+function normQuote(t) { return t.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim(); }
 function usedBy(sentence) {
-  const norm = (t) => t.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
-  const s = norm(sentence);
-  return draft.finding.map((f, i) => [f, i]).filter(([f]) => f.quote && s.includes(norm(f.quote))).map(([, i]) => i);
+  const s = normQuote(sentence);
+  return draft.finding.map((f, i) => [f, i]).filter(([f]) => f.quote && s.includes(normQuote(f.quote))).map(([, i]) => i);
 }
 function renderMain() {
   const a = cur();
@@ -401,11 +402,17 @@ function findingCard(f, i) {
     return field(human(dim.name) + (dim.unit ? ` (${dim.unit})` : ""), dim.name, v === "", input);
   });
   const bool = (key, label, hint) => field(label, key, f[key] === "", el("div", { class: "opts" },
-    [true, false].map((b) => el("button", { class: f[key] === b ? "opt on" : "opt", onclick: () => { f[key] = b; if (key === "is_subgroup" && b) f.is_primary = false; changed(true); } },
+    [true, false].map((b) => el("button", { class: f[key] === b ? "opt on" : "opt", onclick: () => { setBool(f, key, b); changed(true); } },
       (b ? "yes" : "no") + (b ? ` (${hint})` : "")))));
+  // Two findings on one sentence and one outcome are told apart only by their subgroup names.
+  const clash = draft.finding.some((g, j) => j !== i && g.quote.trim() && normQuote(g.quote) === normQuote(f.quote)
+    && g.outcome_reported.trim() === f.outcome_reported.trim() && (g.subgroup || null) === (f.subgroup || null));
+  const subgroupName = f.is_subgroup === true ? field(clash ? "subgroup name: needed, another finding has this quote and outcome" : "subgroup name: select it in the abstract or type",
+    "subgroup", clash, textInput(f.subgroup || "", (v) => { f.subgroup = v.trim() ? v : null; })) : null;
   return el("div", { class: i === active ? "card active" : "card", style: `--fc:${fcolor(i)}`, onfocusin: () => setActive(i), onmousedown: () => setActive(i) },
     el("header", {}, el("span", {}, `F${i + 1}${i < 9 ? ` · key ${i + 1}` : ""}`),
-      el("span", {}, prev ? el("button", { class: "link", title: "key c", onclick: (ev) => { ev.stopPropagation(); copyDimensions(i); } }, "same dimensions as F" + i + " (c)") : null, " ",
+      el("span", {}, f.quote.trim() ? el("button", { class: "link", title: "key r", onclick: (ev) => { ev.stopPropagation(); setActive(i); addFinding(f.quote); } }, "+ same sentence (r)") : null, " ",
+        prev ? el("button", { class: "link", title: "key c", onclick: (ev) => { ev.stopPropagation(); copyDimensions(i); } }, "same dimensions as F" + i + " (c)") : null, " ",
         el("button", { class: "link bad", onclick: (ev) => { ev.stopPropagation(); removeFinding(i); } }, "remove"))),
     field("quote: click a sentence", "quote", !f.quote.trim(), textInput(f.quote, (v) => { f.quote = v; renderMain(); }, { multiline: true })),
     field("outcome as reported: select it in the quote or type", "outcome_reported", !f.outcome_reported.trim(),
@@ -413,6 +420,7 @@ function findingCard(f, i) {
     field("effect, from the side with more of the exposure", "effect", f.effect === "", optButtons(EFFECTS.map((e) => e[0]), f.effect, (v) => { f.effect = v; changed(true); }, Object.fromEntries(EFFECTS))),
     bool("is_primary", "primary outcome, named as such", "p"),
     bool("is_subgroup", "subgroup result: part of the analyzed sample", "g"),
+    subgroupName,
     ...dims,
     field("finding note (optional)", "note", false, textInput(f.note || "", (v) => { f.note = v.trim() ? v : null; })));
 }
@@ -426,8 +434,14 @@ function setActive(i) {
   document.querySelectorAll(".card").forEach((c, j) => c.classList.toggle("active", j === i));
 }
 function blankFinding() {
-  return { quote: "", outcome_reported: "", effect: "", is_primary: "", is_subgroup: "",
+  return { quote: "", outcome_reported: "", effect: "", is_primary: "", is_subgroup: "", subgroup: null,
     dimensions: Object.fromEntries(S.dimensions.map((d) => [d.name, ""])), note: null };
+}
+// A subgroup result is never primary, and only a subgroup result keeps a subgroup name.
+function setBool(f, key, value) {
+  f[key] = value;
+  if (key === "is_subgroup" && value) f.is_primary = false;
+  if (key === "is_subgroup" && !value) f.subgroup = null;
 }
 function setDesign(v) {
   const was = isReview(draft.design), now = isReview(v);
@@ -455,9 +469,11 @@ function noFindings() {
 function copyDimensions(i) { if (i > 0) { draft.finding[i].dimensions = clone(draft.finding[i - 1].dimensions); changed(true); } }
 function sentenceClick(s, forceNew) {
   if (picking || isReview(draft.design) || window.getSelection().toString().trim()) return;
-  const used = usedBy(s);
-  if (used.length && !forceNew) { active = used[0]; renderForm(); renderMain(); return; }
-  const target = forceNew ? -1 : (draft.finding[active] && !draft.finding[active].quote.trim() ? active : draft.finding.findIndex((f) => !f.quote.trim()));
+  // A sentence already quoted can back another finding: it fills the active finding when that
+  // has no quote yet; otherwise a click selects the finding that quotes it.
+  const used = usedBy(s), open = draft.finding[active] && !draft.finding[active].quote.trim();
+  if (used.length && !forceNew && !open) { active = used[0]; renderForm(); renderMain(); return; }
+  const target = forceNew ? -1 : (open ? active : draft.finding.findIndex((f) => !f.quote.trim()));
   if (target >= 0) { draft.finding[target].quote = s; active = target; showRule("outcome_reported"); changed(true); }
   else addFinding(s);
 }
@@ -536,6 +552,7 @@ document.addEventListener("mouseup", (ev) => {
   const pop = el("div", { class: "pop", style: `left:${r.left}px;top:${r.bottom + 6}px` },
     el("button", { class: "opt", onclick: () => { f().quote = text; pop.remove(); sel.removeAllRanges(); changed(true); } }, `Quote for F${active + 1}`),
     el("button", { class: "opt", onclick: () => { f().outcome_reported = text; pop.remove(); sel.removeAllRanges(); showRule("effect"); changed(true); } }, `Outcome for F${active + 1}`),
+    el("button", { class: "opt", onclick: () => { const g = f(); setBool(g, "is_subgroup", true); g.subgroup = text; pop.remove(); sel.removeAllRanges(); showRule("subgroup"); changed(true); } }, `Subgroup for F${active + 1}`),
     el("button", { class: "opt", onclick: () => { pop.remove(); addFinding(text); } }, "New finding"));
   document.body.append(pop);
 });
@@ -545,7 +562,8 @@ document.addEventListener("mouseup", (ev) => {
 function toggleHelp() {
   const open = document.querySelector(".help"); if (open) { open.remove(); return; }
   const rows = [["click sentence", "quote for the active finding, or a new one"], ["shift-click", "new finding with that sentence"],
-    ["select words", "set quote or outcome"], ["1–9", "make finding N active"], ["i d n", "effect: increased, decreased, no change"],
+    ["select words", "set quote, outcome or subgroup name"], ["r", "another finding from the active finding's sentence"],
+    ["1–9", "make finding N active"], ["i d n", "effect: increased, decreased, no change"],
     ["p", "primary: yes, then no"], ["g", "subgroup: yes, then no"], ["b", "next option of the first dimension"],
     ["c", "same dimensions as the finding above"], ["a", "add a finding"], ["s", "pick the sample size from the abstract"],
     ["j k", "next, previous abstract"], ["Enter", "next unfinished abstract"], ["f", "flag to come back"], ["Esc", "leave a field, stop picking"]];
@@ -559,7 +577,7 @@ document.addEventListener("keydown", (ev) => {
   if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (ev.target.tagName === "BUTTON" && (ev.key === "Enter" || ev.key === " ")) return;
   const f = draft.finding[active], review = isReview(draft.design);
-  const cycleBool = (key) => { f[key] = f[key] === true ? false : true; if (key === "is_subgroup" && f[key]) f.is_primary = false; showRule(key); changed(true); };
+  const cycleBool = (key) => { setBool(f, key, f[key] !== true); showRule(key); changed(true); };
   const k = ev.key;
   if (k === "?") toggleHelp();
   else if (k === "j") go(idx + 1);
@@ -574,6 +592,7 @@ document.addEventListener("keydown", (ev) => {
   else if (k === "p") cycleBool("is_primary");
   else if (k === "g") cycleBool("is_subgroup");
   else if (k === "c") copyDimensions(active);
+  else if (k === "r" && f.quote.trim()) addFinding(f.quote);
   else if (k === "b") {
     const dim = S.dimensions.find((d) => d.type === "options"); if (!dim) return;
     const opts = dim.options, at = opts.indexOf(f.dimensions[dim.name]);

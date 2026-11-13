@@ -47,6 +47,7 @@ def extracted_finding(**dimension_values: Any) -> dict[str, Any]:
         "effect": "no_change",
         "is_primary": True,
         "is_subgroup": False,
+        "subgroup": None,
         "population": "synthetic adults",
         "intervention": "synthetic vitamin D3",
         "comparator": "placebo",

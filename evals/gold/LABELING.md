@@ -98,7 +98,8 @@ sampled because they were screened off topic, and the eval checks that the model
 findings for them.
 
 **`quote`**: the one sentence that reports the result, copied exactly. If the result spans two
-sentences, take the one with the result. The check tolerates only differences in whitespace and
+sentences, take the one with the result. One sentence can back several findings, such as two
+subgroups, or incidence and recurrence: give each finding its own block with the same quote. The check tolerates only differences in whitespace and
 curly versus straight quote marks.
 
 **`outcome_reported`**: the measure as the abstract names it, such as `"CES-D score"`,
@@ -134,6 +135,11 @@ Otherwise `false`, even when it is the only outcome reported.
 age, baseline vitamin D status or similar. A study that enrolled only one group, such as only
 women or only deficient participants, reports that group as its population, not as a subgroup,
 so its results are `false`. A subgroup result is never primary.
+
+**`subgroup`**: optional, for a subgroup result only: which part of the sample it covers, as the
+abstract names it, such as `"synthetic group A"`. Name it whenever two findings share a quote and
+an outcome, as when one sentence reports two subgroups: the check treats findings with the same
+quote, outcome and subgroup as one finding entered twice.
 
 **`note`**: optional, for anything a reviewer of the label should know.
 

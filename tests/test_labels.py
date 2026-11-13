@@ -136,6 +136,8 @@ def test_rejects_bad_abstract_labels(overrides: dict[str, Any]) -> None:
         pytest.param({"is_primary": "yes"}, id="primary not a boolean"),
         pytest.param({"is_subgroup": ""}, id="unfilled subgroup"),
         pytest.param({"is_primary": True, "is_subgroup": True}, id="primary subgroup"),
+        pytest.param({"subgroup": "synthetic group"}, id="subgroup named on a whole-sample result"),
+        pytest.param({"is_subgroup": True, "subgroup": " "}, id="blank subgroup name"),
     ],
 )
 def test_rejects_bad_findings(finding: dict[str, Any]) -> None:
@@ -261,7 +263,26 @@ def test_a_repeated_finding_is_a_problem() -> None:
         label(finding=[finding, finding]), synthetic_abstract(), VITAMIN_D
     )
 
-    assert problems == ["finding 2 repeats finding 1"]
+    assert problems == ["finding 2 repeats finding 1; name each subgroup if they differ"]
+
+
+def test_one_sentence_can_back_findings_on_different_subgroups() -> None:
+    base = label().model_dump()["findings"][0] | {"is_subgroup": True}
+    findings = [
+        base | {"subgroup": "synthetic group A", "effect": "decreased"},
+        base | {"subgroup": "synthetic group B", "effect": "no_change"},
+    ]
+
+    problems = check_abstract_label(label(finding=findings), synthetic_abstract(), VITAMIN_D)
+
+    assert problems == []
+
+
+def test_one_sentence_can_back_findings_on_different_outcomes() -> None:
+    base = label().model_dump()["findings"][0]
+    findings = [base, base | {"outcome_reported": "synthetic recurrence"}]
+
+    assert check_abstract_label(label(finding=findings), synthetic_abstract(), VITAMIN_D) == []
 
 
 # Outcome pairs
@@ -435,6 +456,8 @@ def test_a_draft_round_trips_through_its_label_file() -> None:
                 # Neither can sit in a literal string, so this quote falls back to a basic one.
                 quote="A synthetic quote with ''' inside, ending in a quote mark'",
                 is_primary="",
+                is_subgroup=True,
+                subgroup='Synthetic "group B"',
                 dimensions={"baseline_vitamin_d_status": "", "synthetic_extra": 1.5},
                 note="Synthetic finding note.",
             ),

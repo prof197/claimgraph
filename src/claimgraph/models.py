@@ -158,6 +158,13 @@ class FindingFields(Record):
             "one group reports that group as its population, not as a subgroup."
         )
     )
+    # One sentence can report several subgroups, so the name tells their findings apart.
+    subgroup: str | None = Field(
+        description=(
+            "For a subgroup result, which part of the sample it covers, as the abstract names "
+            "it. Null for a result on the whole analyzed sample."
+        )
+    )
     population: str = Field(description="Who was enrolled, as reported.")
     intervention: str = Field(description="Agent, dose, duration, route and form, as reported.")
     comparator: str = Field(description="Placebo, active treatment or usual care, as reported.")
