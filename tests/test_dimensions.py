@@ -8,8 +8,9 @@ import pytest
 from pydantic import ValidationError
 
 from claimgraph.config import QuestionConfig, load_config
-from claimgraph.dimensions import build_extraction_model, build_finding_model
-from claimgraph.models import FindingFields
+from claimgraph.design_tree import QUESTIONS, answers_for
+from claimgraph.dimensions import NOT_REACHED, build_extraction_model, build_finding_model
+from claimgraph.models import Design, FindingFields
 
 ROOT = Path(__file__).parents[1]
 SNAPSHOTS = Path(__file__).parent / "snapshots"
@@ -130,16 +131,26 @@ def test_dimension_rejects_invalid_values(dim: dict[str, Any], value: object) ->
         model.model_validate(extracted_finding(synthetic_dimension=value))
 
 
+def design_answers(design: Design = Design.RCT) -> dict[str, str]:
+    """Every question answered: the path to the design, and not_reached for the rest."""
+    return {q.key: NOT_REACHED for q in QUESTIONS} | answers_for(design)
+
+
+def extraction(**overrides: Any) -> dict[str, Any]:
+    return {
+        "design_answers": design_answers(),
+        "sample_size": 120,
+        "review_summary": None,
+        "findings": [],
+        "other_outcomes": [],
+    } | overrides
+
+
 def test_extraction_validates_a_full_response() -> None:
     model = build_extraction_model(config(dimension()))
 
     parsed = model.model_validate(
-        {
-            "design": "rct",
-            "sample_size": 120,
-            "review_summary": None,
-            "findings": [extracted_finding(synthetic_dimension="synthetic text")],
-        }
+        extraction(findings=[extracted_finding(synthetic_dimension="synthetic text")])
     )
     assert len(parsed.model_dump()["findings"]) == 1
 
@@ -148,12 +159,45 @@ def test_extraction_rejects_unknown_fields() -> None:
     model = build_extraction_model(config())
 
     with pytest.raises(ValidationError):
-        model.model_validate(
-            {
-                "design": "rct",
-                "sample_size": 120,
-                "review_summary": None,
-                "findings": [],
-                "direction": "benefit",
-            }
-        )
+        model.model_validate(extraction(direction="benefit"))
+    # The design is settled from the answers and the publication types, not named by the model.
+    with pytest.raises(ValidationError):
+        model.model_validate(extraction(design="rct"))
+
+
+def test_every_design_question_needs_an_answer_or_not_reached() -> None:
+    model = build_extraction_model(config())
+    answers = design_answers()
+
+    assert model.model_validate(extraction(design_answers=answers))
+    for missing in ("subjects", "measured_before"):
+        with pytest.raises(ValidationError):
+            model.model_validate(
+                extraction(design_answers={k: v for k, v in answers.items() if k != missing})
+            )
+    with pytest.raises(ValidationError):
+        model.model_validate(extraction(design_answers=answers | {"measured_before": None}))
+    with pytest.raises(ValidationError):
+        model.model_validate(extraction(design_answers=answers | {"pools": "maybe"}))
+
+
+def test_the_design_answers_offer_each_question_options() -> None:
+    schema = build_extraction_model(config()).model_json_schema()
+    answers = schema["$defs"]["DesignAnswers"]
+
+    assert answers["required"] == [q.key for q in QUESTIONS]
+    for question in QUESTIONS:
+        field = answers["properties"][question.key]
+        assert field["enum"] == [o.value for o in question.options] + [NOT_REACHED]
+        assert field["description"] == question.text
+
+
+def test_other_outcomes_are_a_required_list() -> None:
+    model = build_extraction_model(config())
+    fields = extraction()
+    del fields["other_outcomes"]
+
+    with pytest.raises(ValidationError):
+        model.model_validate(fields)
+    parsed = model.model_validate(extraction(other_outcomes=["synthetic fatigue score"]))
+    assert parsed.model_dump()["other_outcomes"] == ["synthetic fatigue score"]

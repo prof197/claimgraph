@@ -5,13 +5,37 @@ from typing import Any, Literal
 from pydantic import Field, PositiveInt, create_model
 
 from claimgraph.config import Dimension, DimensionType, QuestionConfig
-from claimgraph.models import Design, FindingFields, Record
+from claimgraph.design_tree import QUESTIONS
+from claimgraph.models import FindingFields, Record
+
+# The answer to a design question the path never reaches. Every question takes an answer, so
+# none is left out by accident and no answer is null.
+NOT_REACHED = "not_reached"
+
+
+def _answer_type(values: list[str]) -> Any:
+    answer: Any = Literal[tuple([*values, NOT_REACHED])]
+    return answer
+
+
+# The model answers the design questions rather than naming a design, so a wrong design traces
+# back to the question that went wrong; code follows the answers to the design.
+_ANSWER_FIELDS: dict[str, Any] = {
+    q.key: (_answer_type([o.value for o in q.options]), Field(description=q.text))
+    for q in QUESTIONS
+}
+DesignAnswers: type[Record] = create_model("DesignAnswers", __base__=Record, **_ANSWER_FIELDS)
 
 
 class ExtractionFields(Record):
     """Study-level fields the model fills once per abstract."""
 
-    design: Design = Field(description="The study's design.")
+    design_answers: DesignAnswers = Field(  # pyright: ignore[reportInvalidTypeForm]
+        description=(
+            "The design questions, answered in order until one settles the design; "
+            f"{NOT_REACHED} for every question after that."
+        )
+    )
     sample_size: PositiveInt | None = Field(
         description=(
             "Participants enrolled or randomized, not analyzed; null if the abstract does not say."
@@ -21,6 +45,13 @@ class ExtractionFields(Record):
         description=(
             "For a review only, systematic, meta-analysis or narrative: one sentence "
             "summarizing its conclusion. Null for any other design."
+        )
+    )
+    # Counted in the run manifest as out of scope; never scored or stored as findings.
+    other_outcomes: list[str] = Field(
+        description=(
+            "Outcomes outside the outcome domain that the abstract reports results for, named as "
+            "the abstract names them. Empty if there are none."
         )
     )
 

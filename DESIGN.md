@@ -92,12 +92,20 @@ Papers merge transitively. If paper A shares a registration with B, and B with C
 one study, even when A and C share none; the studies are the connected components of a graph of
 papers joined by shared IDs.
 
-**What the model returns.** Extraction returns an Extraction per abstract: the study-level design
-(used only when publication types don't name one), the sample size, a one-sentence summary for
-reviews only, systematic, meta-analyses or narrative, and the list of findings. Code assigns
-`finding_id`. Stored
-Findings keep custom-dimension values in a `dimensions` mapping, so the Finding model stays
-static while the extraction model varies with the question.
+**What the model returns.** Extraction returns an Extraction per abstract: answers to the design
+questions, the sample size, a one-sentence summary for reviews only, systematic, meta-analyses
+or narrative, the other outcomes it saw, and the list of findings.
+
+- **Design answers.** The model answers the same design questions the labels use, every one of
+  them: the questions its path never reaches take `not_reached`, never null, so none is left
+  out by accident. Code follows the answers to the design, which is used only when publication
+  types don't name one. A wrong design then traces back to the question that went wrong.
+- **Other outcomes** are the outcomes outside the domain that the abstract reports results for.
+  They are counted as out of scope in the run manifest, and never scored, labeled or stored as
+  findings.
+
+Code assigns `finding_id`. Stored Findings keep custom-dimension values in a `dimensions`
+mapping, so the Finding model stays static while the extraction model varies with the question.
 
 **Direction is derived, not extracted.** The model reports what the abstract says happened to
 the measure (scores went down). The reviewed mapping says whether down is good for that outcome.

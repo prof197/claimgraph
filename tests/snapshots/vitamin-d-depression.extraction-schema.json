@@ -1,23 +1,136 @@
 {
   "$defs": {
-    "Design": {
-      "enum": [
-        "rct",
-        "non_randomized_trial",
-        "cohort",
-        "case_control",
-        "cross_sectional",
-        "case_series",
-        "systematic_review",
-        "meta_analysis",
-        "narrative_review",
-        "case_report",
-        "animal",
-        "in_vitro",
-        "other"
+    "DesignAnswers": {
+      "additionalProperties": false,
+      "properties": {
+        "subjects": {
+          "description": "Is it a study on people?",
+          "enum": [
+            "people",
+            "animals",
+            "cells_or_tissue",
+            "not_reached"
+          ],
+          "title": "Subjects",
+          "type": "string"
+        },
+        "source": {
+          "description": "Does it report its own data, or summarize other studies?",
+          "enum": [
+            "own_data",
+            "summary",
+            "neither",
+            "not_reached"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "systematic_methods": {
+          "description": "Does it say how it searched and how it chose studies, or call itself systematic, scoping, umbrella or a meta-analysis?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Systematic Methods",
+          "type": "string"
+        },
+        "pools": {
+          "description": "Does it pool results into one number?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Pools",
+          "type": "string"
+        },
+        "individual_patients": {
+          "description": "Does it describe one or a few patients individually?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Individual Patients",
+          "type": "string"
+        },
+        "gave_exposure": {
+          "description": "Did the researchers give the exposure, with results comparing the outcome by who got it, how much, or before and after?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Gave Exposure",
+          "type": "string"
+        },
+        "concurrent_comparison": {
+          "description": "Is there a concurrent comparison group: placebo, none or another dose?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Concurrent Comparison",
+          "type": "string"
+        },
+        "by_chance": {
+          "description": "Was who got what assigned by chance, to individuals or to clusters?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "By Chance",
+          "type": "string"
+        },
+        "proxy_or_event": {
+          "description": "Does the exposure come only from genetic proxies or an outside event, such as a fortification policy?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Proxy Or Event",
+          "type": "string"
+        },
+        "selected_by_outcome": {
+          "description": "Were participants picked because they had the outcome or did not?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Selected By Outcome",
+          "type": "string"
+        },
+        "measured_before": {
+          "description": "Was the exposure measured before the outcome was assessed?",
+          "enum": [
+            "yes",
+            "no",
+            "not_reached"
+          ],
+          "title": "Measured Before",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subjects",
+        "source",
+        "systematic_methods",
+        "pools",
+        "individual_patients",
+        "gave_exposure",
+        "concurrent_comparison",
+        "by_chance",
+        "proxy_or_event",
+        "selected_by_outcome",
+        "measured_before"
       ],
-      "title": "Design",
-      "type": "string"
+      "title": "DesignAnswers",
+      "type": "object"
     },
     "Effect": {
       "description": "What happened to the measure as reported, before polarity is applied.",
@@ -122,9 +235,9 @@
   },
   "additionalProperties": false,
   "properties": {
-    "design": {
-      "$ref": "#/$defs/Design",
-      "description": "The study's design."
+    "design_answers": {
+      "$ref": "#/$defs/DesignAnswers",
+      "description": "The design questions, answered in order until one settles the design; not_reached for every question after that."
     },
     "sample_size": {
       "anyOf": [
@@ -151,6 +264,14 @@
       "description": "For a review only, systematic, meta-analysis or narrative: one sentence summarizing its conclusion. Null for any other design.",
       "title": "Review Summary"
     },
+    "other_outcomes": {
+      "description": "Outcomes outside the outcome domain that the abstract reports results for, named as the abstract names them. Empty if there are none.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Other Outcomes",
+      "type": "array"
+    },
     "findings": {
       "description": "Every finding the abstract reports, one per outcome, arm or subgroup. Empty for a review.",
       "items": {
@@ -161,9 +282,10 @@
     }
   },
   "required": [
-    "design",
+    "design_answers",
     "sample_size",
     "review_summary",
+    "other_outcomes",
     "findings"
   ],
   "title": "Extraction",
