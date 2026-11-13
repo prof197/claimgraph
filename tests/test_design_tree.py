@@ -2,7 +2,7 @@
 
 import pytest
 
-from claimgraph.design_tree import FIRST, QUESTIONS, answers_for, follow
+from claimgraph.design_tree import FIRST, QUESTIONS, answers_for, follow, full_answers, settle
 from claimgraph.models import Design
 
 
@@ -101,3 +101,38 @@ def test_answers_for_each_design_lead_back_to_it(design: Design) -> None:
 def test_incomplete_or_stray_answers_are_named(answers: dict[str, str], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         follow(answers)
+
+
+# A full set of answers, as the extraction model gives: every question answered on its own facts.
+
+
+@pytest.mark.parametrize("design", list(Design))
+def test_a_full_set_of_answers_settles_its_design(design: Design) -> None:
+    answers = full_answers(design)
+
+    assert answers.keys() == {q.key for q in QUESTIONS}
+    assert settle(answers) is design
+
+
+def test_answers_off_the_path_are_ignored() -> None:
+    trial = full_answers(Design.RCT)
+    # A trial that, read alone, also "pools results" and "picked people by outcome".
+    contradicting = trial | {"pools": "yes", "selected_by_outcome": "yes", "source": "own_data"}
+
+    assert settle(contradicting) is Design.RCT
+
+
+def test_an_answer_on_the_path_still_decides() -> None:
+    trial = full_answers(Design.RCT)
+
+    assert settle(trial | {"by_chance": "no"}) is Design.NON_RANDOMIZED_TRIAL
+
+
+def test_settling_names_a_missing_or_unknown_answer() -> None:
+    trial = full_answers(Design.RCT)
+    del trial["by_chance"]
+
+    with pytest.raises(ValueError, match="answer by_chance"):
+        settle(trial)
+    with pytest.raises(ValueError, match="pools must be one of yes, no"):
+        settle(full_answers(Design.META_ANALYSIS) | {"pools": "maybe"})

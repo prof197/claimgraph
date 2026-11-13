@@ -8,18 +8,14 @@ from claimgraph.config import Dimension, DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS
 from claimgraph.models import FindingFields, Record
 
-# The answer to a design question the path never reaches. Every question takes an answer, so
-# none is left out by accident and no answer is null.
-NOT_REACHED = "not_reached"
-
 
 def _answer_type(values: list[str]) -> Any:
-    answer: Any = Literal[tuple([*values, NOT_REACHED])]
+    answer: Any = Literal[tuple(values)]
     return answer
 
 
-# The model answers the design questions rather than naming a design, so a wrong design traces
-# back to the question that went wrong; code follows the answers to the design.
+# The model answers every design question on the abstract's own facts rather than naming a
+# design, and code walks the tree, so a wrong design traces back to the question that went wrong.
 _ANSWER_FIELDS: dict[str, Any] = {
     q.key: (_answer_type([o.value for o in q.options]), Field(description=q.text))
     for q in QUESTIONS
@@ -32,8 +28,8 @@ class ExtractionFields(Record):
 
     design_answers: DesignAnswers = Field(  # pyright: ignore[reportInvalidTypeForm]
         description=(
-            "The design questions, answered in order until one settles the design; "
-            f"{NOT_REACHED} for every question after that."
+            "Every design question, each answered on the abstract's own facts; a question that "
+            "does not fit the study is answered no."
         )
     )
     sample_size: PositiveInt | None = Field(

@@ -97,12 +97,21 @@ questions, the sample size, a one-sentence summary for reviews only, systematic,
 or narrative, the other outcomes it saw, and the list of findings.
 
 - **Design answers.** The model answers the same design questions the labels use, every one of
-  them: the questions its path never reaches take `not_reached`, never null, so none is left
-  out by accident. Code follows the answers to the design, which is used only when publication
-  types don't name one. With thinking off, answering them is how the model applies the guide's
-  definitions. In gold the design itself is the label: answers stored with a label are
-  provenance, never required or scored. When the model's design is wrong, the eval diagnoses it
-  from the model's own answers, as the first question where its path leaves the gold design's.
+  them for every abstract, each on its own facts: whether a study pools results is simply no for
+  a trial. Code walks the tree from the first question and ignores the answers off the path, so
+  the model gives only facts and all the path logic is in code. The design is used only when
+  publication types don't name one. With thinking off, answering the questions is how the model
+  applies the guide's definitions. In gold the design itself is the label: answers stored with
+  a label are provenance, never required or scored. When the model's design is wrong, the eval
+  diagnoses it from the model's own answers, as the first question where its path leaves the
+  gold design's.
+- **Why facts, not a path.** The first live run asked for path-aware answers: the model followed
+  the tree itself and marked the questions it never reached `not_reached`. Only 33 of 50 dev
+  and 22 of 32 gold responses were valid on the first try, and every error was a design-path
+  error: a question on the model's own path marked `not_reached`, most often the genetic-proxy
+  question after "the researchers did not give the exposure", or the first question on a
+  review. Answering every question on its facts replaced it, so that class of error cannot
+  occur; the retry stays for other errors.
 - **Other outcomes** are the outcomes outside the domain that the abstract reports results for.
   They are counted as out of scope in the run manifest, and never scored, labeled or stored as
   findings.

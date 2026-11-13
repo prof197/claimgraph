@@ -14,8 +14,7 @@ from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 
 from claimgraph import batch, extract
 from claimgraph.config import QuestionConfig, load_config
-from claimgraph.design_tree import QUESTIONS, READINGS, answers_for
-from claimgraph.dimensions import NOT_REACHED
+from claimgraph.design_tree import QUESTIONS, READINGS, full_answers
 from claimgraph.extract import (
     RULES,
     InvalidOutput,
@@ -38,7 +37,7 @@ QUOTE = "Synthetic remission rates did not differ between groups."
 
 
 def answers(design: Design = Design.RCT) -> dict[str, str]:
-    return {q.key: NOT_REACHED for q in QUESTIONS} | answers_for(design)
+    return full_answers(design)
 
 
 def finding(**overrides: Any) -> dict[str, Any]:
@@ -298,7 +297,7 @@ def test_a_valid_response_becomes_a_study_with_findings() -> None:
 
     assert study.design is Design.RCT
     assert study.design_from is extract.DesignSource.ANSWERS
-    assert study.design_answers == answers_for(Design.RCT)
+    assert study.design_answers == answers()
     (stored,) = study.findings
     assert stored.finding_id == "999000001-1"
     assert stored.dimensions == {"baseline_vitamin_d_status": "not_reported"}
@@ -338,7 +337,7 @@ def test_a_publication_type_that_names_a_design_sets_it(types: list[str], design
     assert study.design is design
     assert study.design_from is extract.DesignSource.PUBLICATION_TYPES
     # The answers are kept, so a disagreement with the tag stays visible.
-    assert study.design_answers == answers_for(Design.COHORT)
+    assert study.design_answers == answers(Design.COHORT)
 
 
 @pytest.mark.parametrize(
@@ -404,14 +403,14 @@ def test_a_primary_subgroup_result_is_kept_as_a_subgroup_and_counted() -> None:
         (json.dumps(output(sample_size=0)), "end_turn", "sample_size"),
         (json.dumps(output(findings=[finding(quote=" ")])), "end_turn", "findings.0.quote"),
         (
-            json.dumps(output(design_answers=answers() | {"measured_before": "yes"})),
+            json.dumps(output(design_answers=answers() | {"by_chance": "not_reached"})),
             "end_turn",
-            "not asked once by_chance is yes: measured_before",
+            "design_answers.by_chance",
         ),
         (
-            json.dumps(output(design_answers=answers() | {"by_chance": NOT_REACHED})),
+            json.dumps(output(design_answers={k: v for k, v in answers().items() if k != "pools"})),
             "end_turn",
-            "answer by_chance",
+            "design_answers.pools",
         ),
         (json.dumps(output(findings=[finding(subgroup="synthetic men")])), "end_turn", "subgroup"),
         (json.dumps(output()), "refusal", "refusal"),
@@ -422,7 +421,7 @@ def test_a_primary_subgroup_result_is_kept_as_a_subgroup_and_counted() -> None:
         "enum",
         "sample-size",
         "blank-quote",
-        "stray-answer",
+        "not-an-answer",
         "missing-answer",
         "subgroup-name",
         "refusal",
@@ -705,3 +704,23 @@ def test_no_returned_finding_has_an_unchecked_quote(tmp_path: Path) -> None:
     assert result.study is not None
     assert all(quote_in(f.quote, synthetic_abstract()) for f in result.study.findings)
     assert result.quotes_dropped == 2
+
+
+def test_answers_off_the_path_never_make_output_invalid() -> None:
+    # Read alone, these answers say a trial also pools results and picked people by outcome.
+    facts = answers() | {"pools": "yes", "selected_by_outcome": "yes", "measured_before": "yes"}
+
+    study = read_extraction(
+        reply(json.dumps(output(design_answers=facts))), synthetic_abstract(), VITAMIN_D
+    )
+
+    assert study.design is Design.RCT
+    assert study.design_answers == facts
+
+
+def test_the_prompt_leaves_the_path_to_code() -> None:
+    prompt = system_prompt(VITAMIN_D)
+
+    assert "not_reached" not in prompt
+    assert "go to" not in prompt
+    assert "->" not in prompt

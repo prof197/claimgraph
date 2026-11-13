@@ -15,8 +15,8 @@ from typing import Any, cast
 from pydantic import PositiveInt, ValidationError
 
 from claimgraph.config import QuestionConfig
-from claimgraph.design_tree import QUESTIONS, READINGS, follow
-from claimgraph.dimensions import NOT_REACHED, build_extraction_model
+from claimgraph.design_tree import QUESTIONS, READINGS, settle
+from claimgraph.dimensions import build_extraction_model
 from claimgraph.llm import ModelClient, Reply, Usage
 from claimgraph.models import REVIEW_DESIGNS, Design, Finding, FindingFields, Record
 from claimgraph.retrieve import Abstract
@@ -125,11 +125,11 @@ results, so it has no findings, and its design is the planned design."""
 def _design_questions() -> str:
     lines: list[str] = []
     for number, question in enumerate(QUESTIONS, start=1):
+        # No arrows to the next question or the design: the model answers facts, and code
+        # walks the tree.
         options = "; ".join(
             o.value
             + ("" if o.label.lower() == o.value.replace("_", " ") else f" ({o.label.lower()})")
-            + " -> "
-            + (o.design.value if o.design is not None else f"go to {o.next}")
             for o in question.options
         )
         lines.append(f"{number}. {question.key}: {question.text} Answers: {options}.")
@@ -163,9 +163,10 @@ object that follows the schema.
 
 ## Design
 
-Answer the design questions in order, starting at question 1 and following each answer to the \
-next question, until an answer settles the design. Answer every question the path does not \
-reach with {NOT_REACHED}. Answer for what the abstract describes, not for its publication type.
+Answer every design question below about this abstract, each on its own facts, whatever the \
+other answers are. A question that does not fit the study is answered no: a trial does not pool \
+results, and a review gave no exposure. Code works out the design from the answers. Answer for \
+what the abstract describes, not for its publication type.
 
 {_design_questions()}
 
@@ -353,7 +354,8 @@ class ExtractedStudy(Record):
     pmid: str
     design: Design
     design_from: DesignSource
-    # The answers on the model's path, kept even when a publication type set the design.
+    # Every answer the model gave, on the path or not, kept even when a publication type set the
+    # design, so a wrong design can be traced to the question that went wrong.
     design_answers: dict[str, str]
     sample_size: PositiveInt | None
     review_summary: str | None
@@ -407,11 +409,9 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
     except ValidationError as error:
         raise InvalidOutput(_brief(error)) from error
     fields = parsed.model_dump()
-    answers = {k: v for k, v in fields["design_answers"].items() if v != NOT_REACHED}
-    try:
-        answered = follow(answers)
-    except ValueError as error:
-        raise InvalidOutput(f"design_answers: {error}") from error
+    answers: dict[str, str] = fields["design_answers"]
+    # Every question is answered, so the walk always settles; answers off the path are ignored.
+    answered = settle(answers)
     tagged = tagged_design(abstract.publication_types)
     design = tagged or answered
     fixed = FindingFields.model_fields.keys()

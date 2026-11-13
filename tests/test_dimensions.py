@@ -8,8 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from claimgraph.config import QuestionConfig, load_config
-from claimgraph.design_tree import QUESTIONS, answers_for
-from claimgraph.dimensions import NOT_REACHED, build_extraction_model, build_finding_model
+from claimgraph.design_tree import QUESTIONS, full_answers
+from claimgraph.dimensions import build_extraction_model, build_finding_model
 from claimgraph.models import Design, FindingFields
 
 ROOT = Path(__file__).parents[1]
@@ -132,8 +132,8 @@ def test_dimension_rejects_invalid_values(dim: dict[str, Any], value: object) ->
 
 
 def design_answers(design: Design = Design.RCT) -> dict[str, str]:
-    """Every question answered: the path to the design, and not_reached for the rest."""
-    return {q.key: NOT_REACHED for q in QUESTIONS} | answers_for(design)
+    """Every question answered, as the model answers them."""
+    return full_answers(design)
 
 
 def extraction(**overrides: Any) -> dict[str, Any]:
@@ -165,20 +165,19 @@ def test_extraction_rejects_unknown_fields() -> None:
         model.model_validate(extraction(design="rct"))
 
 
-def test_every_design_question_needs_an_answer_or_not_reached() -> None:
+def test_every_design_question_needs_one_of_its_answers() -> None:
     model = build_extraction_model(config())
     answers = design_answers()
 
     assert model.model_validate(extraction(design_answers=answers))
-    for missing in ("subjects", "measured_before"):
+    for missing in ("subjects", "pools", "measured_before"):
         with pytest.raises(ValidationError):
             model.model_validate(
                 extraction(design_answers={k: v for k, v in answers.items() if k != missing})
             )
-    with pytest.raises(ValidationError):
-        model.model_validate(extraction(design_answers=answers | {"measured_before": None}))
-    with pytest.raises(ValidationError):
-        model.model_validate(extraction(design_answers=answers | {"pools": "maybe"}))
+    for value in (None, "not_reached", "maybe"):
+        with pytest.raises(ValidationError):
+            model.model_validate(extraction(design_answers=answers | {"pools": value}))
 
 
 def test_the_design_answers_offer_each_question_options() -> None:
@@ -188,7 +187,7 @@ def test_the_design_answers_offer_each_question_options() -> None:
     assert answers["required"] == [q.key for q in QUESTIONS]
     for question in QUESTIONS:
         field = answers["properties"][question.key]
-        assert field["enum"] == [o.value for o in question.options] + [NOT_REACHED]
+        assert field["enum"] == [o.value for o in question.options]
         assert field["description"] == question.text
 
 

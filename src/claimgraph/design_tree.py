@@ -160,15 +160,8 @@ READINGS: dict[str, str] = {
 }
 
 
-def follow(answers: Mapping[str, str]) -> Design:
-    """The design the answers lead to, stopping at the first result.
-
-    Raises ValueError naming the first question left unanswered, an answer that is not one of
-    its options, or answers to questions the path never reaches.
-    """
-    unknown = sorted(set(answers) - _BY_KEY.keys())
-    if unknown:
-        raise ValueError(f"unknown design questions: {', '.join(unknown)}")
+def _walk(answers: Mapping[str, str]) -> tuple[Design, list[str]]:
+    """The design the answers lead to from the first question, and the questions asked."""
     asked: list[str] = []
     key = FIRST
     while True:
@@ -182,12 +175,35 @@ def follow(answers: Mapping[str, str]) -> Design:
             values = ", ".join(o.value for o in question.options)
             raise ValueError(f"{key} must be one of {values}")
         if option.design is not None:
-            stray = sorted(set(answers) - set(asked))
-            if stray:
-                raise ValueError(f"not asked once {key} is {value}: {', '.join(stray)}")
-            return option.design
+            return option.design, asked
         assert option.next is not None
         key = option.next
+
+
+def follow(answers: Mapping[str, str]) -> Design:
+    """The design a labeler's answers lead to, stopping at the first result.
+
+    Raises ValueError naming the first question left unanswered, an answer that is not one of
+    its options, or answers to questions the path never reaches.
+    """
+    unknown = sorted(set(answers) - _BY_KEY.keys())
+    if unknown:
+        raise ValueError(f"unknown design questions: {', '.join(unknown)}")
+    design, asked = _walk(answers)
+    stray = sorted(set(answers) - set(asked))
+    if stray:
+        raise ValueError(f"not asked once {asked[-1]} is {answers[asked[-1]]}: {', '.join(stray)}")
+    return design
+
+
+def settle(answers: Mapping[str, str]) -> Design:
+    """The design a full set of answers leads to, as the extraction model gives them.
+
+    The model answers every question on the abstract's own facts, and all the path logic is
+    here: the tree is walked from the first question, and answers off the path are ignored.
+    """
+    design, _ = _walk(answers)
+    return design
 
 
 def answers_for(design: Design) -> dict[str, str]:
@@ -205,3 +221,13 @@ def answers_for(design: Design) -> dict[str, str]:
     found = walk(FIRST, {})
     assert found is not None, design
     return found
+
+
+def full_answers(design: Design) -> dict[str, str]:
+    """Every question answered, settling this design: its path, then "no" or the first option
+    for the questions off it. For examples and tests."""
+    off_path = {
+        q.key: "no" if any(o.value == "no" for o in q.options) else q.options[0].value
+        for q in QUESTIONS
+    }
+    return off_path | answers_for(design)
