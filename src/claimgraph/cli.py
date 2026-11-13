@@ -216,16 +216,23 @@ def gold_relabel(
 def gold_agreement(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
     gold_dir: GoldDir = Path("evals/gold"),
+    readme: Annotated[
+        Path | None, typer.Option(help="Also write the table into this README's block.")
+    ] = None,
 ) -> None:
     """Field-level agreement between the first labeling pass and the second, as a table."""
     config = load_config(resolve_question(question))
     try:
         first, second = relabel.read_passes(gold_dir / config.id, config)
         result = relabel.agreement(first, second, relabel.abstract_texts(gold_dir / config.id))
+        table = relabel.agreement_table(result)
+        if readme is not None:
+            text = relabel.replace_block(readme.read_text(), relabel.AGREEMENT_BLOCK, table)
+            readme.write_text(text)
     except ValueError as error:
         typer.echo(f"no agreement yet: {error}", err=True)
         raise typer.Exit(1) from error
-    typer.echo(relabel.agreement_table(result), nl=False)
+    typer.echo(table, nl=False)
 
 
 @gold_app.command("review")

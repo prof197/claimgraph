@@ -28,6 +28,8 @@ from claimgraph.models import Record
 SEED = 20261112
 COUNT = 5
 RELABEL_DIR = "relabel"
+# The README block that gold agreement --readme writes.
+AGREEMENT_BLOCK = "gold-agreement"
 
 
 def pick(labeled: Sequence[str], seed: int = SEED, count: int = COUNT) -> list[str]:
@@ -192,3 +194,12 @@ def agreement_table(result: Agreement) -> str:
         *(f"| {f.name} | {f.agree} of {f.compared} |" for f in result.fields),
     ]
     return "\n".join(lines) + "\n"
+
+
+def replace_block(text: str, name: str, content: str) -> str:
+    """The text with the generated block between its start and end markers replaced."""
+    start, end = f"<!-- {name}:start -->\n", f"<!-- {name}:end -->"
+    if text.count(start) != 1 or text.count(end) != 1 or text.index(start) > text.index(end):
+        raise ValueError(f"expected one pair of {name} markers")
+    head, rest = text.split(start)
+    return head + start + content + end + rest.split(end, 1)[1]
