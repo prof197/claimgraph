@@ -107,10 +107,41 @@ def request_key(params: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical(params).encode()).hexdigest()
 
 
-def recording(params: Mapping[str, Any], response: Mapping[str, Any]) -> str:
-    """A recording file's text: the request beside its response, so either can be checked."""
-    body = {"key": request_key(params), "request": params, "response": response}
-    return json.dumps(body, sort_keys=True, indent=1, ensure_ascii=False) + "\n"
+# The parts of a request every abstract shares: the instructions and the response schema. A
+# recording names them by hash, and they are stored once per prompt version under shared/.
+SHARED_FIELDS = ("system", "output_config")
+SHARED_DIR = "shared"
+
+
+def _dumps(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, indent=1, ensure_ascii=False) + "\n"
+
+
+def recording_files(params: Mapping[str, Any], response: Mapping[str, Any]) -> dict[str, str]:
+    """The files that record one response, by path in the replay directory, with their text.
+
+    The recording holds the request beside its response, so either can be checked; the shared
+    instructions and schema go in a file of their own, named by their hash.
+    """
+    shared = {k: params[k] for k in SHARED_FIELDS if k in params}
+    request = {k: v for k, v in params.items() if k not in SHARED_FIELDS}
+    files: dict[str, str] = {}
+    if shared:
+        shared_id = hashlib.sha256(_canonical(shared).encode()).hexdigest()
+        files[f"{SHARED_DIR}/{shared_id}.json"] = _dumps(shared)
+        request["shared"] = shared_id
+    key = request_key(params)
+    files[f"{key}.json"] = _dumps({"key": key, "request": request, "response": response})
+    return files
+
+
+def read_request(replay_dir: Path, recorded: Mapping[str, Any]) -> dict[str, Any]:
+    """A recording's full request, with its shared instructions and schema put back."""
+    request = dict(recorded["request"])
+    shared_id = request.pop("shared", None)
+    if shared_id is not None:
+        request |= json.loads((replay_dir / SHARED_DIR / f"{shared_id}.json").read_text())
+    return request
 
 
 def anthropic_transport(env: Mapping[str, str]) -> Transport:
@@ -143,7 +174,7 @@ class ModelClient:
             self.used.add(key)
         if path.exists():
             recorded = json.loads(path.read_text())
-            if request_key(recorded["request"]) != key:
+            if request_key(read_request(self.replay_dir, recorded)) != key:
                 raise ValueError(f"{path} does not match the request it is named for")
             return parse_reply(recorded["response"])
         if self.mode is Mode.REPLAY:
@@ -157,7 +188,7 @@ class ModelClient:
 
     def record(self, params: Mapping[str, Any], response: Mapping[str, Any]) -> None:
         """Save a response however it was obtained, directly or through a batch."""
-        self.replay_dir.mkdir(parents=True, exist_ok=True)
-        write_atomic(
-            self.replay_dir / f"{request_key(params)}.json", recording(params, response).encode()
-        )
+        for name, text in recording_files(params, response).items():
+            path = self.replay_dir / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            write_atomic(path, text.encode())

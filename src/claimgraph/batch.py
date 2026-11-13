@@ -18,7 +18,7 @@ import anthropic
 
 from claimgraph.config import QuestionConfig
 from claimgraph.extract import SETTINGS, ExtractionResult, ModelChoice, extract_abstract, request
-from claimgraph.llm import ModelClient, ReplayMiss, request_key
+from claimgraph.llm import SHARED_DIR, ModelClient, ReplayMiss, request_key
 from claimgraph.models import Record
 from claimgraph.prices import Prices, cost, model_prices
 from claimgraph.retrieve import Abstract
@@ -127,8 +127,15 @@ def extract_batched(
 
 
 def stale(replay_dir: Path, used: frozenset[str]) -> list[str]:
-    """Recording files no current request uses, left behind by an earlier prompt or schema."""
-    return sorted(p.name for p in replay_dir.glob("*.json") if p.stem not in used)
+    """Files no current request uses, left behind by an earlier prompt or schema: recordings,
+    and shared instructions no used recording names. Paths are relative to replay_dir."""
+    recordings = sorted(replay_dir.glob("*.json"))
+    named = {
+        json.loads(p.read_text())["request"].get("shared") for p in recordings if p.stem in used
+    }
+    unused = [p.name for p in recordings if p.stem not in used]
+    shared = sorted((replay_dir / SHARED_DIR).glob("*.json"))
+    return unused + [f"{SHARED_DIR}/{p.name}" for p in shared if p.stem not in named]
 
 
 # The dry run

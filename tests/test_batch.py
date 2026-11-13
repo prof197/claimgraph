@@ -13,7 +13,7 @@ from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 from claimgraph import batch
 from claimgraph.batch import BatchOutcome, estimate, extract_batched
 from claimgraph.extract import ModelChoice, extract_abstract, request
-from claimgraph.llm import ModelClient, recording, request_key
+from claimgraph.llm import ModelClient, recording_files
 from claimgraph.prices import load_prices
 from claimgraph.retrieve import Abstract
 
@@ -74,6 +74,8 @@ def test_rounds_of_batches_carry_each_abstract_through_its_retries(tmp_path: Pat
     assert run.missing == {}
     assert [r.study is not None for r in run.results] == [True, True]
     assert len(list(tmp_path.glob("*.json"))) == 3
+    # One prompt version, so one copy of the shared instructions and schema.
+    assert len(list((tmp_path / "shared").glob("*.json"))) == 1
 
 
 def test_a_quote_miss_takes_a_third_round(tmp_path: Path) -> None:
@@ -94,8 +96,8 @@ def test_a_batch_recording_replays_like_a_direct_one(tmp_path: Path) -> None:
     run = extract_batched([abstract], VITAMIN_D, tmp_path, ModelChoice.HAIKU, sender)
 
     params = request(abstract, VITAMIN_D, ModelChoice.HAIKU)
-    path = tmp_path / f"{request_key(params)}.json"
-    assert path.read_text() == recording(params, VALID)
+    for name, text in recording_files(params, VALID).items():
+        assert (tmp_path / name).read_text() == text
     assert extract_abstract(abstract, VITAMIN_D, ModelClient(tmp_path)) == run.results[0]
 
 
@@ -312,3 +314,19 @@ def test_a_dev_run_without_abstracts_says_what_to_run(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "run --stage retrieve first" in result.output
+
+
+def test_stale_covers_recordings_and_shared_files_nothing_uses(tmp_path: Path) -> None:
+    abstract = titled("Valid at once.")
+    run = extract_batched(
+        [abstract],
+        VITAMIN_D,
+        tmp_path,
+        ModelChoice.HAIKU,
+        FakeBatches(by_title({"Valid at once.": [VALID]})),
+    )
+    # Left by an earlier prompt version: a recording and its shared instructions.
+    (tmp_path / f"{'0' * 64}.json").write_text("{}\n")
+    (tmp_path / "shared" / f"{'1' * 64}.json").write_text("{}\n")
+
+    assert batch.stale(tmp_path, run.used) == [f"{'0' * 64}.json", f"shared/{'1' * 64}.json"]

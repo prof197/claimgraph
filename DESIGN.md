@@ -537,7 +537,9 @@ data is labeled by hand, from openly licensed articles only.
   temperature 0. The recorded response is what makes a rerun reproducible, and because a fresh
   live run can differ, the extraction eval reports run-to-run agreement beside its scores.
 - **Recordings:** each file holds the request beside its response and is named by the request's
-  hash, which is checked when it is read. Gold recordings are committed in `replay/`; dev
+  hash, which is checked when it is read. The instructions and response schema every abstract
+  shares are stored once per prompt version, in `shared/` under their own hash, and each
+  recording names them; a run that re-records removes the files no current request uses. Gold recordings are committed in `replay/`; dev
   recordings stay in the run directory with the dev abstracts.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
   never sees labeled pairs.

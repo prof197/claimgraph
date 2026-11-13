@@ -95,17 +95,42 @@ def test_live_records_each_new_response_once(tmp_path: Path) -> None:
     # The rerun is served from the recording, so it costs nothing.
     assert len(transport.calls) == 1
     assert first == second
-    (path,) = tmp_path.iterdir()
+    (path,) = tmp_path.glob("*.json")
     assert path.name == f"{request_key(PARAMS)}.json"
     recorded = json.loads(path.read_text())
-    assert recorded["request"] == PARAMS
     assert recorded["response"] == synthetic_response()
     assert ModelClient(tmp_path).create(PARAMS) == first
 
 
+def test_the_shared_instructions_are_stored_once(tmp_path: Path) -> None:
+    client = ModelClient(tmp_path, Mode.LIVE, transport=FakeTransport())
+    other = PARAMS | {"messages": [{"role": "user", "content": "Other synthetic abstract."}]}
+
+    client.create(PARAMS)
+    client.create(other)
+
+    (shared,) = (tmp_path / "shared").glob("*.json")
+    assert json.loads(shared.read_text()) == {"system": PARAMS["system"]}
+    for path in tmp_path.glob("*.json"):
+        recorded = json.loads(path.read_text())
+        assert "system" not in recorded["request"]
+        assert recorded["request"]["shared"] == shared.stem
+        assert PARAMS["system"] not in path.read_text()
+    assert ModelClient(tmp_path).create(other).text == '{"synthetic": true}'
+
+
+def test_a_changed_shared_file_no_longer_matches(tmp_path: Path) -> None:
+    ModelClient(tmp_path, Mode.LIVE, transport=FakeTransport()).create(PARAMS)
+    (shared,) = (tmp_path / "shared").glob("*.json")
+    shared.write_text(json.dumps({"system": "Edited synthetic instructions."}))
+
+    with pytest.raises(ValueError, match="does not match"):
+        ModelClient(tmp_path).create(PARAMS)
+
+
 def test_a_recording_that_does_not_match_its_request_is_rejected(tmp_path: Path) -> None:
     ModelClient(tmp_path, Mode.LIVE, transport=FakeTransport()).create(PARAMS)
-    (path,) = tmp_path.iterdir()
+    (path,) = tmp_path.glob("*.json")
     recorded = json.loads(path.read_text())
     recorded["request"]["max_tokens"] = 999
     path.write_text(json.dumps(recorded))
@@ -137,11 +162,15 @@ def test_the_reply_keeps_text_and_skips_other_blocks() -> None:
 
 def test_the_recorded_fixture_is_current() -> None:
     # The fixture is what the client writes; if the format changes, re-record it on purpose.
-    (path,) = FIXTURES.glob("*.json")
-    expected = llm.recording(PARAMS, synthetic_response())
+    expected = llm.recording_files(PARAMS, synthetic_response())
+    found = {
+        p.relative_to(FIXTURES).as_posix(): p.read_text()
+        for p in FIXTURES.rglob("*")
+        if p.is_file()
+    }
 
-    assert path.name == f"{request_key(PARAMS)}.json"
-    assert path.read_text() == expected
+    assert found == expected
+    assert f"{request_key(PARAMS)}.json" in found
 
 
 def test_the_client_knows_which_recordings_it_used(tmp_path: Path) -> None:
