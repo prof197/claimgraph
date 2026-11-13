@@ -235,6 +235,21 @@ Worked examples:
 | "Patients with low vitamin D", or "hypovitaminosis D", with no number | words without a number settle nothing | `not_reported` |
 | Serum 25(OH)D not mentioned | (d) | `not_reported` |
 
+### Second pass
+
+A few records are labeled twice, blind, to measure how consistent the labels are:
+
+```
+uv run claimgraph gold relabel vitamin-d-depression          # draw 5, write blank templates
+uv run claimgraph gold review vitamin-d-depression --relabel # label them on the page
+uv run claimgraph gold agreement vitamin-d-depression        # field-level agreement
+```
+
+`gold relabel` draws once, at random with a fixed seed, and only when every gold record has a
+passing label. Its templates go in `relabel/`. With `--relabel` the page shows only those
+records, and nothing from the first pass: not its labels, outcomes, notes or flags. Label them
+by the same rules, without opening the first-pass files.
+
 ## Outcome pairs
 
 Each pair asks whether two reported outcome strings belong under one normalized outcome, so

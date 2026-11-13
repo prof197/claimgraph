@@ -13,6 +13,8 @@ uv run claimgraph gold template vitamin-d-depression   # label files to fill in 
 uv run claimgraph gold check vitamin-d-depression      # validate the labels
 uv run claimgraph gold review vitamin-d-depression     # local labeling page on 127.0.0.1
 uv run claimgraph gold trim vitamin-d-depression       # keep only the labeled gold records
+uv run claimgraph gold relabel vitamin-d-depression    # blind second pass: 5 blank templates
+uv run claimgraph gold agreement vitamin-d-depression  # agreement between the two passes
 uv run pytest                             # tests
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .

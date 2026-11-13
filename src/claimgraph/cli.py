@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import gold, labels, review
+from claimgraph import gold, labels, relabel, review
 from claimgraph.config import load_config, resolve_question
 from claimgraph.retrieve import EutilsError, connect_eutils, retrieve
 
@@ -194,6 +194,40 @@ def gold_trim(
     typer.echo(f"kept {len(trimmed.kept)} labeled gold abstracts; dropped {len(trimmed.dropped)}")
 
 
+@gold_app.command("relabel")
+def gold_relabel(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Draw records for a blind second labeling pass and write their blank templates."""
+    config = load_config(resolve_question(question))
+    try:
+        picks = relabel.write_templates(gold_dir / config.id, config)
+    except ValueError as error:
+        typer.echo(f"not drawn: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(
+        f"wrote {len(picks)} blank templates to {gold_dir / config.id / relabel.RELABEL_DIR}; "
+        "label them with gold review --relabel"
+    )
+
+
+@gold_app.command("agreement")
+def gold_agreement(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Field-level agreement between the first labeling pass and the second, as a table."""
+    config = load_config(resolve_question(question))
+    try:
+        first, second = relabel.read_passes(gold_dir / config.id, config)
+        result = relabel.agreement(first, second)
+    except ValueError as error:
+        typer.echo(f"no agreement yet: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(relabel.agreement_table(result), nl=False)
+
+
 @gold_app.command("review")
 def gold_review(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
@@ -203,10 +237,19 @@ def gold_review(
     ] = review.PAGE_DIR,
     port: Annotated[int, typer.Option(help="Port on 127.0.0.1; 0 picks a free one.")] = 8765,
     open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open a browser.")] = True,
+    second_pass: Annotated[
+        bool, typer.Option("--relabel", help="Label the blind second pass from gold relabel.")
+    ] = False,
 ) -> None:
     """Serve a local page for labeling the gold abstracts; each edit is saved and checked."""
     config = load_config(resolve_question(question))
-    session = review.ReviewSession(gold_dir / config.id, config, gold_dir / "LABELING.md", page_dir)
+    out_dir = gold_dir / config.id
+    session = review.ReviewSession(
+        out_dir, config, gold_dir / "LABELING.md", page_dir, relabel=second_pass
+    )
+    if second_pass and not session.gold:
+        typer.echo("no second pass yet; run gold relabel first", err=True)
+        raise typer.Exit(1)
     try:
         review.serve(session, review.write_page(page_dir), port, open_browser)
     except OSError as error:

@@ -178,12 +178,25 @@ _SLOT_ORDER = list(Stratum)
 class ReviewSession:
     """The labels of one question, read and written for the page."""
 
-    def __init__(self, out_dir: Path, config: QuestionConfig, guide: Path, page_dir: Path):
+    def __init__(
+        self,
+        out_dir: Path,
+        config: QuestionConfig,
+        guide: Path,
+        page_dir: Path,
+        relabel: bool = False,
+    ):
+        """With relabel, only the second pass's records, read and written in relabel/, so the
+        first pass's labels, outcomes and notes are never shown."""
         self.out_dir = out_dir
+        self.labels_dir = out_dir / ("relabel" if relabel else "labels")
         self.config = config
         self.guide = guide
-        self.marks_path = page_dir / f"{config.id}.marks.json"
+        self.marks_path = page_dir / f"{config.id}{'.relabel' if relabel else ''}.marks.json"
         gold = read_gold(out_dir)
+        if relabel:
+            second = {p.stem for p in self.labels_dir.glob("*.toml")}
+            gold = [g for g in gold if g.abstract.pmid in second]
         # Grouped by slot, so trials are labeled together, then observational studies and so on.
         ordered = sorted(enumerate(gold), key=lambda p: (_SLOT_ORDER.index(p[1].slot), p[0]))
         self.gold = {g.abstract.pmid: g for _, g in ordered}
@@ -204,7 +217,7 @@ class ReviewSession:
             self._write_marks(marks | found)
 
     def _path(self, pmid: str) -> Path:
-        return self.out_dir / "labels" / f"{pmid}.toml"
+        return self.labels_dir / f"{pmid}.toml"
 
     def _status(self, entry: GoldAbstract) -> tuple[LabelDraft | None, Status, list[str]]:
         path = self._path(entry.abstract.pmid)
