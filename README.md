@@ -69,9 +69,9 @@ Extraction by claude-haiku-5-5 on 32 gold abstracts, scored from the committed r
 
 | Study field | Correct |
 |---|---|
-| design, publication types first | 26 of 32 (81%) |
-| design, from the model's answers alone | 27 of 32 (84%) |
 | design, review tags first and the answers otherwise | 27 of 32 (84%) |
+| design, every design tag first | 26 of 32 (81%) |
+| design, from the model's answers alone | 27 of 32 (84%) |
 | sample size | 28 of 32 (88%) |
 
 | Finding field | Precision | Recall |

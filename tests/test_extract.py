@@ -329,8 +329,8 @@ def tagged(*publication_types: str) -> Abstract:
 @pytest.mark.parametrize(
     ("types", "design"),
     [
-        (["Journal Article", "Randomized Controlled Trial"], Design.RCT),
         (["Systematic Review", "Meta-Analysis"], Design.META_ANALYSIS),
+        (["Systematic Review"], Design.SYSTEMATIC_REVIEW),
         (["Scoping Review"], Design.SYSTEMATIC_REVIEW),
     ],
 )
@@ -348,6 +348,8 @@ def test_a_publication_type_that_names_a_design_sets_it(types: list[str], design
 @pytest.mark.parametrize(
     "types",
     [
+        # A trial tag also lands on observational secondary analyses, so the answers decide.
+        ["Randomized Controlled Trial"],
         ["Clinical Trial"],
         ["Clinical Trial", "Journal Article"],
         ["Clinical Trial, Phase II"],
@@ -835,16 +837,17 @@ def test_a_trial_keeps_only_comparisons_between_its_groups(design: Design, compa
     assert study.within_or_pooled == 1
 
 
-def test_a_trial_set_by_publication_type_drops_within_group_change_too() -> None:
-    out = output(
-        design_answers=full_answers(Design.COHORT), findings=[scores(comparison="within_one_group")]
-    )
+def test_a_trial_tag_leaves_the_design_and_its_findings_to_the_answers() -> None:
+    # A secondary analysis of trial participants, tagged a trial and answered as a cohort.
+    within = scores(comparison="within_one_group")
+    out = output(design_answers=full_answers(Design.COHORT), findings=[within])
 
     study = read_extraction(
         reply(json.dumps(out)), tagged("Randomized Controlled Trial"), VITAMIN_D
     )
 
-    assert (study.design, study.findings, study.within_or_pooled) == (Design.RCT, [], 1)
+    assert (study.design, study.design_from) == (Design.COHORT, extract.DesignSource.ANSWERS)
+    assert (len(study.findings), study.within_or_pooled) == (1, 0)
 
 
 def test_a_case_series_keeps_after_against_before() -> None:

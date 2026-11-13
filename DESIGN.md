@@ -227,11 +227,13 @@ comparison with historical controls only is a case series too: it has no concurr
 either, and historical controls are long known to inflate the apparent benefit of new
 treatments ([Goodacre 2015][goodacre]). Extraction reports how many kept records are single-arm.
 
-**Design from publication types.** A publication type that names a design sets it, such as
-Randomized Controlled Trial, Systematic Review, Meta-Analysis or Scoping Review. When several
-do, the most specific wins: Meta-Analysis, then Systematic Review or Scoping Review, a scoping
-review having systematic methods without pooling, then Randomized Controlled Trial. The model's
-design answers are kept either way, so a disagreement with the tag stays visible. Review alone
+**Design from publication types.** Only a review tag sets the design: Meta-Analysis, then
+Systematic Review or Scoping Review, a scoping review having systematic methods without
+pooling. The model's design answers set every other design, a tagged trial's included,
+because PubMed also tags observational secondary analyses of trial participants Randomized
+Controlled Trial, and the tag would give them trial weight. The extraction eval chose this
+over setting the trial tag first too (see Failure modes). The model's design answers are kept
+either way, so a disagreement with the tag stays visible. Review alone
 names no design: the model decides from the abstract whether the review is systematic or
 narrative. Among the kept records, at least 21 tagged only Review are systematic reviews,
 meta-analyses or scoping reviews by their own title or stated methods, while 1 of 109 tagged
@@ -546,7 +548,7 @@ data is labeled by hand, from openly licensed articles only.
 
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
-| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: publication types first, the model's answers alone, and review tags first; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
+| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Labeled outcome-string pairs, merge or not, including the hard cases | About 200 pairs | Merge precision and recall | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
@@ -875,21 +877,22 @@ These are expectations, to be replaced with measurements.
   the classifier can mark such pairs apparent as underpowered.
 - **Mis-normalized outcomes:** over-merging, under-merging, or a polarity error that flips benefit
   and harm. The reviewed mapping and the normalization eval guard this.
-- **Design misclassification:** wrong weights. Publication types come first, and design is scored
-  in the extraction eval, three ways from the same outputs: publication types first, the
-  model's design answers alone, and review tags first, where only Systematic Review,
-  Meta-Analysis and Scoping Review tags set the design and the answers set every other. Review
-  tags are reliable: 1 of the 109 records tagged systematic review or meta-analysis lacked a
-  stated method. The trial tag is not, since it also lands on secondary analyses that are
-  observational and would get trial weight. The choice is made on the second Haiku 5.5 gold run
-  and the Sonnet 5.5 gold run, both on the frozen prompt: review tags first is adopted if it
-  matches or beats publication types first on both, and publication types first stays
-  otherwise. Only the four types named under Design from publication types set a design:
-  Clinical Trial, its phases and Controlled Clinical Trial never do.
+- **Design misclassification:** wrong weights. Design is scored in the extraction eval three
+  ways from the same outputs: review tags first, where only Systematic Review, Meta-Analysis
+  and Scoping Review tags set the design and the answers set every other; every design tag
+  first, the trial tag included; and the model's design answers alone. Review tags are
+  reliable: 1 of the 109 records tagged systematic review or meta-analysis lacked a stated
+  method. The trial tag is not, since it also lands on secondary analyses that are
+  observational. The rule, fixed before the deciding runs: review tags first is adopted if it
+  matches or beats every design tag first on both the second Haiku 5.5 gold run and the Sonnet
+  5.5 gold run. It did, 27 against 26 on Haiku and 31 against 30 on Sonnet, so extraction
+  sets the design that way. Clinical Trial, its phases and Controlled Clinical Trial never set
+  a design.
 - **Secondary analyses tagged as trials:** a secondary analysis of trial participants that does
   not compare the randomized arms is observational, but PubMed can tag it Randomized Controlled
-  Trial, and the tag then sets the design to rct. One of the 15 gold records whose types name a
-  design is such a case, labeled cohort.
+  Trial. Setting the design from that tag gave such a study trial weight; one of the 15 gold
+  records whose types name a design is such a case, labeled cohort. Since the trial tag no
+  longer sets the design, the design answers decide it.
 - **Extraction errors left at the freeze.** The extraction prompt was frozen after the fifth
   gold run, its changes all motivated by dev. The last dev review, over 50 abstracts, left:
   - the exposure's level named as the outcome in results grouped by the outcome, such as lower

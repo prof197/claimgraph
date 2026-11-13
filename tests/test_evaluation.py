@@ -133,16 +133,19 @@ def tagged(*types: str) -> Abstract:
     return synthetic_abstract().model_copy(update={"publication_types": list(types)})
 
 
-def test_design_is_scored_with_and_without_publication_types_first() -> None:
-    # Tagged a trial, labeled a cohort, and answered as a cohort: the tag makes it wrong.
-    secondary = tagged("Randomized Controlled Trial")
-    cohort = result(secondary, design_answers=full_answers(Design.COHORT))
+def test_a_wrong_design_from_a_review_tag_names_the_tag() -> None:
+    # Tagged systematic, labeled and answered as a narrative review: the tag makes it wrong.
+    review_tag = tagged("Systematic Review")
+    narrative = result(
+        review_tag, design_answers=full_answers(Design.NARRATIVE_REVIEW), findings=[]
+    )
+    labeled = label(design="narrative_review", finding=[], review_summary="Synthetic summary.")
 
-    scores = score([cohort], [label(design="cohort")], [gold_entry(abstract=secondary)])
+    scores = score([narrative], [labeled], [gold_entry(abstract=review_tag)])
 
     assert (scores.design.agree, scores.design_answers_alone.agree) == (0, 1)
     (wrong,) = scores.wrong_designs
-    assert (wrong.pmid, wrong.gold, wrong.model) == ("999000001", Design.COHORT, Design.RCT)
+    assert (wrong.gold, wrong.model) == (Design.NARRATIVE_REVIEW, Design.SYSTEMATIC_REVIEW)
     assert wrong.cause == "publication type"
 
 
@@ -185,8 +188,8 @@ def test_design_other_is_counted() -> None:
 def test_the_table_gives_counts_and_rates() -> None:
     table = extraction_table(score([result(findings=[finding(outcome_direction="decreased")])]))
 
-    assert "| design, publication types first | 1 of 1 (100%) |" in table
     assert "| design, review tags first and the answers otherwise | 1 of 1 (100%) |" in table
+    assert "| design, every design tag first | 1 of 1 (100%) |" in table
     assert "| effect | 0 of 1 (0%) | 0 of 1 (0%) |" in table
     assert "| finding, matched on quote | 1 of 1 (100%) | 1 of 1 (100%) |" in table
 
@@ -196,7 +199,7 @@ def test_every_label_needs_a_result() -> None:
         score([])
 
 
-def test_review_tags_first_keeps_review_tags_and_ignores_a_trial_tag() -> None:
+def test_design_is_scored_three_ways_from_the_same_outputs() -> None:
     # A secondary analysis tagged a trial, answered as the cohort it is labeled.
     secondary = tagged("Randomized Controlled Trial")
     cohort = result(secondary, design_answers=full_answers(Design.COHORT))
@@ -215,8 +218,10 @@ def test_review_tags_first_keeps_review_tags_and_ignores_a_trial_tag() -> None:
         [gold_entry(abstract=review_tag)],
     )
 
-    assert (scores.design.agree, scores.design_review_tags_first.agree) == (0, 1)
-    assert (review.design_answers_alone.agree, review.design_review_tags_first.agree) == (0, 1)
+    # As extracted, review tags first: the trial tag is ignored and the review tag kept.
+    assert (scores.design.agree, scores.design_publication_types_first.agree) == (1, 0)
+    assert scores.wrong_designs == []
+    assert (review.design.agree, review.design_answers_alone.agree) == (1, 0)
 
 
 def test_the_readme_shows_the_current_extraction_scores() -> None:

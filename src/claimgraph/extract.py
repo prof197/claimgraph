@@ -377,15 +377,17 @@ TAGGED_DESIGNS: tuple[tuple[str, Design], ...] = (
 BETWEEN_GROUPS_ONLY = frozenset({Design.RCT, Design.NON_RANDOMIZED_TRIAL})
 
 
-# The review tags alone. Reviews tagged systematic or meta-analysis almost always state their
-# methods, while a trial tag also lands on secondary analyses that are observational.
+# The tags that set the design: the review tags alone. Reviews tagged systematic or
+# meta-analysis almost always state their methods, while a trial tag also lands on secondary
+# analyses that are observational and would get trial weight, so the design answers set every
+# design but a tagged review's. The eval also scores the design with all four tags first.
 REVIEW_TAGS: tuple[tuple[str, Design], ...] = tuple(
     (tag, design) for tag, design in TAGGED_DESIGNS if design in REVIEW_DESIGNS
 )
 
 
 def tagged_design(
-    publication_types: Iterable[str], tags: Sequence[tuple[str, Design]] = TAGGED_DESIGNS
+    publication_types: Iterable[str], tags: Sequence[tuple[str, Design]] = REVIEW_TAGS
 ) -> Design | None:
     types = set(publication_types)
     return next((design for tag, design in tags if tag in types), None)

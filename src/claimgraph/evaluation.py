@@ -14,8 +14,8 @@ from claimgraph.batch import BatchRun, extract_batched, summarize
 from claimgraph.config import QuestionConfig
 from claimgraph.design_tree import diverges, settle
 from claimgraph.extract import (
-    REVIEW_TAGS,
     SETTINGS,
+    TAGGED_DESIGNS,
     DesignSource,
     ExtractedStudy,
     ExtractionResult,
@@ -64,8 +64,8 @@ class ExtractionScores(Record):
     invalid: int
     design: Count
     design_answers_alone: Count
-    # Publication types set the design only for review tags; the answers set every other design.
-    design_review_tags_first: Count
+    # Every tag that names a design set first, the trial tag included, then the answers.
+    design_publication_types_first: Count
     sample_size: Count
     findings: list[FieldScore]
     quotes_checked: int
@@ -101,7 +101,7 @@ def score_extraction(
         d.name for d in config.dimensions
     ]
     correct: Counter[str] = Counter()
-    design = alone = review_first = size = off_topic = off_topic_empty = invalid = other = 0
+    design = alone = tags_first = size = off_topic = off_topic_empty = invalid = other = 0
     model_findings = gold_findings = 0
     wrong: list[WrongDesign] = []
     for entry in gold:
@@ -121,8 +121,8 @@ def score_extraction(
         design += study.design is lab.design
         answered = settle(study.design_answers)
         alone += answered is lab.design
-        review_first += (
-            tagged_design(entry.abstract.publication_types, REVIEW_TAGS) or answered
+        tags_first += (
+            tagged_design(entry.abstract.publication_types, TAGGED_DESIGNS) or answered
         ) is lab.design
         if study.design is not lab.design:
             wrong.append(
@@ -150,7 +150,7 @@ def score_extraction(
         invalid=invalid,
         design=Count(agree=design, of=n),
         design_answers_alone=Count(agree=alone, of=n),
-        design_review_tags_first=Count(agree=review_first, of=n),
+        design_publication_types_first=Count(agree=tags_first, of=n),
         sample_size=Count(agree=size, of=n),
         findings=[
             FieldScore(name=name, correct=correct[name], model=model_findings, gold=gold_findings)
@@ -170,6 +170,7 @@ def _rate(agree: int, of: int) -> str:
 
 
 def extraction_table(scores: ExtractionScores) -> str:
+    pub = scores.design_publication_types_first
     finding_rows = [
         (
             "finding, matched on quote" if f.name == "finding" else f.name,
@@ -184,11 +185,11 @@ def extraction_table(scores: ExtractionScores) -> str:
         "",
         "| Study field | Correct |",
         "|---|---|",
-        f"| design, publication types first | {_rate(scores.design.agree, scores.design.of)} |",
+        "| design, review tags first and the answers otherwise | "
+        f"{_rate(scores.design.agree, scores.design.of)} |",
+        f"| design, every design tag first | {_rate(pub.agree, pub.of)} |",
         "| design, from the model's answers alone | "
         f"{_rate(scores.design_answers_alone.agree, scores.design_answers_alone.of)} |",
-        "| design, review tags first and the answers otherwise | "
-        f"{_rate(scores.design_review_tags_first.agree, scores.design_review_tags_first.of)} |",
         f"| sample size | {_rate(scores.sample_size.agree, scores.sample_size.of)} |",
         "",
         "| Finding field | Precision | Recall |",
@@ -220,8 +221,8 @@ def models_table(rows: Sequence[ModelRow]) -> str:
         "Each model on the same gold abstracts and prompt, scored from the committed recordings; "
         "cost of the recorded responses at batch prices.",
         "",
-        "| Model | Design, publication types first | Design, answers alone | Design, review tags "
-        "first | Sample size | Finding precision | Finding recall | Effect precision | Effect "
+        "| Model | Design, review tags first | Design, every design tag first | Design, answers "
+        "alone | Sample size | Finding precision | Finding recall | Effect precision | Effect "
         "recall | Cost |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
@@ -230,8 +231,8 @@ def models_table(rows: Sequence[ModelRow]) -> str:
         by_name = {f.name: f for f in s.findings}
         found, effect = by_name["finding"], by_name["effect"]
         lines.append(
-            f"| {s.model} | {counted(s.design)} | {counted(s.design_answers_alone)} | "
-            f"{counted(s.design_review_tags_first)} | {counted(s.sample_size)} | "
+            f"| {s.model} | {counted(s.design)} | {counted(s.design_publication_types_first)} | "
+            f"{counted(s.design_answers_alone)} | {counted(s.sample_size)} | "
             f"{found.correct} of {found.model} | {found.correct} of {found.gold} | "
             f"{effect.correct} of {effect.model} | {effect.correct} of {effect.gold} | "
             f"${row.cost_usd:.4f} |"
