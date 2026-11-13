@@ -97,9 +97,10 @@ Reading the questions:
 abstract gives only one count of participants, use it. For reviews, write `"not_reported"`: a
 review's pooled total is neither enrolled nor randomized.
 
-**`review_summary`**: for `systematic_review`, `meta_analysis` and `narrative_review` only, one
-sentence stating the review's conclusion in your words. A review has no findings: it reports
-others' results, not its own, and reviews are not counted.
+**`review_summary`**: optional, for `systematic_review`, `meta_analysis` and `narrative_review`
+only: one sentence stating the review's conclusion in your words. The eval does not score it, so
+it may be left blank. A review has no findings: it reports others' results, not its own, and
+reviews are not counted.
 
 ### Findings
 

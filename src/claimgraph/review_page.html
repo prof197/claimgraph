@@ -384,7 +384,7 @@ function renderForm() {
         el("button", { class: picking ? "opt on" : "opt", onclick: togglePicking }, "pick from abstract (s)"))),
   ];
   if (review) {
-    nodes.push(field("review summary: its conclusion in one sentence", "review_summary", !(d.review_summary || "").trim(),
+    nodes.push(field("review summary (optional): its conclusion in one sentence", "review_summary", false,
       textInput(d.review_summary || "", (v) => { d.review_summary = v; }, { multiline: true })));
   }
   const needsNote = !review && !d.finding.length && !(d.note || "").trim();

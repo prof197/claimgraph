@@ -18,6 +18,7 @@ from pydantic import (
     StrictInt,
     StrictStr,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -70,13 +71,19 @@ class AbstractLabel(Record):
     pmid: Pmid
     design: Design
     sample_size: Participants | Literal["not_reported"]
-    # For a review only: systematic, meta-analysis or narrative.
+    # For a review only: systematic, meta-analysis or narrative. Optional, since the eval does
+    # not score it; a blank one reads as none.
     review_summary: NonBlank | None = None
     findings: list[FindingLabel] = Field(default_factory=list[FindingLabel], alias="finding")
     note: str | None = None
     # The labeler's answers to the design questions, by question; the design must follow from
     # them, so every design traces back to what the abstract says.
     design_answers: dict[str, str] = Field(default_factory=dict[str, str])
+
+    @field_validator("review_summary", mode="before")
+    @classmethod
+    def _blank_summary_is_none(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @model_validator(mode="after")
     def _design_follows_the_answers(self) -> Self:
@@ -93,8 +100,6 @@ class AbstractLabel(Record):
         if self.design in REVIEW_DESIGNS:
             if self.findings:
                 raise ValueError("a review has no findings to count")
-            if self.review_summary is None:
-                raise ValueError("a review needs a review_summary")
         elif self.review_summary is not None:
             raise ValueError("only a review takes a review_summary")
         elif not self.findings and not (self.note or "").strip():
@@ -392,8 +397,8 @@ def render_label(entry: GoldAbstract, config: QuestionConfig, draft: LabelDraft)
     ]
     if draft.review_summary is not None:
         lines += [
-            "# A review has no findings: one sentence, its conclusion. Publication types do not",
-            "# settle systematic or narrative; the abstract's methods do.",
+            "# Optional, since the eval does not score it: one sentence, the review's conclusion.",
+            "# A review has no findings.",
             f"review_summary = {_toml_value(draft.review_summary)}",
         ]
     if draft.note is not None:

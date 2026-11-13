@@ -496,11 +496,15 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 [the labeling guide](evals/gold/LABELING.md) gives the rules and worked examples.
 
 - **Abstracts:** one file per gold abstract, `labels/PMID.toml`, with the design, the sample
-  size, a summary for reviews, and one block per finding in the
-  outcome domain: the verbatim quote, the outcome as reported, the effect, whether it is the
-  primary outcome, whether it is a subgroup result, and a value for every config dimension. Population, intervention and
-  comparator are not labeled, because the eval does not score them. `claimgraph gold template`
-  writes a file per abstract with the abstract shown as comments and every value blank.
+  size, an optional summary for reviews, and one block per finding in the outcome domain: the
+  verbatim quote, the outcome as reported, the effect, whether it is the primary outcome,
+  whether it is a subgroup result, and a value for every config dimension.
+  `claimgraph gold template` writes a file per abstract with the abstract shown as comments and
+  every value blank.
+- **Unscored fields are not labeled.** The extraction eval does not score a finding's claim,
+  population, intervention or comparator against gold, nor a review's summary; it judges the
+  claim only by whether its quote supports it. Gold labels leave the four finding fields out and
+  make the summary optional, so labeling time goes to the fields that are scored.
 - **Labeling page.** `claimgraph gold review` serves a page on 127.0.0.1 that writes the same
   label files and runs the same check on every edit, so the files stay the source of truth and
   can still be edited by hand. It cuts labeling time without deciding anything: a clicked

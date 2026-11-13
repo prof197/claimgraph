@@ -121,7 +121,6 @@ def test_an_off_topic_abstract_has_no_findings() -> None:
             {"design": "meta_analysis", "review_summary": "Synthetic summary."},
             id="review with findings",
         ),
-        pytest.param({"design": "narrative_review", "finding": []}, id="review without summary"),
         pytest.param({"review_summary": "Synthetic summary."}, id="summary on a trial"),
         pytest.param({"finding": []}, id="no findings without a note"),
         pytest.param({"finding": [], "note": " "}, id="no findings with a blank note"),
@@ -166,6 +165,19 @@ def test_a_review_carries_a_summary_and_no_findings(design: str) -> None:
     review = label(design=design, finding=[], review_summary="Synthetic summary.")
 
     assert review.review_summary == "Synthetic summary."
+
+
+@pytest.mark.parametrize("summary", [None, "", " "], ids=["absent", "blank", "spaces"])
+def test_a_review_summary_is_optional(summary: str | None) -> None:
+    # The eval does not score the summary, so a review label may leave it out or blank.
+    review = label(design="narrative_review", finding=[], review_summary=summary)
+
+    assert review.review_summary is None
+    assert review.findings == []
+
+
+def test_a_blank_summary_on_a_trial_reads_as_none() -> None:
+    assert label(review_summary="").review_summary is None
 
 
 def test_the_design_must_follow_from_the_answers() -> None:
