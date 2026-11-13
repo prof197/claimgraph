@@ -178,6 +178,8 @@ class FindingFields(Record):
 
 class Finding(FindingFields):
     finding_id: FindingId
+    # Which entry of the question's outcome domain the finding is on, as the model named it.
+    domain_outcome: NonBlank
     dimensions: dict[str, DimensionValue]
 
     @property

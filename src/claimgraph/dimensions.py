@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import Field, PositiveInt, create_model
 
-from claimgraph.config import Dimension, DimensionType, QuestionConfig
+from claimgraph.config import OUTSIDE_DOMAIN, Dimension, DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS
 from claimgraph.models import FindingFields, Record
 
@@ -73,9 +73,20 @@ def _description(dimension: Dimension) -> str:
 
 
 def build_finding_model(config: QuestionConfig) -> type[FindingFields]:
+    # The model names the domain entry each finding is on, with an explicit way out, so a
+    # finding on another outcome is marked and dropped rather than filed under a domain entry.
+    domain: Any = Literal[tuple([*config.outcome_domain, OUTSIDE_DOMAIN])]
     fields: dict[str, Any] = {
-        d.name: (_field_type(d), Field(description=_description(d))) for d in config.dimensions
-    }
+        "domain_outcome": (
+            domain,
+            Field(
+                description=(
+                    "The entry of the outcome domain this finding is on, or "
+                    f"'{OUTSIDE_DOMAIN}' when its outcome fits none."
+                )
+            ),
+        )
+    } | {d.name: (_field_type(d), Field(description=_description(d))) for d in config.dimensions}
     return create_model("ExtractedFinding", __base__=FindingFields, **fields)
 
 

@@ -13,6 +13,9 @@ from claimgraph.models import DEFAULT_EXCLUDED_DESIGNS, Design, Finding, NonBlan
 MAX_DIMENSIONS = 5
 # The only absent value for an options dimension; text and number dimensions use null.
 NOT_REPORTED = "not_reported"
+# The explicit way out of the outcome domain for an extracted finding. Code drops such findings
+# and counts them, rather than have the model stretch a domain entry to fit.
+OUTSIDE_DOMAIN = "outside the domain"
 
 QuestionId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")]
 DimensionName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
@@ -113,6 +116,8 @@ class QuestionConfig(Record):
                 raise ValueError("MeSH headings must be unique")
         if len(set(self.outcome_domain)) != len(self.outcome_domain):
             raise ValueError("outcome domain entries must be unique")
+        if any(entry.casefold() == OUTSIDE_DOMAIN for entry in self.outcome_domain):
+            raise ValueError(f"{OUTSIDE_DOMAIN!r} is the way out of the domain, not an entry")
         names = [d.name for d in self.dimensions]
         if len(set(names)) != len(names):
             raise ValueError("dimension names must be unique")

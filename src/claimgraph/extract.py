@@ -14,7 +14,7 @@ from typing import Any, cast
 
 from pydantic import PositiveInt, ValidationError
 
-from claimgraph.config import QuestionConfig
+from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, READINGS, settle
 from claimgraph.dimensions import build_extraction_model
 from claimgraph.llm import ModelClient, Reply, Usage
@@ -89,6 +89,11 @@ domain has no findings.
 - List results on outcomes outside the domain in other_outcomes, by the abstract's names for \
 them, and never as findings. A subscale of a mixed instrument that measures the outcome on its \
 own counts as the outcome.
+- domain_outcome: the entry of the outcome domain the finding is on. When the finding's \
+outcome fits no entry, give "outside the domain"; such findings are dropped and counted, so \
+never stretch an entry to fit.
+- The exposure's level is never the outcome. A result comparing the exposure between people \
+with and without the outcome is a finding on the outcome, read with the exposure as the cause.
 - quote: copied exactly, character for character. If the result spans two sentences, take the \
 one with the result. One sentence can back several findings, such as two subgroups: give each \
 finding its own entry with the same quote.
@@ -365,6 +370,9 @@ class ExtractedStudy(Record):
     primary_subgroups: int
     # Findings returned for a review, which reports others' results and keeps none.
     review_findings_dropped: int
+    # Findings the model marked outside the outcome domain: dropped, and their outcomes added to
+    # other_outcomes, so they are counted with the other outcomes seen.
+    outside_domain: int
 
 
 def match_enums(value: Any, node: Mapping[str, Any], defs: Mapping[str, Any]) -> Any:
@@ -416,10 +424,15 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
     design = tagged or answered
     fixed = FindingFields.model_fields.keys()
     findings: list[Finding] = []
+    outside: list[str] = []
     primary_subgroups = 0
     for n, finding in enumerate(fields["findings"], start=1):
         if finding["subgroup"] is not None and not finding["is_subgroup"]:
             raise InvalidOutput(f"findings.{n - 1}.subgroup: named, but is_subgroup is false")
+        domain_outcome = finding.pop("domain_outcome")
+        if domain_outcome == OUTSIDE_DOMAIN:
+            outside.append(finding["outcome_reported"])
+            continue
         if finding["is_primary"] and finding["is_subgroup"]:
             # A subgroup result never stands for its study, so it is kept as a subgroup.
             finding["is_primary"] = False
@@ -427,11 +440,13 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
         findings.append(
             Finding(
                 finding_id=f"{abstract.pmid}-{n}",
+                domain_outcome=domain_outcome,
                 dimensions={k: v for k, v in finding.items() if k not in fixed},
                 **{k: v for k, v in finding.items() if k in fixed},
             )
         )
     is_review = design in REVIEW_DESIGNS
+    other_outcomes: list[str] = list(fields["other_outcomes"])
     return ExtractedStudy(
         pmid=abstract.pmid,
         design=design,
@@ -440,9 +455,10 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
         sample_size=fields["sample_size"],
         review_summary=fields["review_summary"] if is_review else None,
         findings=[] if is_review else findings,
-        other_outcomes=fields["other_outcomes"],
+        other_outcomes=other_outcomes + [o for o in outside if o not in other_outcomes],
         primary_subgroups=0 if is_review else primary_subgroups,
         review_findings_dropped=len(findings) if is_review else 0,
+        outside_domain=0 if is_review else len(outside),
     )
 
 

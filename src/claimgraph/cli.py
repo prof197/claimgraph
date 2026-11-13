@@ -123,11 +123,12 @@ def _extract(
         raise typer.Exit(1) from error
     # Dev and corpus share recordings: a dev abstract is also in the corpus, with the same request.
     replay_dir = run_dir / "replay" / "extraction" / model.value
-    outcome = _send_batches(
-        abstracts, config, replay_dir, model, dry_run, live, prices_file, sample
-    )
-    if outcome is None:
+    sent = _send_batches(abstracts, config, replay_dir, model, dry_run, live, prices_file, sample)
+    if sent is None:
         return
+    outcome, summary = sent
+    # The extract stage's own manifest: retrieve rewrites manifest.json whole.
+    batch.write_manifest(run_dir / "extract" / "manifest.json", f"{sample}-{model.value}", summary)
     out = run_dir / "extract" / f"{sample}-{model.value}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     write_atomic(out, "".join(r.model_dump_json() + "\n" for r in outcome.results).encode())
@@ -144,7 +145,7 @@ def _send_batches(
     live: bool,
     prices_file: Path,
     sample: str,
-) -> batch.BatchRun | None:
+) -> tuple[batch.BatchRun, batch.ExtractManifest] | None:
     """The shared part of run --stage extract and gold record: estimate, or replay and send."""
     prices = load_prices(prices_file)
     if dry_run:
@@ -161,10 +162,11 @@ def _send_batches(
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
     outcome = batch.extract_batched(abstracts, config, replay_dir, model, send)
-    typer.echo(f"{sample}: {len(abstracts)} abstracts on {extract.SETTINGS[model].model}")
-    for line in batch.describe(outcome, prices):
+    summary = batch.summarize(outcome, extract.SETTINGS[model].model, prices)
+    typer.echo(f"{sample}: {len(abstracts)} abstracts on {summary.model}")
+    for line in batch.describe(outcome, summary):
         typer.echo(line)
-    return outcome
+    return outcome, summary
 
 
 def _report_missing(outcome: batch.BatchRun) -> None:
@@ -364,11 +366,10 @@ def gold_record(
     config = load_config(resolve_question(question))
     abstracts = [g.abstract for g in labels.read_gold(gold_dir / config.id)]
     recordings = extract.gold_replay_dir(replay_dir, config, model)
-    outcome = _send_batches(
-        abstracts, config, recordings, model, dry_run, live, prices_file, "gold"
-    )
-    if outcome is None:
+    sent = _send_batches(abstracts, config, recordings, model, dry_run, live, prices_file, "gold")
+    if sent is None:
         return
+    outcome, _ = sent
     unused = batch.stale(recordings, outcome.used)
     if unused and live and not outcome.missing:
         for name in unused:

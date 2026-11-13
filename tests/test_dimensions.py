@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from claimgraph.config import QuestionConfig, load_config
+from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig, load_config
 from claimgraph.design_tree import QUESTIONS, full_answers
 from claimgraph.dimensions import build_extraction_model, build_finding_model
 from claimgraph.models import Design, FindingFields
@@ -52,6 +52,7 @@ def extracted_finding(**dimension_values: Any) -> dict[str, Any]:
         "population": "synthetic adults",
         "intervention": "synthetic vitamin D3",
         "comparator": "placebo",
+        "domain_outcome": "synthetic symptom score",
         **dimension_values,
     }
 
@@ -66,16 +67,34 @@ def test_extraction_schema_matches_snapshot() -> None:
     assert schema == snapshot.read_text()
 
 
-def test_without_dimensions_only_fixed_fields() -> None:
+def test_without_dimensions_only_fixed_fields_and_the_domain() -> None:
     model = build_finding_model(config())
 
-    assert model.model_fields.keys() == FindingFields.model_fields.keys()
+    assert list(model.model_fields) == [*FindingFields.model_fields, "domain_outcome"]
+
+
+def test_the_domain_field_offers_the_domain_and_an_explicit_way_out() -> None:
+    cfg = config()
+    model = build_finding_model(cfg)
+    field = model.model_json_schema()["properties"]["domain_outcome"]
+
+    assert field["enum"] == [*cfg.outcome_domain, OUTSIDE_DOMAIN]
+    with pytest.raises(ValidationError):
+        model.model_validate(extracted_finding(domain_outcome="synthetic anxiety score"))
+    assert model.model_validate(extracted_finding(domain_outcome=OUTSIDE_DOMAIN))
+
+
+def test_a_domain_entry_cannot_be_the_way_out() -> None:
+    with pytest.raises(ValidationError, match="outside the domain"):
+        QuestionConfig.model_validate(
+            config().model_dump() | {"outcome_domain": ["synthetic score", "Outside the domain"]}
+        )
 
 
 def test_dimension_fields_follow_fixed_fields() -> None:
     model = build_finding_model(config(dimension(name="first"), dimension(name="second")))
 
-    assert list(model.model_fields)[-2:] == ["first", "second"]
+    assert list(model.model_fields)[-3:] == ["domain_outcome", "first", "second"]
 
 
 def test_dimension_definition_becomes_its_description() -> None:

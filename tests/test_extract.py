@@ -52,6 +52,7 @@ def finding(**overrides: Any) -> dict[str, Any]:
         "population": "synthetic adults",
         "intervention": "synthetic vitamin D3",
         "comparator": "placebo",
+        "domain_outcome": "remission",
         "baseline_vitamin_d_status": "not_reported",
     } | overrides
 
@@ -733,3 +734,37 @@ def test_the_prompt_leaves_the_path_to_code() -> None:
     assert "not_reached" not in prompt
     assert "go to" not in prompt
     assert "->" not in prompt
+
+
+# The outcome domain
+
+
+def test_a_finding_outside_the_domain_is_dropped_and_counted() -> None:
+    from claimgraph.config import OUTSIDE_DOMAIN
+
+    anxiety = scores(outcome_reported="synthetic anxiety score", domain_outcome=OUTSIDE_DOMAIN)
+    out = output(findings=[finding(), anxiety], other_outcomes=["synthetic fatigue"])
+
+    study = read_extraction(reply(json.dumps(out)), synthetic_abstract(), VITAMIN_D)
+
+    (kept,) = study.findings
+    assert kept.domain_outcome == "remission"
+    assert "domain_outcome" not in kept.dimensions
+    assert study.outside_domain == 1
+    # Counted with the other outcomes seen, so the run manifest has them all.
+    assert study.other_outcomes == ["synthetic fatigue", "synthetic anxiety score"]
+
+
+def test_a_domain_entry_matches_whatever_its_case() -> None:
+    upper = output(findings=[finding(domain_outcome="REMISSION")])
+
+    study = read_extraction(reply(json.dumps(upper)), synthetic_abstract(), VITAMIN_D)
+
+    assert study.findings[0].domain_outcome == "remission"
+
+
+def test_the_prompt_says_the_exposure_is_never_the_outcome() -> None:
+    prompt = system_prompt(VITAMIN_D)
+
+    assert "The exposure's level is never the outcome" in prompt
+    assert "outside the domain" in prompt

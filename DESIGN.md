@@ -79,6 +79,7 @@ several outcomes, arms or subgroups.
 | Finding | `population` | str | Who was enrolled, as reported |
 | Finding | `intervention` | str | Agent, dose, duration, route and form, as reported |
 | Finding | `comparator` | str | Placebo, active treatment or usual care, as reported |
+| Finding | `domain_outcome` | str | The entry of the question's outcome domain the finding is on |
 | Finding | `dimensions` | dict | One value per custom dimension, keyed by name |
 | NormalizedOutcome | `name`, `members`, `higher_is_better`, `reviewed` | str, list[str], bool, bool | Lives in the committed mapping file |
 | CandidatePair | `outcome`, `study_a`, `study_b`, `kind` | — | `kind` is `effect_vs_none` or `benefit_vs_harm` |
@@ -115,6 +116,13 @@ or narrative, the other outcomes it saw, and the list of findings.
 - **Other outcomes** are the outcomes outside the domain that the abstract reports results for.
   They are counted as out of scope in the run manifest, and never scored, labeled or stored as
   findings.
+- **Domain outcome.** Each finding names the outcome-domain entry it is on, or the explicit
+  choice "outside the domain". Code drops a finding marked outside and adds its outcome to the
+  other outcomes, so it is counted, not stored. Without that way out, the model would have to
+  file an anxiety finding under a depression entry, which hides the error instead of removing
+  it. The first scored gold run's dev set showed the need: 20 of 73 dev findings were on
+  outcomes outside the domain, such as anxiety, fatigue or cognition, or gave the exposure's
+  own level as the outcome, which the prompt now rules out.
 
 Code assigns `finding_id`. Stored Findings keep custom-dimension values in a `dimensions`
 mapping, so the Finding model stays static while the extraction model varies with the question.
@@ -360,10 +368,15 @@ title alone.
   definition. Number dimensions name one unit and the model converts to it.
 - **Outcome domain.** The config names the outcomes the question is about; for vitamin D,
   depressive symptoms, depression diagnosis or incidence, remission, response and seasonal
-  affective disorder. Extraction
-  returns only findings in that domain. Findings on other outcomes are counted as out of scope
-  in the run manifest and not stored, so a broad search adds recall without filling the map with
-  unrelated outcomes.
+  affective disorder. Extraction returns only findings in that domain. Findings on other
+  outcomes are counted as out of scope in the extract stage's manifest and not stored, so a
+  broad search adds recall without filling the map with unrelated outcomes.
+- **Extract manifest.** Each extraction run writes an entry, such as `dev-haiku`, to
+  `extract/manifest.json` in the run directory: abstracts extracted and missing, output invalid
+  after the retry, findings kept and dropped as outside the domain, other outcomes seen,
+  primary results kept as subgroups, review findings dropped, single-arm studies, the quote
+  counts, the token counts and their cost. Retrieval rewrites `manifest.json` whole, so the
+  extract stage keeps its own.
 - Reviews, systematic or narrative, and meta-analyses get study fields and a one-sentence
   summary, labelled as a summary. Their findings are not extracted for counting.
 - Protocols report no results, so they have no findings; their design is the planned design.

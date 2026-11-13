@@ -311,6 +311,9 @@ def test_a_live_dev_run_records_through_batches_then_replays(
     assert len(list((run_dir / "replay" / "extraction" / "haiku").glob("*.json"))) == 2
     assert replayed.exit_code == 0, replayed.output
     assert "2 extracted, 0 missing" in replayed.output
+    manifest = json.loads((run_dir / "extract" / "manifest.json").read_text())
+    assert manifest["runs"]["dev-haiku"]["extracted"] == 2
+    assert manifest["runs"]["dev-haiku"]["requests"] == 2
     lines = (run_dir / "extract" / "dev-haiku.jsonl").read_text().splitlines()
     assert [json.loads(line)["pmid"] for line in lines] == ["999000001", "999000002"]
 
@@ -374,7 +377,8 @@ def test_a_stopped_run_leaves_its_batch_and_the_next_run_collects_it(tmp_path: P
     assert run.missing == {}
     assert len(run.results) == 2
     assert batch.pending_batches(tmp_path) == []
-    assert "collected 1 batches a stopped run left" in batch.describe(run, PRICES)[0]
+    summary = batch.summarize(run, "claude-haiku-5-5", PRICES)
+    assert "collected 1 batches a stopped run left" in batch.describe(run, summary)[0]
 
 
 def test_a_collected_result_no_request_needs_is_not_recorded(tmp_path: Path) -> None:
@@ -399,3 +403,38 @@ def test_replay_never_collects(tmp_path: Path) -> None:
 
     assert run.resumed == 0
     assert batch.pending_batches(tmp_path) == ["msgbatch_synthetic_1"]
+
+
+def test_the_summary_counts_what_was_dropped_and_seen(tmp_path: Path) -> None:
+    from claimgraph.config import OUTSIDE_DOMAIN
+    from claimgraph.design_tree import full_answers
+    from claimgraph.models import Design
+
+    anxiety = finding(
+        quote="Synthetic depression scores fell more with synthetic vitamin D than with placebo "
+        "(p = 0.01).",
+        outcome_reported="synthetic anxiety",
+        domain_outcome=OUTSIDE_DOMAIN,
+    )
+    single_arm = response(
+        json.dumps(
+            output(
+                design_answers=full_answers(Design.CASE_SERIES),
+                findings=[finding(), anxiety],
+                other_outcomes=["synthetic fatigue"],
+            )
+        )
+    )
+    run = extract_batched(
+        [titled("Single arm.")],
+        VITAMIN_D,
+        tmp_path,
+        ModelChoice.HAIKU,
+        FakeBatches(by_title({"Single arm.": [single_arm]})),
+    )
+
+    summary = batch.summarize(run, "claude-haiku-5-5", PRICES)
+
+    assert (summary.findings, summary.outside_domain, summary.other_outcomes) == (1, 1, 2)
+    assert summary.single_arm == 1
+    assert summary.cost_usd > 0

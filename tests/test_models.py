@@ -41,6 +41,7 @@ def study(**overrides: Any) -> Study:
 def finding(**overrides: Any) -> Finding:
     fields: dict[str, Any] = {
         "finding_id": "999000001-1",
+        "domain_outcome": "synthetic symptom score",
         "claim": "Synthetic claim: scores fell more with vitamin D than placebo.",
         "quote": "Synthetic quote: scores fell more with vitamin D than with placebo.",
         "outcome_reported": "synthetic depression score",
