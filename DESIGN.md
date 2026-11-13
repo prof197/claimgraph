@@ -510,6 +510,14 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   labels stay independent of any model. The page, its flags and its timings live in the
   gitignored `local-data/`. Requests must name the local host and send JSON, so another site
   open in the browser cannot write labels through it.
+- **Design by questions.** A labeler does not pick a design by name. Eleven yes-or-no questions
+  about the abstract, asked in order and stopping at the first answer that names a design,
+  settle it: people or not, own data or a summary, systematic methods, pooling, individual
+  patients, whether the researchers gave the exposure, a concurrent comparison group, allocation
+  by chance, a proxy or outside exposure, selection by outcome, and timing. The label keeps the
+  answers, the check requires the design to follow from them, and so every gold design traces
+  back to what the abstract says. The questions are worded for any question, with "the
+  exposure" and "the outcome"; the labeling guide spells them out for vitamin D and depression.
 - **Every value is explicit.** TOML has no null, so a missing value is written
   `"not_reported"`, and a blank template fails the check rather than passing as unlabeled.
   The check also requires each quote to appear in its abstract, after the same whitespace and

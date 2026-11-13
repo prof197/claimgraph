@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from test_retrieve_parse import article
 
 from claimgraph.config import QuestionConfig, load_config
+from claimgraph.design_tree import answers_for
 from claimgraph.gold import GoldAbstract, Licence, Stratum
 from claimgraph.labels import (
     AbstractLabel,
@@ -62,6 +63,11 @@ def label(**overrides: Any) -> AbstractLabel:
             }
         ],
     }
+    # A label's design must follow from its answers, so a test that changes the design gets the
+    # answers that lead to it, unless it sets the answers itself.
+    design = overrides.get("design", fields["design"])
+    if "design_answers" not in overrides and design in set(Design):
+        fields["design_answers"] = answers_for(Design(design))
     return AbstractLabel.model_validate(fields | overrides)
 
 
@@ -160,6 +166,13 @@ def test_a_review_carries_a_summary_and_no_findings(design: str) -> None:
     review = label(design=design, finding=[], review_summary="Synthetic summary.")
 
     assert review.review_summary == "Synthetic summary."
+
+
+def test_the_design_must_follow_from_the_answers() -> None:
+    with pytest.raises(ValidationError, match="lead to rct"):
+        label(design="cohort", design_answers=answers_for(Design.RCT))
+    with pytest.raises(ValidationError, match="answer subjects"):
+        label(design_answers={})
 
 
 def test_no_findings_with_a_note_saying_why() -> None:
@@ -441,6 +454,7 @@ def test_a_draft_round_trips_through_its_label_file() -> None:
         pmid="999000001",
         design="rct",
         sample_size=120,
+        design_answers=answers_for(Design.RCT),
         note='Synthetic note with "double quotes" and a back\\slash.',
         finding=[
             FindingDraft(

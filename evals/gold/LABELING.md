@@ -35,42 +35,62 @@ given.
 
 ### Study fields
 
-**`design`**, from the abstract, not from PubMed's publication types:
+**`design`** is settled by the design questions, asked in order and stopping at the first answer
+that names a design. Answer from the abstract, not from PubMed's publication types. A protocol
+answers for its planned design. The review page asks the questions and sets the design.
 
-| Value | Use for |
-|---|---|
-| `rct` | Participants randomized to vitamin D or a comparator, including dose comparisons |
-| `non_randomized_trial` | Participants allocated to vitamin D or a comparator by methods that are not random, with a concurrent comparison group |
-| `cohort` | People followed over time, prospectively or retrospectively, including follow-up analyses of trial participants that do not compare the randomized arms |
-| `case_control` | People with and without depression compared on vitamin D |
-| `cross_sectional` | Vitamin D and depression measured at one time |
-| `case_series` | A series of patients with no concurrent comparison group, including single-arm before-after studies where everyone gets vitamin D and comparisons with historical controls only |
-| `systematic_review` | A review with systematic methods, without pooling, including scoping and umbrella reviews |
-| `meta_analysis` | A systematic review that pools results |
-| `narrative_review` | A review without systematic methods, including perspectives, commentaries, guidelines and position statements that review others' results, unless they meet the systematic test below |
-| `case_report` | One or a few patients described |
-| `animal`, `in_vitro` | Non-human or laboratory studies |
-| `other` | A primary study outside the designs above, such as a quasi-experimental study, Mendelian randomization, a bibliometric analysis, or one whose design the abstract leaves unclear |
+| # | Key | Question | Answers |
+|---|---|---|---|
+| 1 | `subjects` | Is it a study on people? | `people` → 2; `animals` → `animal`; `cells_or_tissue` → `in_vitro` |
+| 2 | `source` | Does it report its own data, or summarize other studies? | `own_data` → 5; `summary` → 3; `neither`, such as a bibliometric study → `other` |
+| 3 | `systematic_methods` | Does it say how it searched and how it chose studies, or call itself systematic, scoping, umbrella or a meta-analysis? | `yes` → 4; `no` → `narrative_review` |
+| 4 | `pools` | Does it pool results into one number? | `yes` → `meta_analysis`; `no` → `systematic_review` |
+| 5 | `individual_patients` | Does it describe one or a few patients individually? | `yes` → `case_report`; `no` → 6 |
+| 6 | `gave_exposure` | Did the researchers give vitamin D, with results comparing depression by who got it, how much, or before and after? | `yes` → 7; `no` → 9 |
+| 7 | `concurrent_comparison` | Is there a concurrent comparison group: placebo, none or another dose? | `yes` → 8; `no` → `case_series` |
+| 8 | `by_chance` | Was who got what assigned by chance, to individuals or to clusters? | `yes` → `rct`; `no` → `non_randomized_trial` |
+| 9 | `proxy_or_event` | Does the vitamin D exposure come only from genetic proxies or an outside event, such as a fortification policy? | `yes` → `other`; `no` → 10 |
+| 10 | `selected_by_outcome` | Were participants picked because they had depression or did not? | `yes` → `case_control`; `no` → 11 |
+| 11 | `measured_before` | Was vitamin D measured before depression was assessed? | `yes` → `cohort`; `no` → `cross_sectional` |
 
-A review has systematic methods when its abstract calls it systematic, scoping, umbrella or a
-meta-analysis, or describes both how it searched and how it chose studies: eligibility criteria,
-screening, or a count of included studies. A review that only names the databases it searched is
-narrative. A review titled narrative that describes both a search and a selection is systematic.
-The systematic test applies first, so a guideline, position statement or perspective that meets
-it is a systematic review or meta-analysis. PubMed's publication types do not settle this: some
-systematic reviews are tagged only Review, and recent records often carry no type at all.
+The label keeps each answer on the path, so every design traces back to what the abstract says.
+The check reports a missing answer, an answer to a question the path never reaches, and a design
+that does not follow from the answers.
 
-A non-randomized trial needs a concurrent comparison group. An intervention the researchers
-assigned without randomization, with a concurrent group that got something else, is
-`non_randomized_trial`, even when the abstract calls it quasi-experimental; a quasi-experimental
-study in `other` compares groups the researchers did not assign, such as a natural experiment.
-A single-arm study, where everyone gets vitamin D and outcomes are compared before and after, is
-`case_series`, even when the abstract calls it a trial; its effect is the change from before to
-after. A study that compares treated patients only with historical controls, an earlier group
-that did not get vitamin D, is `case_series` too: it has no concurrent comparison either.
+```toml
+design = "rct"
 
-A protocol reports no results, so it has no findings. Its design is the planned design, such as
-`rct` for a trial protocol. A review protocol's summary says what the review will assess.
+[design_answers]
+subjects = "people"
+source = "own_data"
+individual_patients = "no"
+gave_exposure = "yes"
+concurrent_comparison = "yes"
+by_chance = "yes"
+```
+
+Reading the questions:
+
+- Question 3: saying how it searched means more than naming the databases; saying how it chose
+  studies means eligibility criteria, screening, or a count of included studies. A review titled
+  narrative that says both is systematic. Guidelines, position statements and perspectives that
+  review others' results are summaries, so this question decides them too. PubMed's publication
+  types do not settle it: some systematic reviews are tagged only Review, and recent records
+  often carry no type at all.
+- Question 6: vitamin D the participants chose to take themselves was not given by the
+  researchers. A follow-up analysis of trial participants that does not compare the randomized
+  arms answers no.
+- Question 7: a single-arm study, where everyone gets vitamin D and outcomes are compared before
+  and after, answers no, as does a comparison with historical controls only, an earlier group
+  that did not get vitamin D. Both are `case_series`, even when the abstract calls them a trial.
+  A single-arm study's effect is the change from before to after.
+- Question 8: allocation by alternation, date of birth or clinic is not by chance.
+- Question 9: Mendelian randomization and natural experiments answer yes.
+- Question 10: yes when the study picked people with depression and people without it to
+  compare; a sample of people with depression alone answers no.
+- Question 11: a study that measures vitamin D and depression at the same visit answers no, even
+  inside a cohort study that reports only that visit.
+- A review protocol's summary says what the review will assess.
 
 **`sample_size`**: participants enrolled or randomized, not analyzed or completed. When the
 abstract gives only one count of participants, use it. For reviews, write `"not_reported"`: a

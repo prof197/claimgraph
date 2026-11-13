@@ -22,6 +22,7 @@ from pydantic import (
 )
 
 from claimgraph.config import NOT_REPORTED, Dimension, DimensionType, QuestionConfig
+from claimgraph.design_tree import QUESTIONS, follow
 from claimgraph.gold import GoldAbstract, Stratum
 from claimgraph.models import (
     REVIEW_DESIGNS,
@@ -73,6 +74,19 @@ class AbstractLabel(Record):
     review_summary: NonBlank | None = None
     findings: list[FindingLabel] = Field(default_factory=list[FindingLabel], alias="finding")
     note: str | None = None
+    # The labeler's answers to the design questions, by question; the design must follow from
+    # them, so every design traces back to what the abstract says.
+    design_answers: dict[str, str] = Field(default_factory=dict[str, str])
+
+    @model_validator(mode="after")
+    def _design_follows_the_answers(self) -> Self:
+        try:
+            settled = follow(self.design_answers)
+        except ValueError as error:
+            raise ValueError(f"design_answers: {error}") from error
+        if settled is not self.design:
+            raise ValueError(f"design is {self.design}, but the design answers lead to {settled}")
+        return self
 
     @model_validator(mode="after")
     def _reviews_summarize_and_others_report(self) -> Self:
@@ -327,6 +341,7 @@ class LabelDraft(Record):
     sample_size: StrictInt | StrictStr = ""
     review_summary: str | None = None
     note: str | None = None
+    design_answers: dict[str, str] = Field(default_factory=dict[str, str])
     finding: list[FindingDraft] = Field(default_factory=list[FindingDraft])
 
 
@@ -383,6 +398,17 @@ def render_label(entry: GoldAbstract, config: QuestionConfig, draft: LabelDraft)
         ]
     if draft.note is not None:
         lines.append(f"note = {_toml_value(draft.note)}")
+    if draft.design_answers:
+        order = [q.key for q in QUESTIONS]
+        keys = sorted(
+            draft.design_answers, key=lambda k: order.index(k) if k in order else len(order)
+        )
+        lines += [
+            "",
+            "# Answers to the design questions in LABELING.md, in order; they settle the design.",
+            "[design_answers]",
+            *(f"{k} = {_toml_value(draft.design_answers[k])}" for k in keys),
+        ]
     if draft.finding:
         lines += [
             "",
