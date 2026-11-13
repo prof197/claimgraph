@@ -441,8 +441,9 @@ counts the first requests that have no recording, at about three characters per 
 figure on purpose for the current tokenizer, and gives two numbers at batch prices. The
 typical cost is one request each, with no cache reads and 590 output tokens, the mean over the
 67 requests of the first dev run. The ceiling is every abstract taking all three requests at
-full output, which real spend cannot pass. It refuses a request that could pass 100,000 prompt tokens, where Haiku 5.5's price changes. Each
-run then prints what its recorded responses cost from their token counts.
+full output, which real spend cannot pass. It refuses a request that could pass 100,000 prompt
+tokens, where Haiku 5.5's price changes. Each run then prints what its recorded responses cost
+from their token counts.
 
 **Panel.** Genuine contradictions are grouped by reason and ordered by the two studies' combined
 design weight, then combined sample size. Apparent contradictions sit in a collapsed list under
@@ -525,9 +526,20 @@ data is labeled by hand, from openly licensed articles only.
 - **Reason classes:** six classes leave about 25 labeled pairs each, so per-class accuracy is
   reported with its interval, not as a headline.
 - **Matching findings:** the extraction eval pairs each gold finding with a model finding on
-  quote and subgroup. One sentence can back several findings, so findings that share a sentence
-  pair by the most outcome words in common. The outcome's wording never decides a match; the
-  outcome is scored as a field of the pair, or the eval would score wording.
+  the quote alone. One sentence can back several findings, so findings that share a sentence
+  pair by the most subgroup and outcome words in common. Matching finds the same finding;
+  scoring then judges its fields, subgroup and outcome included, so neither one's wording
+  decides a match.
+- **Why the quote alone.** Matching first used the quote and the subgroup name. The first
+  scored gold run showed that subgroup names are free text and often left out of a label: a
+  label without a name and a model finding with one, or "white" against "white participants",
+  never matched. The rule changed after seeing gold scores, so both numbers are kept: on the
+  same outputs, 20 findings matched on quote and subgroup, and 26 on the quote alone. The
+  second labeling pass uses the same rule, and its agreement did not move.
+- **Known misses:** when two Results sentences report the same result, the quote rule allows
+  either, and a label and the model that quote different ones count as a missed finding on
+  each side. Two gold records do this, 32945627 and 30157761; they stay as misses rather than
+  tighten a rule the labels already follow.
 - **Precision and recall:** a finding field is correct on a matched pair when the two agree.
   Precision is the correct count over the model's findings, and recall over the labeled
   findings, so a finding the model adds lowers precision and one it misses lowers recall. Output
@@ -550,10 +562,13 @@ data is labeled by hand, from openly licensed articles only.
 - **Recordings:** each file holds the request beside its response and is named by the request's
   hash, which is checked when it is read. The instructions and response schema every abstract
   shares are stored once per prompt version, in `shared/` under their own hash, and each
-  recording names them; a run that re-records removes the files no current request uses. Gold recordings are committed in `replay/`; dev
-  recordings stay in the run directory with the dev abstracts.
+  recording names them; a run that re-records removes the files no current request uses. Gold
+  recordings are committed in `replay/`; dev recordings stay in the run directory with the dev
+  abstracts.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
-  never sees labeled pairs.
+  never sees labeled pairs. Every prompt change is motivated by something seen in the dev set,
+  never by a gold record: a gold error is answered in the prompt only when dev shows the same
+  pattern.
 - **The ablation's question:** does multi-model deliberation beat the best single model at the
   same token budget? Prior work suggests ensembling, not deliberation, drives most of the gain.
   Either result goes in the README, and the table doubles as the guide to `--depth`.
@@ -670,8 +685,8 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   `relabel/` and keeps a copy of the first pass as it stood in `relabel/first/`, so later gold
   corrections don't move the agreement. The labeling page labels them without showing the first
   pass, and `claimgraph gold agreement` counts agreement field by field. Findings pair as the
-  extraction eval pairs them, on quote and subgroup, so a reworded outcome counts against the
-  outcome field rather than as a missed finding. The README reports the agreement beside the
+  extraction eval pairs them, on the quote, so a reworded outcome counts against the outcome
+  field rather than as a missed finding. The README reports the agreement beside the
   extraction results.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
   ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
@@ -681,6 +696,21 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
 - **Outcome pairs** label whether two reported strings merge, including the ruled hard cases.
   **Contradiction pairs** label a candidate pair's verdict, reason, other differences and
   detail, under the same rules as the classifier's output.
+
+### Gold runs
+
+Each live run on the gold set, with what changed since the one before. The README table shows
+the latest, generated by `claimgraph eval extraction`; earlier numbers are kept here.
+
+1. **Haiku 5.5, path-aware design answers** (2026-11-13). 22 of 32 responses valid on the first
+   try and 1 still invalid after the retry; every error a design-path error. Not scored; its
+   recordings were replaced by the next run's.
+2. **Haiku 5.5, design answers on facts** (2026-11-13). Changed: every design question
+   answered on its facts, with code walking the tree. 32 of 32 valid on the first try. Design 27
+   of 32, also 27 from the answers alone; sample size 27 of 32. Findings matched on quote and
+   subgroup: 20, precision 20 of 51 and recall 20 of 34; on the quote alone, 26, precision 26
+   of 51 and recall 26 of 34. Dev showed findings outside the outcome domain and the exposure's
+   level given as the outcome, 20 of its 73 findings, which the next run answers.
 
 ## Cost
 
@@ -723,8 +753,8 @@ claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
-    verbatim.py  batch.py  evaluation.py  normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py
-    prices.py  cli.py
+    verbatim.py  batch.py  evaluation.py  normalize.py  compare.py  arms.py  summary.py
+    graph.py  llm.py  prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml

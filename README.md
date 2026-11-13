@@ -46,7 +46,7 @@ time, blind to the first pass. Outcomes agree when they name the same measure. G
 `claimgraph gold agreement vitamin-d-depression --readme README.md`.
 
 <!-- gold-agreement:start -->
-Second labeling pass over 5 gold records. Findings: 7 in the first pass, 6 in the second, 6 matched on quote and subgroup.
+Second labeling pass over 5 gold records. Findings: 7 in the first pass, 6 in the second, 6 matched on quote.
 
 | Field | Agreement |
 |---|---|

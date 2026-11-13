@@ -1,7 +1,7 @@
 """The extraction eval: model output scored field by field against the hand labels.
 
-Study fields are scored per abstract. Findings are matched to the labels on quote and subgroup,
-the same rule the second labeling pass uses, and each finding field is then scored as precision,
+Study fields are scored per abstract. Findings are matched to the labels on the quote, the same
+rule the second labeling pass uses, and each finding field is then scored as precision,
 correct over the model's findings, and recall, correct over the labeled findings. Outcomes are
 correct when they name the same measure. Everything is read from the committed recordings.
 """
@@ -160,7 +160,7 @@ def _rate(agree: int, of: int) -> str:
 def extraction_table(scores: ExtractionScores) -> str:
     finding_rows = [
         (
-            "finding, matched on quote and subgroup" if f.name == "finding" else f.name,
+            "finding, matched on quote" if f.name == "finding" else f.name,
             _rate(f.correct, f.model),
             _rate(f.correct, f.gold),
         )

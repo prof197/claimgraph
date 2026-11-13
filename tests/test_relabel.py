@@ -142,9 +142,34 @@ def test_findings_on_one_sentence_pair_by_outcome_words_in_common() -> None:
     ]
 
 
-def test_findings_on_different_subgroups_never_pair() -> None:
+def test_the_quote_alone_decides_a_match() -> None:
+    # Subgroup names are free text, and a label may leave one out: they never block a match.
     first = [finding(is_primary=False, is_subgroup=True, subgroup="synthetic women")]
-    second = [finding(is_primary=False, is_subgroup=True, subgroup="synthetic men")]
+    second = [finding(is_primary=False, is_subgroup=False, subgroup=None)]
+
+    (pair,) = match_findings(label(finding=first).findings, label(finding=second).findings)
+
+    assert (pair[0].is_subgroup, pair[1].is_subgroup) == (True, False)
+
+
+def test_subgroup_words_break_ties_within_a_sentence() -> None:
+    def sub(name: str) -> dict[str, Any]:
+        return finding(is_primary=False, is_subgroup=True, subgroup=name)
+
+    first = [sub("synthetic white participants"), sub("synthetic black participants")]
+    second = [sub("black"), sub("white")]
+
+    pairs = match_findings(label(finding=first).findings, label(finding=second).findings)
+
+    assert [(a.subgroup, b.subgroup) for a, b in pairs] == [
+        ("synthetic white participants", "white"),
+        ("synthetic black participants", "black"),
+    ]
+
+
+def test_findings_on_different_sentences_never_pair() -> None:
+    first = [finding()]
+    second = [finding(**REMISSION)]
 
     assert match_findings(label(finding=first).findings, label(finding=second).findings) == []
 

@@ -101,10 +101,6 @@ def abstract_texts(out_dir: Path) -> dict[str, str]:
 # Agreement
 
 
-def _text(value: str) -> str:
-    return " ".join(value.split()).casefold()
-
-
 class FindingLike(Protocol):
     """A finding as a label or the model gives it: what matching and agreement read."""
 
@@ -139,25 +135,27 @@ def _sample_size(study: StudyLike) -> int | None:
 
 
 def _same_sentence(a: FindingLike, b: FindingLike) -> bool:
-    same_subgroup = (a.subgroup and _text(a.subgroup)) == (b.subgroup and _text(b.subgroup))
-    return normalize_quote(a.quote) == normalize_quote(b.quote) and same_subgroup
+    return normalize_quote(a.quote) == normalize_quote(b.quote)
 
 
-def _words(outcome: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", outcome.casefold()))
+def _words(finding: FindingLike) -> set[str]:
+    return set(
+        re.findall(r"[a-z0-9]+", f"{finding.subgroup or ''} {finding.outcome_reported}".casefold())
+    )
 
 
 def match_findings[A: FindingLike, B: FindingLike](
     first: Sequence[A], second: Sequence[B]
 ) -> list[tuple[A, B]]:
-    """Pairs of findings the two passes share, in the first pass's order.
+    """Pairs of findings the two sides share, in the first side's order.
 
-    Findings pair on quote and subgroup, never on the outcome's wording, so the outcome is
-    scored as a field rather than deciding the match. When one sentence holds several findings,
-    they pair by the most outcome words in common, then in the order they were labeled.
+    Findings pair on the quote alone, so matching finds the same finding and scoring then
+    judges its fields, subgroup and outcome included. When one sentence holds several
+    findings, they pair by the most subgroup and outcome words in common, then in the order
+    they were given.
     """
     candidates = sorted(
-        (-len(_words(a.outcome_reported) & _words(b.outcome_reported)), i, j)
+        (-len(_words(a) & _words(b)), i, j)
         for i, a in enumerate(first)
         for j, b in enumerate(second)
         if _same_sentence(a, b)
@@ -232,7 +230,7 @@ def agreement_table(
     lines = [
         f"{passes} over {result.records} gold records. Findings: "
         f"{result.first_findings} in the first {unit}, {result.second_findings} in the second, "
-        f"{result.matched_findings} matched on quote and subgroup.",
+        f"{result.matched_findings} matched on quote.",
         "",
         "| Field | Agreement |",
         "|---|---|",

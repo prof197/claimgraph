@@ -180,7 +180,7 @@ def test_the_table_gives_counts_and_rates() -> None:
 
     assert "| design | 1 of 1 (100%) |" in table
     assert "| effect | 0 of 1 (0%) | 0 of 1 (0%) |" in table
-    assert "| finding, matched on quote and subgroup | 1 of 1 (100%) | 1 of 1 (100%) |" in table
+    assert "| finding, matched on quote | 1 of 1 (100%) | 1 of 1 (100%) |" in table
 
 
 def test_every_label_needs_a_result() -> None:
