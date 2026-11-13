@@ -69,6 +69,13 @@ def run(
         bool, typer.Option(help="Extract the dev sample instead of every kept abstract.")
     ] = False,
     model: Model = extract.DEFAULT_MODEL,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            min=1,
+            help="Extract only the first N kept abstracts, a first stage the full run replays.",
+        ),
+    ] = None,
     dry_run: DryRun = False,
     live: Live = False,
     prices_file: PricesFile = PRICES_FILE,
@@ -82,7 +89,7 @@ def run(
     if stage in (None, Stage.RETRIEVE):
         _retrieve(config, run_dir, refresh)
     if stage in (None, Stage.EXTRACT):
-        _extract(config, run_dir, dev, model, dry_run, live, prices_file)
+        _extract(config, run_dir, dev, model, dry_run, live, prices_file, limit)
 
 
 def _retrieve(config: QuestionConfig, run_dir: Path, refresh: bool) -> None:
@@ -113,6 +120,7 @@ def _extract(
     dry_run: bool,
     live: bool,
     prices_file: Path,
+    limit: int | None = None,
 ) -> None:
     sample = "dev" if dev else "corpus"
     source = run_dir / "dev" / "abstracts.jsonl" if dev else run_dir / "abstracts.jsonl"
@@ -121,6 +129,11 @@ def _extract(
     except (FileNotFoundError, ValidationError) as error:
         typer.echo(f"no current abstracts in {source}; run --stage retrieve first", err=True)
         raise typer.Exit(1) from error
+    if limit is not None:
+        # A first stage, so its measured cost can be checked before the rest is sent. Its
+        # recordings are shared, so the full run replays them.
+        abstracts = abstracts[:limit]
+        sample = f"{sample}-first{limit}"
     # Dev and corpus share recordings: a dev abstract is also in the corpus, with the same request.
     replay_dir = run_dir / "replay" / "extraction" / model.value
     sent = _send_batches(abstracts, config, replay_dir, model, dry_run, live, prices_file, sample)

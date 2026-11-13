@@ -348,6 +348,11 @@ title alone.
   once its results are recorded. The next live run collects any batch left there first and
   records each result whose key is a request it needs; the rest are dropped, since a result can
   only be recorded beside the exact request it answers.
+- **A first stage before the corpus.** `--limit N` extracts only the first N kept abstracts,
+  under its own manifest entry, such as `corpus-first200-sonnet`. The dry run's ceiling assumes
+  every request is retried twice at the output limit, so a first stage measures the real cost
+  and retry rate before the rest is sent. Its recordings are the corpus run's, so the full run
+  replays them and sends only what is left.
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
   normalization: curly and straight marks match, and so do runs of spaces and line breaks;
   anything else, a dropped mark or a changed number, is a miss. The abstract's sections are the

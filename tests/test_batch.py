@@ -493,3 +493,67 @@ def test_an_entry_written_before_a_field_was_added_does_not_block_the_next(
     # Other entries are kept as they were written; this run's entry is replaced whole.
     assert runs["gold-haiku"] == older
     assert runs["dev-haiku"] == json.loads(summary.model_dump_json())
+
+
+def run_corpus(tmp_path: Path, *args: str) -> Any:
+    from typer.testing import CliRunner
+
+    from claimgraph import cli
+
+    config = str(ROOT / "questions" / "vitamin-d-depression.toml")
+    return CliRunner().invoke(
+        cli.app, ["run", config, "--stage", "extract", "--runs-dir", str(tmp_path), *args]
+    )
+
+
+def corpus(tmp_path: Path) -> Path:
+    run_dir = tmp_path / "vitamin-d-depression"
+    run_dir.mkdir(parents=True)
+    abstracts = [
+        titled("First kept."),
+        titled("Second kept.", "999000002"),
+        titled("Third kept.", "999000003"),
+    ]
+    (run_dir / "abstracts.jsonl").write_text("".join(a.model_dump_json() + "\n" for a in abstracts))
+    return run_dir
+
+
+def test_a_limited_dry_run_prices_only_the_first_abstracts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus(tmp_path)
+    monkeypatch.setattr(batch, "anthropic_batches", never_send)
+
+    result = run_corpus(tmp_path, "--limit", "2", "--dry-run", "--live")
+
+    assert result.exit_code == 0, result.output
+    assert "dry run: 2 abstracts to send to claude-sonnet-5-5" in result.output
+
+
+def test_a_limited_run_records_a_first_stage_the_full_run_does_not_send_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = corpus(tmp_path)
+    sender = FakeBatches(
+        by_title({"First kept.": [VALID], "Second kept.": [VALID], "Third kept.": [VALID]})
+    )
+    monkeypatch.setattr(batch, "anthropic_batches", lambda env, on_poll=None: sender)
+
+    first = run_corpus(tmp_path, "--limit", "2", "--live")
+    full = run_corpus(tmp_path, "--live")
+
+    assert first.exit_code == 0, first.output
+    assert full.exit_code == 0, full.output
+    # The full run replays the first stage and sends only what is left.
+    assert [len(b) for b in sender.batches] == [2, 1]
+    out = run_dir / "extract"
+    assert len((out / "corpus-first2-sonnet.jsonl").read_text().splitlines()) == 2
+    assert len((out / "corpus-sonnet.jsonl").read_text().splitlines()) == 3
+    runs = json.loads((out / "manifest.json").read_text())["runs"]
+    assert (runs["corpus-first2-sonnet"]["extracted"], runs["corpus-sonnet"]["extracted"]) == (2, 3)
+
+
+def test_a_limit_must_be_positive(tmp_path: Path) -> None:
+    corpus(tmp_path)
+
+    assert run_corpus(tmp_path, "--limit", "0", "--dry-run").exit_code != 0

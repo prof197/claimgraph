@@ -19,6 +19,8 @@ uv run claimgraph run vitamin-d-depression --stage extract --dev --dry-run
                                           # estimate a dev extraction; sends nothing
 uv run --env-file .env claimgraph run vitamin-d-depression --stage extract --dev --live
                                           # extract the dev sample through batches (costs money)
+uv run claimgraph run vitamin-d-depression --stage extract --limit 200 --dry-run
+                                          # estimate a first stage of the corpus; sends nothing
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
 uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-recording them
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live
