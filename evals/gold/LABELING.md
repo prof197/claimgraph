@@ -55,9 +55,9 @@ also jump to a design, which fills in the answers on that design's path for you 
 | 10 | `selected_by_outcome` | Were participants picked because they had depression or did not? | `yes` → `case_control`; `no` → 11 |
 | 11 | `measured_before` | Was vitamin D measured before depression was assessed? | `yes` → `cohort`; `no` → `cross_sectional` |
 
-The label keeps each answer on the path, so every design traces back to what the abstract says.
-The check reports a missing answer, an answer to a question the path never reaches, and a design
-that does not follow from the answers.
+The design is the label; the answers are its provenance. They are optional and never scored,
+but a label that has them must follow them: the check reports a missing answer, an answer to a
+question the path never reaches, and a design that does not follow from the answers.
 
 ```toml
 design = "rct"

@@ -190,11 +190,14 @@ def test_a_blank_summary_on_a_trial_reads_as_none() -> None:
     assert label(review_summary="").review_summary is None
 
 
-def test_the_design_must_follow_from_the_answers() -> None:
+def test_design_answers_are_optional_but_must_lead_to_the_design() -> None:
+    # In gold the design is the label; the answers are provenance, never required or scored.
+    assert label(design_answers={}).design is Design.RCT
     with pytest.raises(ValidationError, match="lead to rct"):
         label(design="cohort", design_answers=answers_for(Design.RCT))
-    with pytest.raises(ValidationError, match="answer subjects"):
-        label(design_answers={})
+    with pytest.raises(ValidationError, match="answer by_chance"):
+        partial = {k: v for k, v in answers_for(Design.RCT).items() if k != "by_chance"}
+        label(design_answers=partial)
 
 
 def test_no_findings_with_a_note_saying_why() -> None:

@@ -77,8 +77,9 @@ class AbstractLabel(Record):
     review_summary: NonBlank | None = None
     findings: list[FindingLabel] = Field(default_factory=list[FindingLabel], alias="finding")
     note: str | None = None
-    # The labeler's answers to the design questions, by question; the design must follow from
-    # them, so every design traces back to what the abstract says.
+    # The labeler's answers to the design questions, by question: provenance for the design,
+    # optional and never scored, since in gold the design itself is the label. When given, the
+    # design must follow from them.
     design_answers: dict[str, str] = Field(default_factory=dict[str, str])
 
     @field_validator("review_summary", mode="before")
@@ -88,6 +89,8 @@ class AbstractLabel(Record):
 
     @model_validator(mode="after")
     def _design_follows_the_answers(self) -> Self:
+        if not self.design_answers:
+            return self
         try:
             settled = follow(self.design_answers)
         except ValueError as error:

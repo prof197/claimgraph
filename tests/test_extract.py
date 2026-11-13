@@ -341,6 +341,22 @@ def test_a_publication_type_that_names_a_design_sets_it(types: list[str], design
     assert study.design_answers == answers_for(Design.COHORT)
 
 
+@pytest.mark.parametrize(
+    "types",
+    [
+        ["Clinical Trial"],
+        ["Clinical Trial", "Journal Article"],
+        ["Clinical Trial, Phase II"],
+        ["Controlled Clinical Trial"],
+        ["Observational Study"],
+        ["Review"],
+        [],
+    ],
+)
+def test_these_publication_types_name_no_design(types: list[str]) -> None:
+    assert extract.tagged_design(types) is None
+
+
 def test_review_alone_names_no_design() -> None:
     narrative = output(design_answers=answers(Design.NARRATIVE_REVIEW), findings=[])
 

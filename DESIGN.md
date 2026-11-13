@@ -99,7 +99,10 @@ or narrative, the other outcomes it saw, and the list of findings.
 - **Design answers.** The model answers the same design questions the labels use, every one of
   them: the questions its path never reaches take `not_reached`, never null, so none is left
   out by accident. Code follows the answers to the design, which is used only when publication
-  types don't name one. A wrong design then traces back to the question that went wrong.
+  types don't name one. With thinking off, answering them is how the model applies the guide's
+  definitions. In gold the design itself is the label: answers stored with a label are
+  provenance, never required or scored. When the model's design is wrong, the eval diagnoses it
+  from the model's own answers, as the first question where its path leaves the gold design's.
 - **Other outcomes** are the outcomes outside the domain that the abstract reports results for.
   They are counted as out of scope in the run manifest, and never scored, labeled or stored as
   findings.
@@ -729,7 +732,15 @@ These are expectations, to be replaced with measurements.
 - **Mis-normalized outcomes:** over-merging, under-merging, or a polarity error that flips benefit
   and harm. The reviewed mapping and the normalization eval guard this.
 - **Design misclassification:** wrong weights. Publication types come first, and design is scored
-  in the extraction eval.
+  in the extraction eval. The first eval run reports design accuracy two ways from the same
+  outputs, publication types first and the model's design answers alone; if the answers alone
+  do better, publication types stop coming first. Only the four types named under Design from
+  publication types set a design: Clinical Trial, its phases and Controlled Clinical Trial never
+  do.
+- **Secondary analyses tagged as trials:** a secondary analysis of trial participants that does
+  not compare the randomized arms is observational, but PubMed can tag it Randomized Controlled
+  Trial, and the tag then sets the design to rct. One of the 15 gold records whose types name a
+  design is such a case, labeled cohort.
 - **Double counting:** one trial can publish several papers, and large trials publish many
   secondary analyses. The trial-ID merge handles it.
 - **A real quote that doesn't support the claim:** the extraction eval scores support, not just
