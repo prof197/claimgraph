@@ -721,8 +721,20 @@ def test_trim_from_the_command_line(tmp_path: Path) -> None:
 
 
 def test_the_docs_state_the_gold_size() -> None:
-    # The size is stated by hand, so this keeps it equal to what gold.jsonl holds.
-    size = len(read_gold(ROOT / "evals" / "gold" / "vitamin-d-depression"))
+    # The size is stated by hand. It must be what gold trim recorded as labeled, and that must be
+    # the committed label files; gold.jsonl may also hold records still being labeled.
+    out = ROOT / "evals" / "gold" / "vitamin-d-depression"
+    manifest = SampleManifest.model_validate_json((out / "sample.json").read_text())
+    assert manifest.labeled is not None
+    size = sum(manifest.labeled.values())
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", "evals/gold/vitamin-d-depression/labels"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout
+    assert len([n for n in listed.split("\0") if n.endswith(".toml")]) == size
     for doc in ("README.md", "DESIGN.md", "evals/gold/README.md"):
         stated = re.findall(r"(\d+)\s+hand-labeled\s+abstracts", (ROOT / doc).read_text())
 
