@@ -475,7 +475,13 @@ data is labeled by hand, from openly licensed articles only.
   (PHQ-2)" agree, and "HAMD-17" and "anhedonia (RSAS)" do not. The second labeling pass scores
   outcomes the same way.
 - **Replay cache:** responses are keyed by a hash of model, parameters and request. CI fails on a
-  missing response rather than calling out.
+  missing response rather than calling out. Requests send no sampling parameters: the current
+  API rejects `temperature`, `top_p` and `top_k` on every model, so a run cannot be pinned to
+  temperature 0. The recorded response is what makes a rerun reproducible, and because a fresh
+  live run can differ, the extraction eval reports run-to-run agreement beside its scores.
+- **Recordings:** each file holds the request beside its response and is named by the request's
+  hash, which is checked when it is read. Gold recordings are committed in `replay/`; dev
+  recordings stay in the run directory with the dev abstracts.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
   never sees labeled pairs.
 - **The ablation's question:** does multi-model deliberation beat the best single model at the

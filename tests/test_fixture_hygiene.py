@@ -1,4 +1,5 @@
-"""Recorded fixtures keep response bodies only, never how the client identified itself."""
+"""Recorded fixtures and committed model recordings keep request and response bodies only,
+never how the client identified itself."""
 
 import os
 import re
@@ -7,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).parents[1]
-FIXTURE_DIRS = [ROOT / "tests" / "fixtures"]
+FIXTURE_DIRS = [ROOT / "tests" / "fixtures", ROOT / "replay"]
 SECRET_NAMES = ("NCBI_EMAIL", "NCBI_API_KEY", "ANTHROPIC_API_KEY")
 # Request parameters as they would appear in a recorded URL or form body.
 IDENTITY_PARAM = re.compile(rb"(?<![A-Za-z_])(email|api_key|tool)=")
