@@ -768,3 +768,10 @@ def test_the_prompt_says_the_exposure_is_never_the_outcome() -> None:
 
     assert "The exposure's level is never the outcome" in prompt
     assert "outside the domain" in prompt
+
+
+def test_the_prompt_works_a_deficiency_example_from_the_side_with_more() -> None:
+    # A result stated from deficiency flips if read as written, so the prompt works one through.
+    prompt = " ".join(system_prompt(VITAMIN_D).split())
+
+    assert '"deficiency was linked to more of the outcome" is decreased' in prompt

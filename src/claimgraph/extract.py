@@ -103,7 +103,10 @@ difference, a non-significant trend included. More of the exposure means a highe
 level, a higher intake or dose, or getting it rather than placebo or nothing. In a trial it is \
 the arm that got more: the exposure against placebo, or the higher dose against the lower. In a \
 single-arm study it is after against before. Turn a result stated the other way round, as too \
-little of the exposure against enough, so that more of the exposure is the exposure side. When \
+little of the exposure against enough, so that more of the exposure is the exposure side. For \
+example, "deficiency was linked to more of the outcome" is decreased: on the side with more of \
+the exposure, the outcome was lower. "The outcome was less common with enough of the exposure" \
+is decreased too, and "deficiency made no difference to the outcome" is no_change. When \
 the abstract groups people by the outcome, as in "people with the outcome had lower levels of \
 the exposure", read it with the exposure as the cause: that is decreased, and outcome_reported \
 names the outcome measure, not the exposure level.
