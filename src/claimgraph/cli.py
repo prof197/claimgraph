@@ -221,7 +221,7 @@ def gold_agreement(
     config = load_config(resolve_question(question))
     try:
         first, second = relabel.read_passes(gold_dir / config.id, config)
-        result = relabel.agreement(first, second)
+        result = relabel.agreement(first, second, relabel.abstract_texts(gold_dir / config.id))
     except ValueError as error:
         typer.echo(f"no agreement yet: {error}", err=True)
         raise typer.Exit(1) from error

@@ -22,6 +22,7 @@ from claimgraph.labels import (
     normalize_quote,
     read_gold,
 )
+from claimgraph.measures import abstract_text, same_measure
 from claimgraph.models import Record
 
 SEED = 20261112
@@ -81,6 +82,10 @@ def read_passes(
     return first, second
 
 
+def abstract_texts(out_dir: Path) -> dict[str, str]:
+    return {g.abstract.pmid: abstract_text(g.abstract) for g in read_gold(out_dir)}
+
+
 # Agreement
 
 
@@ -134,8 +139,16 @@ class Agreement(Record):
     fields: list[FieldAgreement]
 
 
-def agreement(first: Mapping[str, AbstractLabel], second: Mapping[str, AbstractLabel]) -> Agreement:
-    """Field-level agreement between two labeling passes over the same records."""
+def agreement(
+    first: Mapping[str, AbstractLabel],
+    second: Mapping[str, AbstractLabel],
+    abstracts: Mapping[str, str] | None = None,
+) -> Agreement:
+    """Field-level agreement between two labeling passes over the same records.
+
+    Outcomes agree when they name the same measure, reading the abbreviations each record's
+    abstract defines, so wording alone is not counted as a disagreement.
+    """
     missing = sorted(p for p in second if p not in first)
     if missing:
         raise ValueError(f"no first-pass label for {', '.join(missing)}")
@@ -152,7 +165,8 @@ def agreement(first: Mapping[str, AbstractLabel], second: Mapping[str, AbstractL
         count("sample_size", a.sample_size == b.sample_size)
         for fa, fb in match_findings(a.findings, b.findings):
             matched += 1
-            count("outcome_reported", _text(fa.outcome_reported) == _text(fb.outcome_reported))
+            text = (abstracts or {}).get(pmid, "")
+            count("outcome_reported", same_measure(fa.outcome_reported, fb.outcome_reported, text))
             count("effect", fa.effect is fb.effect)
             count("is_primary", fa.is_primary == fb.is_primary)
             count("is_subgroup", fa.is_subgroup == fb.is_subgroup)

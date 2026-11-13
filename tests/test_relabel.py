@@ -164,7 +164,7 @@ def test_agreement_counts_each_field() -> None:
     fields = {f.name: (f.agree, f.compared) for f in result.fields}
     assert fields["design"] == (1, 1)
     assert fields["sample_size"] == (0, 1)
-    # Case and spacing aside, the first outcome agrees and the second does not.
+    # Wording aside, the first outcome names the same measure and the second does not.
     assert fields["outcome_reported"] == (1, 2)
     assert fields["effect"] == (1, 2)
     assert fields["is_primary"] == (2, 2)
@@ -198,3 +198,19 @@ def test_relabel_then_agreement_from_the_command_line(tmp_path: Path) -> None:
     assert done.exit_code == 0, done.output
     assert "| design | 1 of 1 |" in done.output
     assert load_abstract_label(out / "relabel" / "999000001.toml").pmid == "999000001"
+
+
+def test_outcomes_agree_when_they_name_the_same_measure() -> None:
+    first = label(finding=[finding(outcome_reported="BDI-II")])
+    second = label(finding=[finding(outcome_reported="Beck Depression Inventory-II score")])
+    defined = "Scores on the Beck Depression Inventory-II (BDI-II) were synthetic."
+
+    without = agreement({"999000001": first}, {"999000001": second})
+    reading = agreement({"999000001": first}, {"999000001": second}, {"999000001": defined})
+
+    def outcome(result: Any) -> tuple[int, int]:
+        (field,) = [f for f in result.fields if f.name == "outcome_reported"]
+        return field.agree, field.compared
+
+    assert outcome(without) == (0, 1)
+    assert outcome(reading) == (1, 1)

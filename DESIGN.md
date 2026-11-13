@@ -466,6 +466,14 @@ data is labeled by hand, from openly licensed articles only.
   quote and subgroup. One sentence can back several findings, so findings that share a sentence
   pair by the most outcome words in common. The outcome's wording never decides a match; the
   outcome is scored as a field of the pair, or the eval would score wording.
+- **Scoring the outcome:** two outcome strings count as the same measure when they share an
+  instrument, or, when neither names one, when they have the same content words, ignoring order,
+  word endings and filler such as "score". An instrument is an abbreviation in either string,
+  such as PHQ-2 or CES-D, or a full name the abstract defines beside its abbreviation, found by
+  Schwartz and Hearst's algorithm ([Schwartz and Hearst 2003][schwartz-hearst]). Case and
+  hyphens are ignored, but versions count: PHQ-2 is not PHQ-9. So "PHQ-2" and "depression risk
+  (PHQ-2)" agree, and "HAMD-17" and "anhedonia (RSAS)" do not. The second labeling pass scores
+  outcomes the same way.
 - **Replay cache:** responses are keyed by a hash of model, parameters and request. CI fails on a
   missing response rather than calling out.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
@@ -801,6 +809,7 @@ publication types and animal-only studies, apply to every row.
 - [CEBM glossary: case series][cebm-glossary]
 - [Rief et al. 2009, placebo response in antidepressant trials][rief]
 - [Goodacre 2015, uncontrolled before-after studies][goodacre]
+- [Schwartz and Hearst 2003, finding abbreviation definitions in biomedical text][schwartz-hearst]
 - [GRADE certainty criteria, CDC ACIP handbook][grade-cdc]
 - [Okereke et al. 2020, VITAL-DEP][vital-dep]
 - [Ghaemi et al. 2024, vitamin D dose-response meta-analysis][ghaemi]
@@ -843,3 +852,4 @@ publication types and animal-only studies, apply to every row.
 [alamri]: https://pmc.ncbi.nlm.nih.gov/articles/PMC4897929/
 [biodivergence]: https://arxiv.org/abs/2606.11208
 [llm-council]: https://github.com/karpathy/llm-council
+[schwartz-hearst]: https://pubmed.ncbi.nlm.nih.gov/12603049/
