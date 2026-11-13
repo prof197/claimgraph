@@ -26,6 +26,9 @@ Checks that must pass before every commit:
 uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest
 ```
 
+`.githooks/pre-commit` runs them, with the site's checks once `site/` exists, and blocks the
+commit if any fails. Enable it once per clone with `git config core.hooksPath .githooks`.
+
 ## Conventions
 
 - Python 3.12, fully typed. Pyright strict on `src/`; ruff clean.
