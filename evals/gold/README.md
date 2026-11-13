@@ -16,20 +16,19 @@ One directory per question:
 
 ## Size
 
-The vitamin D gold set is 27 hand-labeled abstracts, from a draw of 50: 14 sampled as trials, 8
-as observational studies, 2 as systematic reviews, 2 as other reviews and 1 off topic.
-`sample.json` records both counts. At this size the extraction eval's intervals are wide, about
-±15 points on a field scored right 80% of the time, so it can show a field that is broken but
-not separate two close prompts.
+The vitamin D gold set is 32 hand-labeled abstracts, from a draw of 50, taken in the labeling
+page's order within each stratum: 15 sampled as trials, 9 as observational studies, 2 as
+systematic reviews, 2 as other reviews and 4 off topic. `sample.json` records both counts. At
+this size the extraction eval's intervals are wide, about ±14 points on a field scored right 80%
+of the time, so it can show a field that is broken but not separate two close prompts.
 
 ## Who labeled
 
-The maintainer labeled every record. For 1 record (22848407), he discussed how the labeling
-rules applied with an AI assistant before labeling; the rules that came out of those discussions
-were added to [LABELING.md](LABELING.md).
-
-After labeling, labels were checked against the written rules; the maintainer reviewed and
-accepted 4 corrections:
+Every label was made by the maintainer following [LABELING.md](LABELING.md). For 2 records
+(22848407, 33372187), he discussed how the rules applied with an AI assistant before labeling;
+the rules that came out of those discussions were added to LABELING.md. After labeling, an AI
+coding assistant checked the labels against the written rules, and the maintainer reviewed and
+accepted the 9 corrections listed below.
 
 | PMID | Field | Was | Now | Rule |
 |---|---|---|---|---|
@@ -37,6 +36,11 @@ accepted 4 corrections:
 | 27485050 | `sample_size` | 105 | 117 | A secondary analysis counts those entering it, not those analyzed |
 | 27485050 | `design` | `cross_sectional` | `cohort` | Vitamin D was measured before depression was assessed |
 | 27485050 | `outcome_reported` | MDD | MDD (MINI) | The instrument is named when the abstract names one |
+| 31640594 | `quote`, `baseline_vitamin_d_status` | The neuropsychology sentence; `mixed` | The depressive-symptoms sentence; `at_or_above_20_ng_ml` | Quote the sentence that reports the finding; a whole-sample mean settles the band before `mixed` |
+| 29027946 | findings | One, on mental health overall | None | A measure combining depression with other outcomes is left out |
+| 30061860 | `design` | `narrative_review` | `systematic_review` | It states how it searched and how it chose studies |
+| 32629761 | findings | — | Women, `decreased` | One finding per subgroup the abstract reports |
+| 32629761 | findings | — | White participants, `decreased` | One finding per subgroup the abstract reports |
 
 ## Licence
 

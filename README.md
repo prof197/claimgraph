@@ -38,7 +38,7 @@ requests.
 
 ## Results
 
-Generated from the evals once they exist. The extraction eval runs on 27 hand-labeled abstracts,
+Generated from the evals once they exist. The extraction eval runs on 32 hand-labeled abstracts,
 so its intervals are wide; [DESIGN.md](DESIGN.md#evals) gives the width.
 
 ## Tradeoffs and known failure modes
