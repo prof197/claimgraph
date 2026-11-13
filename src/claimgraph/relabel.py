@@ -10,11 +10,11 @@ import random
 import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Protocol
 
 from claimgraph.config import QuestionConfig
 from claimgraph.labels import (
     AbstractLabel,
-    FindingLabel,
     check_label_file,
     check_labels,
     label_template,
@@ -22,7 +22,7 @@ from claimgraph.labels import (
     read_gold,
 )
 from claimgraph.measures import abstract_text, same_measure
-from claimgraph.models import Record
+from claimgraph.models import Design, Effect, Record
 from claimgraph.verbatim import normalize_quote
 
 SEED = 20261112
@@ -105,7 +105,40 @@ def _text(value: str) -> str:
     return " ".join(value.split()).casefold()
 
 
-def _same_sentence(a: FindingLabel, b: FindingLabel) -> bool:
+class FindingLike(Protocol):
+    """A finding as a label or the model gives it: what matching and agreement read."""
+
+    @property
+    def quote(self) -> str: ...
+    @property
+    def outcome_reported(self) -> str: ...
+    @property
+    def subgroup(self) -> str | None: ...
+    @property
+    def effect(self) -> Effect: ...
+    @property
+    def is_primary(self) -> bool: ...
+    @property
+    def is_subgroup(self) -> bool: ...
+    @property
+    def dimensions(self) -> Mapping[str, object]: ...
+
+
+class StudyLike(Protocol):
+    @property
+    def design(self) -> Design: ...
+    # A label says "not_reported" where the model says None.
+    @property
+    def sample_size(self) -> int | str | None: ...
+    @property
+    def findings(self) -> Sequence[FindingLike]: ...
+
+
+def _sample_size(study: StudyLike) -> int | None:
+    return None if study.sample_size in (None, "not_reported") else int(study.sample_size)
+
+
+def _same_sentence(a: FindingLike, b: FindingLike) -> bool:
     same_subgroup = (a.subgroup and _text(a.subgroup)) == (b.subgroup and _text(b.subgroup))
     return normalize_quote(a.quote) == normalize_quote(b.quote) and same_subgroup
 
@@ -114,9 +147,9 @@ def _words(outcome: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", outcome.casefold()))
 
 
-def match_findings(
-    first: Sequence[FindingLabel], second: Sequence[FindingLabel]
-) -> list[tuple[FindingLabel, FindingLabel]]:
+def match_findings[A: FindingLike, B: FindingLike](
+    first: Sequence[A], second: Sequence[B]
+) -> list[tuple[A, B]]:
     """Pairs of findings the two passes share, in the first pass's order.
 
     Findings pair on quote and subgroup, never on the outcome's wording, so the outcome is
@@ -152,8 +185,8 @@ class Agreement(Record):
 
 
 def agreement(
-    first: Mapping[str, AbstractLabel],
-    second: Mapping[str, AbstractLabel],
+    first: Mapping[str, StudyLike],
+    second: Mapping[str, StudyLike],
     abstracts: Mapping[str, str] | None = None,
 ) -> Agreement:
     """Field-level agreement between two labeling passes over the same records.
@@ -174,7 +207,7 @@ def agreement(
     for pmid, b in second.items():
         a = first[pmid]
         count("design", a.design is b.design)
-        count("sample_size", a.sample_size == b.sample_size)
+        count("sample_size", _sample_size(a) == _sample_size(b))
         for fa, fb in match_findings(a.findings, b.findings):
             matched += 1
             text = (abstracts or {}).get(pmid, "")
@@ -193,10 +226,12 @@ def agreement(
     )
 
 
-def agreement_table(result: Agreement) -> str:
+def agreement_table(
+    result: Agreement, passes: str = "Second labeling pass", unit: str = "pass"
+) -> str:
     lines = [
-        f"Second labeling pass over {result.records} gold records. Findings: "
-        f"{result.first_findings} in the first pass, {result.second_findings} in the second, "
+        f"{passes} over {result.records} gold records. Findings: "
+        f"{result.first_findings} in the first {unit}, {result.second_findings} in the second, "
         f"{result.matched_findings} matched on quote and subgroup.",
         "",
         "| Field | Agreement |",

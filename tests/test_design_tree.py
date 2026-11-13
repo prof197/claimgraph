@@ -2,7 +2,15 @@
 
 import pytest
 
-from claimgraph.design_tree import FIRST, QUESTIONS, answers_for, follow, full_answers, settle
+from claimgraph.design_tree import (
+    FIRST,
+    QUESTIONS,
+    answers_for,
+    diverges,
+    follow,
+    full_answers,
+    settle,
+)
 from claimgraph.models import Design
 
 
@@ -136,3 +144,34 @@ def test_settling_names_a_missing_or_unknown_answer() -> None:
         settle(trial)
     with pytest.raises(ValueError, match="pools must be one of yes, no"):
         settle(full_answers(Design.META_ANALYSIS) | {"pools": "maybe"})
+
+
+# Where a wrong design went wrong
+
+
+def test_answers_that_reach_the_design_do_not_diverge() -> None:
+    assert diverges(full_answers(Design.RCT), Design.RCT) is None
+
+
+@pytest.mark.parametrize(
+    ("answers", "design", "question"),
+    [
+        (full_answers(Design.RCT) | {"by_chance": "no"}, Design.RCT, "by_chance"),
+        (full_answers(Design.COHORT), Design.CROSS_SECTIONAL, "measured_before"),
+        (full_answers(Design.COHORT), Design.RCT, "gave_exposure"),
+        (full_answers(Design.NARRATIVE_REVIEW), Design.COHORT, "source"),
+        (full_answers(Design.CASE_SERIES), Design.SYSTEMATIC_REVIEW, "source"),
+    ],
+)
+def test_the_first_question_off_the_gold_path_is_named(
+    answers: dict[str, str], design: Design, question: str
+) -> None:
+    assert diverges(answers, design) == question
+
+
+def test_a_design_with_two_paths_is_reached_by_either() -> None:
+    # Other is reached by "neither" at source, or by a genetic proxy or outside event.
+    mendelian = full_answers(Design.COHORT) | {"proxy_or_event": "yes"}
+
+    assert settle(mendelian) is Design.OTHER
+    assert diverges(mendelian, Design.OTHER) is None

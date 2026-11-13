@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import batch, extract, gold, labels, relabel, review
+from claimgraph import batch, evaluation, extract, gold, labels, relabel, review
 from claimgraph.config import QuestionConfig, load_config, resolve_question
 from claimgraph.prices import PRICES_FILE, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
@@ -410,3 +410,52 @@ def gold_review(
             raise
         typer.echo(f"port {port} is in use; pass --port 0 to pick a free one", err=True)
         raise typer.Exit(1) from error
+
+
+eval_app = typer.Typer(no_args_is_help=True, help="Score the pipeline against the gold labels.")
+app.add_typer(eval_app, name="eval")
+
+
+@eval_app.command("extraction")
+def eval_extraction(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the committed model recordings live.")
+    ] = Path("replay"),
+    second_run: Annotated[
+        Path | None,
+        typer.Option(help="Recordings of a second live run, to report run-to-run agreement."),
+    ] = None,
+    model: Model = extract.ModelChoice.HAIKU,
+    readme: Annotated[
+        Path | None, typer.Option(help="Also write the tables into this README's blocks.")
+    ] = None,
+) -> None:
+    """Field-level scores for extraction on the gold set, replayed from the recordings.
+
+    Exits with status 1 if any gold abstract has no recording, so CI never calls out.
+    """
+    config = load_config(resolve_question(question))
+    try:
+        scores = evaluation.gold_scores(gold_dir, replay_dir, config, model)
+        table = evaluation.extraction_table(scores)
+        rerun = None
+        if second_run is not None:
+            result = evaluation.rerun_agreement(gold_dir, replay_dir, second_run, config, model)
+            rerun = relabel.agreement_table(result, passes="Second live run", unit="run")
+        if readme is not None:
+            text = relabel.replace_block(readme.read_text(), evaluation.EXTRACTION_BLOCK, table)
+            if rerun is not None:
+                text = relabel.replace_block(text, evaluation.RERUN_BLOCK, rerun)
+            readme.write_text(text)
+    except ValueError as error:
+        typer.echo(f"no scores: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(table, nl=False)
+    if scores.wrong_designs:
+        typer.echo("\nWrong designs:")
+        for line in evaluation.wrong_design_lines(scores):
+            typer.echo(f"- {line}")
+    if rerun is not None:
+        typer.echo(f"\n{rerun}", nl=False)

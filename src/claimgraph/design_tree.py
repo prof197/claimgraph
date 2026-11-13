@@ -223,6 +223,26 @@ def answers_for(design: Design) -> dict[str, str]:
     return found
 
 
+def _reaches(key: str, design: Design) -> bool:
+    return any(
+        o.design is design or (o.next is not None and _reaches(o.next, design))
+        for o in _BY_KEY[key].options
+    )
+
+
+def diverges(answers: Mapping[str, str], design: Design) -> str | None:
+    """The first question whose answer leaves every path to this design, or None if the
+    answers lead to it. Tells which question a wrong design went wrong at."""
+    key = FIRST
+    while True:
+        option = next(o for o in _BY_KEY[key].options if o.value == answers[key])
+        if option.design is design:
+            return None
+        if option.next is None or not _reaches(option.next, design):
+            return key
+        key = option.next
+
+
 def full_answers(design: Design) -> dict[str, str]:
     """Every question answered, settling this design: its path, then "no" or the first option
     for the questions off it. For examples and tests."""

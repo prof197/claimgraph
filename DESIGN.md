@@ -508,7 +508,7 @@ data is labeled by hand, from openly licensed articles only.
 
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
-| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Field-level precision and recall for direction, outcome, sample size, design and each labeled dimension; verbatim-quote rate; whether the quote supports the claim; how often design falls to Other | Replay |
+| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design also from the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Labeled outcome-string pairs, merge or not, including the hard cases | About 200 pairs | Merge precision and recall | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
@@ -528,6 +528,12 @@ data is labeled by hand, from openly licensed articles only.
   quote and subgroup. One sentence can back several findings, so findings that share a sentence
   pair by the most outcome words in common. The outcome's wording never decides a match; the
   outcome is scored as a field of the pair, or the eval would score wording.
+- **Precision and recall:** a finding field is correct on a matched pair when the two agree.
+  Precision is the correct count over the model's findings, and recall over the labeled
+  findings, so a finding the model adds lowers precision and one it misses lowers recall. Output
+  still invalid after the retry scores nothing. A wrong design is listed with its cause: the
+  publication type, or the first question where the model's answers leave every path to the
+  gold design.
 - **Scoring the outcome:** two outcome strings count as the same measure when they share an
   instrument, or, when neither names one, when they have the same content words, ignoring order,
   word endings and filler such as "score" or "scale". An instrument is an abbreviation in either string,
@@ -717,7 +723,7 @@ claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
-    verbatim.py  batch.py  normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py
+    verbatim.py  batch.py  evaluation.py  normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py
     prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
