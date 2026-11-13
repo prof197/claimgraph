@@ -134,10 +134,16 @@ class FindingFields(Record):
     claim: NonBlank = Field(description="One plain-language sentence stating the finding.")
     # Kept byte for byte: it is checked against the abstract text.
     quote: NonBlank = Field(
-        description="The sentence from the abstract that reports this finding, copied exactly."
+        description=(
+            "The sentence from the abstract that reports this finding, copied exactly: a Results "
+            "sentence, or a Conclusion sentence only when no Results sentence reports it."
+        )
     )
     outcome_reported: NonBlank = Field(
-        description="The outcome measure as the abstract names it, such as 'PHQ-9 score'."
+        description=(
+            "The measure's name as the quote gives it, plus the instrument in brackets when the "
+            "abstract names one anywhere, such as 'symptom severity (PHQ-9)'."
+        )
     )
     effect: Effect = Field(
         description=(

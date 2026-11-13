@@ -274,10 +274,34 @@ title alone.
   normalization. A miss gets one retry that names the miss; a second miss drops the finding and
   counts it. The page never shows an unchecked quote.
 - **One prompt for every question.** The extraction prompt states the labeling rules in
-  general terms, filled in from the question config: the effect is read from the side with more
-  of the exposure, and measures that combine the outcome domain with something else don't
-  count. Examples specific to a question live in its config and the labeling guide, never in
-  the shared prompt, so a new question needs no prompt edits.
+  general terms, filled in from the question config. Examples specific to a question live in its
+  config and the labeling guide, never in the shared prompt, so a new question needs no prompt
+  edits. The rules:
+  - The effect is read from the side with more of the exposure.
+  - Measures that combine the outcome domain with something else don't count, and neither do
+    scales for a neighbouring construct, such as anhedonia scales for depression.
+  - The quote is the Results sentence that reports the finding, a Conclusion sentence only when
+    no Results sentence does, and without headings the sentence that reports the measured
+    comparison.
+  - The outcome as reported is the measure's name as the quote gives it, plus the instrument in
+    brackets when the abstract names one anywhere.
+  - The sample size is the number enrolled or randomized: for a secondary analysis, the number
+    entering it; for several samples, their total; the only count, when there is just one; never
+    a planned size; for Mendelian randomization, cases plus controls in the main outcome dataset.
+  - Time points of one measure that agree are one finding, and ones that disagree are one each.
+  - With a comparison group, only comparisons between groups are findings, not a change over
+    time pooled across them.
+  - Interaction or moderation results are subgroup findings, one per subgroup comparison, null
+    ones included. When only the interaction's significance is reported, the abstract's words
+    set each subgroup's direction.
+  - When the exposure is among the factors tested and a sentence says the rest were not
+    significant, that sentence backs a no-change finding.
+  - Results from a genetic proxy for the exposure are findings only in a study whose design is
+    `other`, such as Mendelian randomization, and only from exposure to outcome. A study that
+    also measures the exposure keeps only its measured results, so proxy results are not counted
+    under its design.
+  - A comparison group got none of the exposure or a different amount; a group that differs only
+    by outcome status is not one. A review that says it followed PRISMA has systematic methods.
 - Custom dimensions take their definition from the config. Operational criteria belong in the
   definition. Number dimensions name one unit and the model converts to it.
 - **Outcome domain.** The config names the outcomes the question is about; for vitamin D,

@@ -73,8 +73,8 @@ by_chance = "yes"
 Reading the questions:
 
 - Question 3: saying how it searched means more than naming the databases; saying how it chose
-  studies means eligibility criteria, screening, or a count of included studies. A review titled
-  narrative that says both is systematic. Guidelines, position statements and perspectives that
+  studies means eligibility criteria, screening, or a count of included studies. A review that
+  says it followed PRISMA answers yes. A review titled narrative that says both is systematic. Guidelines, position statements and perspectives that
   review others' results are summaries, so this question decides them too. PubMed's publication
   types do not settle it: some systematic reviews are tagged only Review, and recent records
   often carry no type at all.
@@ -84,7 +84,9 @@ Reading the questions:
 - Question 7: a single-arm study, where everyone gets vitamin D and outcomes are compared before
   and after, answers no, as does a comparison with historical controls only, an earlier group
   that did not get vitamin D. Both are `case_series`, even when the abstract calls them a trial.
-  A single-arm study's effect is the change from before to after.
+  A single-arm study's effect is the change from before to after. A comparison group is people
+  who got no vitamin D or a different dose; a group that differs only by depression status, such
+  as healthy controls beside supplemented patients, is not one.
 - Question 8: allocation by alternation, date of birth or clinic is not by chance.
 - Question 9: Mendelian randomization and natural experiments answer yes.
 - Question 10: yes when the study picked people with depression and people without it to
@@ -93,9 +95,15 @@ Reading the questions:
   inside a cohort study that reports only that visit.
 - A review protocol's summary says what the review will assess.
 
-**`sample_size`**: participants enrolled or randomized, not analyzed or completed. When the
-abstract gives only one count of participants, use it. For reviews, write `"not_reported"`: a
-review's pooled total is neither enrolled nor randomized.
+**`sample_size`**: participants enrolled or randomized, not analyzed or completed.
+
+- A secondary analysis: the number entering this analysis, not the number analyzed.
+- Several samples: their total.
+- Only one count of participants in the abstract: use it.
+- A planned size from a sample-size calculation is not a count: write `"not_reported"` unless
+  an actual count appears.
+- Mendelian randomization: cases plus controls in the main outcome dataset.
+- Reviews: `"not_reported"`. A review's pooled total is neither enrolled nor randomized.
 
 **`review_summary`**: optional, for `systematic_review`, `meta_analysis` and `narrative_review`
 only: one sentence stating the review's conclusion in your words. The eval does not score it, so
@@ -109,23 +117,40 @@ depressive symptoms, depression diagnosis or incidence, remission, response, and
 affective disorder. One finding per outcome, arm or subgroup the abstract reports a result for.
 Null results are findings.
 
+- **Time points.** Results on one measure at several time points are one finding when they
+  agree, and one finding per time point when they don't.
+- **Between groups only.** In a study with a comparison group, only comparisons between groups
+  are findings. A change over time pooled across all groups, such as "scores improved in both
+  arms", is not.
+- **"The rest were not significant."** When the abstract names vitamin D among the factors it
+  tested and a sentence says the others were not significant, label a `no_change` finding
+  quoting that sentence.
+- **Genetic proxies.** Results based on a genetic proxy for vitamin D are findings only in a
+  study whose design is `other`, such as Mendelian randomization, and only in the direction from
+  vitamin D to depression. In a study that also measures vitamin D, skip the proxy results, so
+  they are not counted under that study's design.
+
 Leave out results on other outcomes, such as anxiety, mood swings, quality of life, fatigue or
 mania. Leave out measures that combine depression with something else, such as a total
 anxiety-and-depression score, psychological distress or the EQ-5D anxiety/depression item,
 unless the abstract reports the depression part on its own. Depression-specific subscales of
 mixed instruments count, such as HADS-D, the DASS-21 depression scale and POMS
-depression-dejection. An abstract with no finding in the
-domain has no `[[finding]]` blocks; add a one-line `note` saying why. Eight gold abstracts were
+depression-dejection. Anhedonia scales, such as RSAS and RPAS, are not depression measures. An abstract with no finding in the
+domain has no `[[finding]]` blocks; add a one-line `note` saying why. Some gold abstracts were
 sampled because they were screened off topic, and the eval checks that the model returns no
 findings for them.
 
-**`quote`**: the one sentence that reports the result, copied exactly. If the result spans two
-sentences, take the one with the result. One sentence can back several findings, such as two
+**`quote`**: the one sentence that reports the result, copied exactly. Quote the Results
+sentence that reports the finding; use a Conclusion sentence only when no Results sentence
+reports it. In an abstract without headings, quote the sentence that reports the measured
+comparison. If the result spans two sentences, take the one with the result. One sentence can back several findings, such as two
 subgroups, or incidence and recurrence: give each finding its own block with the same quote. The check tolerates only differences in whitespace and
 curly versus straight quote marks.
 
-**`outcome_reported`**: the measure as the abstract names it, such as `"CES-D score"`,
-`"depressive symptoms (BDI-II)"` or `"incident depression"`.
+**`outcome_reported`**: the measure's name as the quote gives it, plus the instrument in
+brackets when the abstract names one anywhere, such as `"depression severity (BDI)"` or
+`"incident depression"`. When the quote names the measure by its instrument, as in "CES-D
+scores", the name already carries it: `"CES-D score"`.
 
 **`effect`**: what happened to the measure on the side with more vitamin D, compared with the
 side with less: `increased`, `decreased` or `no_change`. More vitamin D means a higher serum
@@ -158,6 +183,11 @@ age, baseline vitamin D status or similar. A study that enrolled only one group,
 women or only deficient participants, reports that group as its population, not as a subgroup,
 so its results are `false`. A subgroup result is never primary.
 
+Interaction or moderation results, such as an effect found only in carriers of one variant who
+also had one exposure, are subgroup findings: one per subgroup comparison, including the
+subgroup where it was not observed, which is `no_change`. When the abstract reports
+significance only for the interaction, its words decide each subgroup's direction.
+
 **`subgroup`**: optional, for a subgroup result only: which part of the sample it covers, as the
 abstract names it, such as `"synthetic group A"`. Name it whenever two findings share a quote and
 an outcome, as when one sentence reports two subgroups: the check treats findings with the same
@@ -170,18 +200,21 @@ quote, outcome and subgroup as one finding entered twice.
 Each finding takes one value for `baseline_vitamin_d_status`. The definition, word for word
 from the question config:
 
-> Baseline serum 25-hydroxyvitamin D band of this finding's population, cut at 20 ng/mL
-> (50 nmol/L), the deficiency cut-off in the Endocrine Society's 2011 guideline; its 2024
-> guideline endorses no thresholds, so the cut-off only groups studies. below_20_ng_ml: strictly
-> below 20 ng/mL (50 nmol/L). at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) or higher; exactly 20
-> ng/mL (50 nmol/L) is at_or_above_20_ng_ml. A subgroup finding takes its subgroup's band.
-> Assign the band by precedence: (a) if the population was restricted by vitamin D status at
-> eligibility, use that restriction, but only when its whole range is strictly below 20 ng/mL
-> (50 nmol/L) or at or above it, in either unit; a restriction that includes values on both
-> sides, such as ≤20 ng/mL, ≤50 nmol/L, <30 ng/mL or <75 nmol/L, does not settle the band; (b)
-> otherwise, use the baseline mean or median the abstract reports for that population; (c) use
-> mixed only when the abstract reports values on both sides of 20 ng/mL with no single summary
-> for that population; (d) otherwise not_reported.
+> Baseline serum 25-hydroxyvitamin D band of this finding's population, cut at 20 ng/mL (50
+> nmol/L), the deficiency cut-off in the Endocrine Society's 2011 guideline; its 2024 guideline
+> endorses no thresholds, so the cut-off only groups studies. below_20_ng_ml: strictly below 20
+> ng/mL (50 nmol/L). at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) or higher; exactly 20 ng/mL (50
+> nmol/L) is at_or_above_20_ng_ml. A subgroup finding takes its subgroup's band. Assign the band
+> by precedence: (a) if the population was restricted by vitamin D status at eligibility, use
+> that restriction, but only when its whole range is strictly below 20 ng/mL (50 nmol/L) or at
+> or above it, in either unit; a restriction that includes values on both sides, such as ≤20
+> ng/mL, ≤50 nmol/L, <30 ng/mL or <75 nmol/L, does not settle the band; a restriction that
+> settles it applies to every finding in the study, subgroups included; (b) otherwise, use the
+> baseline mean or median the abstract reports for that population; a mean or median for the
+> whole sample does not carry over to a subgroup; (c) use mixed only when the abstract reports
+> values on both sides of 20 ng/mL with no single summary for that population; (d) otherwise
+> not_reported. Words such as low, deficient or hypovitaminosis D without a number do not settle
+> the band.
 
 Worked examples:
 
@@ -196,6 +229,9 @@ Worked examples:
 | 40% deficient (below 20 ng/mL) and 60% sufficient, no mean | (c) both sides, no summary | `mixed` |
 | Eligible if below 30 ng/mL; no baseline value given | (a) straddles, (b) nothing, (c) nothing | `not_reported` |
 | Subgroup result for participants below 20 ng/mL | the subgroup's own band | `below_20_ng_ml` |
+| Eligible if 25(OH)D was below 20 ng/mL; a subgroup result for women | (a) the restriction applies to every finding | `below_20_ng_ml` |
+| Whole-sample baseline mean 14 ng/mL; a subgroup result for men, with no value of its own | (b) the whole-sample mean does not carry over; (c) nothing | `not_reported` |
+| "Patients with low vitamin D", or "hypovitaminosis D", with no number | words without a number settle nothing | `not_reported` |
 | Serum 25(OH)D not mentioned | (d) | `not_reported` |
 
 ## Outcome pairs
