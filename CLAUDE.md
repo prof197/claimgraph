@@ -15,6 +15,9 @@ uv run claimgraph gold review vitamin-d-depression     # local labeling page on 
 uv run claimgraph gold trim vitamin-d-depression       # keep only the labeled gold records
 uv run claimgraph gold relabel vitamin-d-depression    # blind second pass: 5 blank templates
 uv run claimgraph gold agreement vitamin-d-depression --readme README.md  # agreement table
+uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
+uv run --env-file .env claimgraph gold record vitamin-d-depression --live
+                                          # re-record gold extraction responses (costs money)
 uv run pytest                             # tests
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .
@@ -39,6 +42,10 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
 - Tests make no network calls. PubMed XML and model responses come from recorded fixtures.
   Fixtures that are not real records are visibly synthetic.
 - Replay is the default everywhere. Live model calls are opt-in (`--live`) and are run by hand.
+- A recording is keyed by its whole request, so any change to the extraction prompt, schema or
+  model settings leaves the gold recordings in `replay/` behind, and `gold record` exits 1.
+  Re-record them with `gold record --live` (add `--model sonnet` for the mid-tier model), only
+  after the owner approves a dry-run estimate, and commit the new recordings with the change.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
 - Commits: one small, reviewable change each, conventional-commit style, imperative subject of
   72 characters or fewer; the body says what changed and why.

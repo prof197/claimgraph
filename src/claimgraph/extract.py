@@ -7,8 +7,9 @@ model, whatever the API enforced.
 """
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, cast
 
 from pydantic import PositiveInt, ValidationError
@@ -16,7 +17,7 @@ from pydantic import PositiveInt, ValidationError
 from claimgraph.config import QuestionConfig
 from claimgraph.design_tree import QUESTIONS, READINGS, follow
 from claimgraph.dimensions import NOT_REACHED, build_extraction_model
-from claimgraph.llm import ModelClient, Reply, Usage
+from claimgraph.llm import ModelClient, ReplayMiss, Reply, Usage
 from claimgraph.models import REVIEW_DESIGNS, Design, Finding, FindingFields, Record
 from claimgraph.retrieve import Abstract
 
@@ -499,3 +500,37 @@ def extract_abstract(
     return ExtractionResult(
         pmid=abstract.pmid, model=SETTINGS[choice].model, study=study, errors=errors, usage=usage
     )
+
+
+# Recording the gold set
+
+
+def gold_replay_dir(replay_root: Path, config: QuestionConfig, choice: ModelChoice) -> Path:
+    """Where a model's gold recordings for one question are committed, apart from other models'."""
+    return replay_root / config.id / "extraction" / choice.value
+
+
+class GoldRecording(Record):
+    results: list[ExtractionResult]
+    # Gold abstracts with no recording for the current request.
+    missing: list[str]
+    # Recording files no current request uses, left behind by an earlier prompt or schema.
+    stale: list[str]
+
+
+def record_gold(
+    abstracts: Sequence[Abstract],
+    config: QuestionConfig,
+    client: ModelClient,
+    choice: ModelChoice = ModelChoice.HAIKU,
+) -> GoldRecording:
+    """Every gold abstract through the client: in replay, a check that each is recorded."""
+    results: list[ExtractionResult] = []
+    missing: list[str] = []
+    for abstract in abstracts:
+        try:
+            results.append(extract_abstract(abstract, config, client, choice))
+        except ReplayMiss:
+            missing.append(abstract.pmid)
+    stale = sorted(p.name for p in client.replay_dir.glob("*.json") if p.stem not in client.used)
+    return GoldRecording(results=results, missing=missing, stale=stale)

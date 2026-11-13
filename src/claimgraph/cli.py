@@ -9,8 +9,9 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import gold, labels, relabel, review
+from claimgraph import extract, gold, labels, relabel, review
 from claimgraph.config import load_config, resolve_question
+from claimgraph.llm import Mode, ModelClient
 from claimgraph.retrieve import EutilsError, connect_eutils, retrieve
 
 app = typer.Typer(no_args_is_help=True, help="Map where studies on one health question disagree.")
@@ -233,6 +234,58 @@ def gold_agreement(
         typer.echo(f"no agreement yet: {error}", err=True)
         raise typer.Exit(1) from error
     typer.echo(table, nl=False)
+
+
+@gold_app.command("record")
+def gold_record(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the committed model recordings live.")
+    ] = Path("replay"),
+    model: Annotated[
+        extract.ModelChoice, typer.Option(help="The extraction model.")
+    ] = extract.ModelChoice.HAIKU,
+    live: Annotated[
+        bool,
+        typer.Option(
+            "--live/--replay",
+            help="Send the requests that have no recording, and remove unused recordings. "
+            "Live requests cost money.",
+        ),
+    ] = False,
+) -> None:
+    """Run extraction on every gold abstract through the recordings the eval replays.
+
+    In replay, the default, this checks that every current request is recorded and exits with
+    status 1 if any is missing, as it is after a change to the prompt, schema or model settings.
+    """
+    config = load_config(resolve_question(question))
+    abstracts = [g.abstract for g in labels.read_gold(gold_dir / config.id)]
+    recordings = extract.gold_replay_dir(replay_dir, config, model)
+    client = ModelClient(recordings, Mode.LIVE if live else Mode.REPLAY)
+    try:
+        result = extract.record_gold(abstracts, config, client, model)
+    except RuntimeError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    failed = sum(r.study is None for r in result.results)
+    typer.echo(
+        f"{len(abstracts)} gold abstracts: {len(result.results)} recorded, "
+        f"{len(result.missing)} missing; {failed} invalid after the retry"
+    )
+    if result.stale and live:
+        for name in result.stale:
+            (recordings / name).unlink()
+        typer.echo(f"removed {len(result.stale)} stale recordings from {recordings}")
+    elif result.stale:
+        typer.echo(f"{len(result.stale)} stale recordings in {recordings}; --live removes them")
+    if result.missing:
+        typer.echo(
+            f"missing: {', '.join(result.missing)}; re-record with --live after a dry run",
+            err=True,
+        )
+        raise typer.Exit(1)
 
 
 @gold_app.command("review")

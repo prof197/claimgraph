@@ -126,10 +126,14 @@ class ModelClient:
         self.replay_dir = replay_dir
         self.mode = mode
         self._transport = transport
+        # Keys of the recordings this client served or made, so unused ones can be found.
+        self.used: set[str] = set()
 
     def create(self, params: Mapping[str, Any]) -> Reply:
         key = request_key(params)
         path = self.replay_dir / f"{key}.json"
+        if path.exists() or self.mode is Mode.LIVE:
+            self.used.add(key)
         if path.exists():
             recorded = json.loads(path.read_text())
             if request_key(recorded["request"]) != key:

@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 
-from claimgraph import extract
+from claimgraph import extract, llm
 from claimgraph.config import QuestionConfig, load_config
 from claimgraph.design_tree import QUESTIONS, READINGS, answers_for
 from claimgraph.dimensions import NOT_REACHED
@@ -474,3 +474,93 @@ def test_a_rerun_replays_both_attempts_with_no_api_key(
     replayed = extract_abstract(synthetic_abstract(), VITAMIN_D, ModelClient(tmp_path))
 
     assert replayed == recorded
+
+
+# Recording the gold set
+
+
+def gold_question(tmp_path: Path) -> Path:
+    from test_labels import gold_entry, write_gold
+
+    gold_dir = tmp_path / "gold"
+    write_gold(
+        gold_dir / "vitamin-d-depression",
+        gold_entry(),
+        # A different text, so its request is not the first one's.
+        gold_entry(
+            abstract=synthetic_abstract("999000002").model_copy(
+                update={"title": "A second synthetic title."}
+            )
+        ),
+    )
+    return gold_dir
+
+
+def record(tmp_path: Path, *args: str) -> Any:
+    from typer.testing import CliRunner
+
+    from claimgraph import cli
+
+    config = str(ROOT / "questions" / "vitamin-d-depression.toml")
+    return CliRunner().invoke(
+        cli.app,
+        [
+            "gold",
+            "record",
+            config,
+            "--gold-dir",
+            str(tmp_path / "gold"),
+            "--replay-dir",
+            str(tmp_path / "replay"),
+            *args,
+        ],
+    )
+
+
+def test_recording_the_gold_set_then_checking_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gold_question(tmp_path)
+    transport = Scripted(response(json.dumps(output())), response(json.dumps(output(findings=[]))))
+    monkeypatch.setattr(llm, "anthropic_transport", lambda env: transport)
+    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
+
+    unrecorded = record(tmp_path)
+    live = record(tmp_path, "--live")
+    checked = record(tmp_path)
+
+    assert unrecorded.exit_code == 1
+    assert "0 recorded, 2 missing" in unrecorded.output
+    assert live.exit_code == 0, live.output
+    assert len(transport.requests) == 2
+    assert len(list(recordings.glob("*.json"))) == 2
+    assert checked.exit_code == 0, checked.output
+    assert "2 recorded, 0 missing" in checked.output
+
+
+def test_a_live_recording_removes_recordings_no_request_uses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gold_question(tmp_path)
+    transport = Scripted(response(json.dumps(output())), response(json.dumps(output())))
+    monkeypatch.setattr(llm, "anthropic_transport", lambda env: transport)
+    recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
+    recordings.mkdir(parents=True)
+    # Left behind by an earlier prompt: no current request has this key.
+    (recordings / f"{'0' * 64}.json").write_text("{}\n")
+
+    checked = record(tmp_path)
+    live = record(tmp_path, "--live")
+
+    assert "1 stale" in checked.output
+    assert (recordings / f"{'0' * 64}.json").exists() is False
+    assert live.exit_code == 0, live.output
+    assert "removed 1 stale" in live.output
+
+
+def test_each_model_records_in_its_own_place(tmp_path: Path) -> None:
+    haiku = extract.gold_replay_dir(tmp_path, VITAMIN_D, ModelChoice.HAIKU)
+    sonnet = extract.gold_replay_dir(tmp_path, VITAMIN_D, ModelChoice.SONNET)
+
+    assert haiku != sonnet
+    assert haiku.parent == sonnet.parent == tmp_path / "vitamin-d-depression" / "extraction"

@@ -142,3 +142,15 @@ def test_the_recorded_fixture_is_current() -> None:
 
     assert path.name == f"{request_key(PARAMS)}.json"
     assert path.read_text() == expected
+
+
+def test_the_client_knows_which_recordings_it_used(tmp_path: Path) -> None:
+    other = PARAMS | {"max_tokens": 128}
+    ModelClient(tmp_path, Mode.LIVE, transport=FakeTransport()).create(PARAMS)
+
+    client = ModelClient(tmp_path)
+    client.create(PARAMS)
+    with pytest.raises(ReplayMiss):
+        client.create(other)
+
+    assert client.used == {request_key(PARAMS)}
