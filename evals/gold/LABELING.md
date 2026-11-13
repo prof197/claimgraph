@@ -121,8 +121,9 @@ Null results are findings.
 - **Time points.** Results on one measure at several time points are one finding when they
   agree, and one finding per time point when they don't.
 - **Between groups only.** In a study with a comparison group, only comparisons between groups
-  are findings. A change over time pooled across all groups, such as "scores improved in both
-  arms", is not.
+  are findings. A change over time within one group, such as "scores fell in the vitamin D
+  group", is not, and neither is one pooled across all groups, such as "scores improved in both
+  arms".
 - **"The rest were not significant."** When the abstract names vitamin D among the factors it
   tested and a sentence says the others were not significant, label a `no_change` finding
   quoting that sentence.

@@ -66,8 +66,8 @@ RULES: tuple[str, ...] = (
     "never a planned size; for Mendelian randomization, cases plus controls in the main outcome "
     "dataset.",
     "Time points of one measure that agree are one finding, and ones that disagree are one each.",
-    "With a comparison group, only comparisons between groups are findings, not a change over "
-    "time pooled across them.",
+    "With a comparison group, only comparisons between groups are findings: not a change over "
+    "time within one group, nor one pooled across the groups.",
     "Interaction or moderation results are subgroup findings, one per subgroup comparison, null "
     "ones included. When only the interaction's significance is reported, the abstract's words "
     "set each subgroup's direction.",
