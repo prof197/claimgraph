@@ -28,6 +28,16 @@ The maintainer labeled every record. For 1 record (22848407), he discussed how t
 rules applied with an AI assistant before labeling; the rules that came out of those discussions
 were added to [LABELING.md](LABELING.md).
 
+After labeling, labels were checked against the written rules; the maintainer reviewed and
+accepted 4 corrections:
+
+| PMID | Field | Was | Now | Rule |
+|---|---|---|---|---|
+| 32108263 | `sample_size` | 280 | 113 | Randomized, not screened |
+| 27485050 | `sample_size` | 105 | 117 | A secondary analysis counts those entering it, not those analyzed |
+| 27485050 | `design` | `cross_sectional` | `cohort` | Vitamin D was measured before depression was assessed |
+| 27485050 | `outcome_reported` | MDD | MDD (MINI) | The instrument is named when the abstract names one |
+
 ## Licence
 
 The code in this repository is MIT-licensed. The abstract texts in `gold.jsonl` are not: they
