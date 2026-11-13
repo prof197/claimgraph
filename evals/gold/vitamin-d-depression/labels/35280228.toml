@@ -1,0 +1,87 @@
+# Vitamin D Supplementation for the Treatment of Depressive Symptoms in Women with Type 2 Diabetes: A Randomized Clinical Trial.
+# PMID 35280228, J Diabetes Res 2022. Publication types: Journal Article, Randomized Controlled Trial.
+# Sampled as trial; screened on topic.
+#
+# AIM: To determine the efficacy and safety of vitamin D3 supplementation in reducing depressive
+# symptoms in women with type 2 diabetes (T2D), depression, and low vitamin D.
+# METHODS: In this double-blind randomized active comparator-controlled trial, women with
+# significant depressive symptoms as assessed by the Center for Epidemiologic Studies Depression
+# (CES-D) scale received weekly oral vitamin D3 supplementation (50,000 IU) or an active
+# comparator (5,000 IU) for 6 months. Assessments of vitamin D, 25-hydroxyvitamin D [25 (OH) D],
+# and depression were measured at baseline, 3 months, and 6 months.
+# RESULTS: A total of 129 women were randomized, from which 119 completed the study (57 in lower
+# dose and 62 in higher dose). Participants had an average 25 (OH) D and HbA1c of 20.8 ng/mL and
+# 7.8%, respectively, at baseline. They were diverse (48% Black) and had a mean age of 50 and T2D
+# for about 8 years. Upon completion of vitamin D3 supplementation, serum 25 (OH) D levels
+# increased with 50,000 IU (+34 ng/mL) and 5,000 IU (+10 ng/mL). There was no difference in CES-D
+# scores by treatment dose. Overall, depressive symptoms significantly improved over time with an
+# average CES-D decline of 12.98 points (95% CI: -15.04 to -10.93; p < 0.001). Among women with
+# moderate baseline depressive symptoms, those receiving the lower dose had nominally lower
+# depression scores at follow-up than those in the higher dose cohort. Among women with severe
+# baseline depressive symptoms, the improvement in follow-up depression scores was the same
+# regardless of dose.
+# CONCLUSIONS: There was no difference in the dosing effect of vitamin D3 supplementation for the
+# treatment of depressive symptoms in women with T2D who present with significant symptoms and low
+# vitamin D. Regardless of the dose, participants' mood improved over time. Further study of
+# vitamin D to target depressive symptoms in comorbid populations is needed.
+#
+# Fill in every value; evals/gold/LABELING.md explains each one.
+
+pmid = "35280228"
+# design: rct, non_randomized_trial, cohort, case_control, cross_sectional, case_series,
+# systematic_review, meta_analysis, narrative_review, case_report, animal, in_vitro, other
+design = "rct"
+# Enrolled or randomized, not analyzed; "not_reported" if the abstract does not say.
+sample_size = 129
+
+# Answers to the design questions in LABELING.md, in order; they settle the design.
+[design_answers]
+subjects = "people"
+source = "own_data"
+individual_patients = "no"
+gave_exposure = "yes"
+concurrent_comparison = "yes"
+by_chance = "yes"
+
+# One block per finding in the outcome domain; delete the block if there are none.
+[[finding]]
+quote = '''There was no difference in CES-D scores by treatment dose.'''
+outcome_reported = "CES-D"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "no_change"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = false
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "at_or_above_20_ng_ml"
+
+[[finding]]
+quote = '''Among women with moderate baseline depressive symptoms, those receiving the lower dose had nominally lower depression scores at follow-up than those in the higher dose cohort.'''
+outcome_reported = "CES-D"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "no_change"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = true
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "not_reported"
+
+[[finding]]
+quote = '''Among women with severe baseline depressive symptoms, the improvement in follow-up depression scores was the same regardless of dose.'''
+outcome_reported = "CES-D"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "no_change"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = true
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "not_reported"

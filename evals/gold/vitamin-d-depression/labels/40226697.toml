@@ -1,0 +1,53 @@
+# Serum Ghrelin and Leptin Concentrations in Patients with Major Depressive Disorder before and after Supplementation with Vitamin D3.
+# PMID 40226697, Depress Anxiety 2024. Publication types: Journal Article, Research Support, Non-U.S. Gov't.
+# Sampled as observational; screened on topic.
+#
+# AIM: To determine serum concentrations of leptin and ghrelin in patients with major depressive
+# disorder (MDD) before and after vitamin D3 supplementation.
+# METHODS: A total of 72 participants were recruited in this study (40 MDD patients and 32 healthy
+# controls). MDD was diagnosed by using Beck's Depression Inventory (BDI) scale. Blood samples
+# were collected from all participants at the beginning of the study to determine baseline serum
+# 25(OH)D3, leptin, and ghrelin concentrations. Patients were then treated weekly with vitamin D3
+# (50,000 IU) for 3 months, and blood samples were collected again by the end of the study.
+# RESULTS: At baseline, serum leptin concentrations were significantly higher in MDD patients than
+# in healthy controls. In contrast, serum ghrelin concentrations were significantly lower compared
+# to those in healthy controls. After supplementation with vitamin D3 for three months, MDD
+# patients showed improvements characterized by a decrease in their BDI's scores and an increase
+# in their serum vitamin D and ghrelin concentrations. No effects of vitamin D3 supplementation
+# were seen on serum leptin concentration.
+# CONCLUSIONS: The antidepressant effects of vitamin D3 supplementation could be mediated by
+# ghrelin but not leptin.
+#
+# Fill in every value; evals/gold/LABELING.md explains each one.
+
+pmid = "40226697"
+# design: rct, non_randomized_trial, cohort, case_control, cross_sectional, case_series,
+# systematic_review, meta_analysis, narrative_review, case_report, animal, in_vitro, other
+design = "case_series"
+# Enrolled or randomized, not analyzed; "not_reported" if the abstract does not say.
+sample_size = 72
+
+# Answers to the design questions in LABELING.md, in order; they settle the design.
+[design_answers]
+subjects = "people"
+source = "own_data"
+individual_patients = "no"
+gave_exposure = "yes"
+concurrent_comparison = "no"
+
+# One block per finding in the outcome domain; delete the block if there are none.
+[[finding]]
+quote = '''After supplementation with vitamin D3 for three months, MDD patients showed improvements characterized by a decrease in their BDI's scores and an increase in their serum vitamin D and ghrelin concentrations.'''
+outcome_reported = "BDI"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "decreased"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = true
+# Which part of the sample, as the abstract names it.
+subgroup = "MDD"
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "not_reported"

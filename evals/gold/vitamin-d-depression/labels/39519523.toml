@@ -1,0 +1,73 @@
+# Micronutrients and Major Depression: A Mendelian Randomisation Study.
+# PMID 39519523, Nutrients 2024. Publication types: Journal Article.
+# Sampled as observational; screened on topic.
+#
+# BACKGROUND: Various vitamins and minerals have been implicated in the aetiology of depression.
+# OBJECTIVE: To estimate the effects of micronutrient exposures on major depressive disorder (MDD)
+# and recurrent depression (rMDD) using Mendelian randomisation (MR), a method using genetic data
+# to estimate causal effects given certain assumptions.
+# METHODS: We undertook a comprehensive bidirectional MR study of multiple micronutrient exposures
+# on MDD and rMDD. Summary statistics were obtained from the Psychiatric Genomics Consortium (PGC)
+# genome-wide association studies (GWASs) of MDD (cases = 116,209; controls = 314,566) and rMDD
+# (cases = 17,451; controls = 62,482).
+# RESULTS: None of the micronutrients with available genetic instruments were strongly associated
+# with MDD or rMDD using traditional MR methods. However, using methods to increase analytical
+# power by accounting for genetically correlated variants (e.g., cIVW) highlighted five
+# micronutrients with possible causal effects. Point estimates for rMDD were the largest
+# magnitude, with three micronutrients suggestive of a protective effect: serum iron (ORcIVW 0.90
+# per SD increase; 95% CI 0.85-0.95; p = 0.0003); erythrocyte copper (ORcIVW 0.97; 95% CI
+# 0.95-0.99; p = 0.0004); and 25(OH) vitamin D (ORcIVW 0.81; 0.66-0.99; p = 0.04). Apparent
+# adverse effects of increased selenium on the risk of MDD (ORcIVW 1.03; 95% CI 1.02-1.05; p =
+# 0.0003) and rMDD (ORcIVW 1.08; 95% CI 1.00-1.08; p = 0.06), and serum magnesium on rMDD (ORcIVW
+# 1.21; 1.01-1.44; p = 0.04); were less consistent between methods and may be driven by
+# pleiotropy.
+# CONCLUSIONS: Our results suggest weak evidence for a protective effect of iron, copper and
+# 25(OH)D on major depressive outcomes, with mixed evidence for selenium and magnesium. There was
+# no evidence to support a causal effect of any other micronutrients on MDD or rMDD, although
+# genetic instruments were lacking, with insufficient power to detect small but important effects.
+# Future micronutrient supplementation trials should ensure ample statistical power given modest
+# causal effect estimates and consider potential risks of supplementation, as some micronutrient
+# effect estimates suggested potential harm in excess.
+#
+# Fill in every value; evals/gold/LABELING.md explains each one.
+
+pmid = "39519523"
+# design: rct, non_randomized_trial, cohort, case_control, cross_sectional, case_series,
+# systematic_review, meta_analysis, narrative_review, case_report, animal, in_vitro, other
+design = "other"
+# Enrolled or randomized, not analyzed; "not_reported" if the abstract does not say.
+sample_size = 510708
+
+# Answers to the design questions in LABELING.md, in order; they settle the design.
+[design_answers]
+subjects = "people"
+source = "neither"
+
+# One block per finding in the outcome domain; delete the block if there are none.
+[[finding]]
+quote = '''None of the micronutrients with available genetic instruments were strongly associated with MDD or rMDD using traditional MR methods.'''
+outcome_reported = "MDD or rMDD"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "no_change"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = false
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "not_reported"
+
+[[finding]]
+quote = '''Point estimates for rMDD were the largest magnitude, with three micronutrients suggestive of a protective effect: serum iron (ORcIVW 0.90 per SD increase; 95% CI 0.85-0.95; p = 0.0003); erythrocyte copper (ORcIVW 0.97; 95% CI 0.95-0.99; p = 0.0004); and 25(OH) vitamin D (ORcIVW 0.81; 0.66-0.99; p = 0.04).'''
+outcome_reported = "rMDD"
+# increased, decreased or no_change, with more vitamin D as the exposure side.
+effect = "decreased"
+# true only when the abstract calls it the primary outcome; never for a subgroup.
+is_primary = false
+# true when the result covers only part of the analyzed sample, such as one sex.
+is_subgroup = false
+
+[finding.dimensions]
+# baseline_vitamin_d_status: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported
+baseline_vitamin_d_status = "not_reported"
