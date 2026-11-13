@@ -1,5 +1,6 @@
 """Gold label files: abstracts, outcome pairs and contradiction pairs."""
 
+import re
 import subprocess
 import tomllib
 from datetime import date
@@ -717,3 +718,13 @@ def test_trim_from_the_command_line(tmp_path: Path) -> None:
     assert trimmed.exit_code == 0, trimmed.output
     assert "kept 1 labeled gold abstracts; dropped 2" in trimmed.output
     assert "1 labeled, 0 with problems, 0 not started, of 1" in checked.output
+
+
+def test_the_docs_state_the_gold_size() -> None:
+    # The size is stated by hand, so this keeps it equal to what gold.jsonl holds.
+    size = len(read_gold(ROOT / "evals" / "gold" / "vitamin-d-depression"))
+    for doc in ("README.md", "DESIGN.md", "evals/gold/README.md"):
+        stated = re.findall(r"(\d+)\s+hand-labeled\s+abstracts", (ROOT / doc).read_text())
+
+        assert stated, doc
+        assert {int(n) for n in stated} == {size}, doc

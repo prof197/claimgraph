@@ -446,12 +446,17 @@ data is labeled by hand, from openly licensed articles only.
 
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
-| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 50 | Field-level precision and recall for direction, outcome, sample size, design and each labeled dimension; verbatim-quote rate; whether the quote supports the claim; how often design falls to Other | Replay |
+| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 27 | Field-level precision and recall for direction, outcome, sample size, design and each labeled dimension; verbatim-quote rate; whether the quote supports the claim; how often design falls to Other | Replay |
 | Normalization | Labeled outcome-string pairs, merge or not, including the hard cases | About 200 pairs | Merge precision and recall | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
 | Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
 
+- **Gold sizes:** extraction gold is sized to catch a broken field, such as a design that always
+  falls to Other or an effect read the wrong way round, not to rank close prompts. It is 27
+  hand-labeled abstracts, and at about 80% accuracy a field scored once per abstract has a 95%
+  interval of roughly ±15 points. Labeling effort goes to the contradiction set instead, where
+  the ablation compares arms.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.
@@ -491,7 +496,9 @@ extraction eval also checks that the outcome domain returns no findings for them
 - **Gold is what was labeled.** `claimgraph gold trim QUESTION` keeps only the gold records
   with a passing label and regenerates `gold.jsonl` and the attribution file from them. It
   refuses while a label is in progress, deletes only untouched templates, and leaves the draw's
-  counts in `sample.json` beside the labeled ones.
+  counts in `sample.json` beside the labeled ones. For vitamin D, 27 of the 50 were labeled:
+  14 sampled as trials, 8 observational, 2 systematic reviews, 2 other reviews and 1 off topic,
+  a trial protocol. So the off-topic check rests on one record.
 - **Dev** is drawn from the whole kept corpus less the gold sample, under any licence. Only its
   PMIDs, strata and the seed are committed; the text is refetched by PMID into the gitignored
   run directory, so dev is reproducible without redistributing it. Dev is for tuning prompts
@@ -507,7 +514,10 @@ extraction eval also checks that the outcome domain returns no findings for them
   summarizes, a result linking vitamin D to an outcome in the domain, null results included.
   Screening only sorts records into quotas; the hand labels are authoritative.
 - **Trials are the scarce stratum.** Of 43 trial-tagged records under CC BY or CC0, 21 are on
-  topic, and gold takes 18. That is why dev draws from the whole corpus.
+  topic, and the gold draw takes 18. That is why dev draws from the whole corpus. Of the 14
+  labeled, 11 are trials by their abstracts; the other 3 are observational analyses tagged as
+  trials, one a secondary analysis of a trial and one a case-control comparison with a trial
+  registration.
 - **Eval limitation: open-access selection.** Gold comes from the 538 of 1,901 kept records
   that are CC BY or CC0. Their design mix matches the corpus, but they skew recent: none
   predates 2010, against 14% of the corpus, and 73% are from 2020 on, against 48%. Extraction
