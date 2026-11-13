@@ -466,3 +466,26 @@ def test_the_summary_counts_trial_findings_within_one_group(tmp_path: Path) -> N
     assert "1 more dropped as within one group or pooled in a trial" in "\n".join(
         batch.describe(run, summary)
     )
+
+
+def test_an_entry_written_before_a_field_was_added_does_not_block_the_next(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "manifest.json"
+    older = {"model": "claude-haiku-5-5", "findings": 1}
+    path.write_text(json.dumps({"runs": {"gold-haiku": older, "dev-haiku": older}}))
+    run = extract_batched(
+        [titled("First.")],
+        VITAMIN_D,
+        tmp_path / "replay",
+        ModelChoice.HAIKU,
+        FakeBatches(by_title({"First.": [response(json.dumps(output()))]})),
+    )
+    summary = batch.summarize(run, "claude-haiku-5-5", PRICES)
+
+    batch.write_manifest(path, "dev-haiku", summary)
+
+    runs = json.loads(path.read_text())["runs"]
+    # Other entries are kept as they were written; this run's entry is replaced whole.
+    assert runs["gold-haiku"] == older
+    assert runs["dev-haiku"] == json.loads(summary.model_dump_json())

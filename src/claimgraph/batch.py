@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import anthropic
 
@@ -349,19 +349,17 @@ def describe(run: BatchRun, summary: ExtractManifest) -> list[str]:
 
 
 def write_manifest(path: Path, entry: str, summary: ExtractManifest) -> None:
-    """Add or replace one run's entry, such as dev-haiku, in the extract stage's manifest."""
-    entries: dict[str, ExtractManifest] = {}
+    """Add or replace one run's entry, such as dev-haiku, in the extract stage's manifest.
+
+    The other entries are kept as they were written, so an entry from before a count was added
+    does not stop the next run from recording its own.
+    """
+    entries: dict[str, Any] = {}
     if path.exists():
-        entries = _Manifest.model_validate_json(path.read_text()).runs
-    entries[entry] = summary
+        entries = cast(dict[str, Any], json.loads(path.read_text())["runs"])
+    entries[entry] = json.loads(summary.model_dump_json())
     path.parent.mkdir(parents=True, exist_ok=True)
-    write_atomic(
-        path, _Manifest(runs=dict(sorted(entries.items()))).model_dump_json(indent=2).encode()
-    )
-
-
-class _Manifest(Record):
-    runs: dict[str, ExtractManifest]
+    write_atomic(path, (json.dumps({"runs": dict(sorted(entries.items()))}, indent=2)).encode())
 
 
 def describe_estimate(result: Estimate, prices: Prices) -> str:
