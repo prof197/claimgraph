@@ -28,7 +28,7 @@ Every label was made by the maintainer following [LABELING.md](LABELING.md). For
 (22848407, 33372187), he discussed how the rules applied with an AI assistant before labeling;
 the rules that came out of those discussions were added to LABELING.md. After labeling, an AI
 coding assistant checked the labels against the written rules, and the maintainer reviewed and
-accepted the 9 corrections listed below.
+accepted the 10 corrections listed below.
 
 | PMID | Field | Was | Now | Rule |
 |---|---|---|---|---|
@@ -41,6 +41,7 @@ accepted the 9 corrections listed below.
 | 30061860 | `design` | `narrative_review` | `systematic_review` | It states how it searched and how it chose studies |
 | 32629761 | findings | — | Women, `decreased` | One finding per subgroup the abstract reports |
 | 32629761 | findings | — | White participants, `decreased` | One finding per subgroup the abstract reports |
+| 30157761 | `baseline_vitamin_d_status` | `mixed` | `not_reported` | `mixed` needs values on both sides of 20 ng/mL; both group means are above it |
 
 ## Licence
 
