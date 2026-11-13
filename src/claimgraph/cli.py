@@ -9,10 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import extract, gold, labels, relabel, review
-from claimgraph.config import load_config, resolve_question
-from claimgraph.llm import Mode, ModelClient
-from claimgraph.retrieve import EutilsError, connect_eutils, retrieve
+from claimgraph import batch, extract, gold, labels, relabel, review
+from claimgraph.config import QuestionConfig, load_config, resolve_question
+from claimgraph.prices import PRICES_FILE, load_prices
+from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
 
 app = typer.Typer(no_args_is_help=True, help="Map where studies on one health question disagree.")
 
@@ -40,6 +40,21 @@ def main(
 
 class Stage(StrEnum):
     RETRIEVE = "retrieve"
+    EXTRACT = "extract"
+
+
+Model = Annotated[extract.ModelChoice, typer.Option(help="The extraction model.")]
+DryRun = Annotated[
+    bool, typer.Option(help="Estimate what the unrecorded requests would cost; send nothing.")
+]
+Live = Annotated[
+    bool,
+    typer.Option(
+        "--live/--replay",
+        help="Send the requests that have no recording, through the batch API. Costs money.",
+    ),
+]
+PricesFile = Annotated[Path, typer.Option(help="The dated price file.")]
 
 
 @app.command()
@@ -50,12 +65,30 @@ def run(
         bool, typer.Option(help="Search and fetch again instead of reusing cached records.")
     ] = False,
     runs_dir: Annotated[Path, typer.Option(help="Where run outputs are written.")] = Path("runs"),
+    dev: Annotated[
+        bool, typer.Option(help="Extract the dev sample instead of every kept abstract.")
+    ] = False,
+    model: Model = extract.ModelChoice.HAIKU,
+    dry_run: DryRun = False,
+    live: Live = False,
+    prices_file: PricesFile = PRICES_FILE,
 ) -> None:
-    """Run the pipeline for one question; only the retrieve stage exists so far."""
+    """Run the pipeline for one question: retrieve, then extract.
+
+    Extraction replays recorded responses by default and exits with status 1 if any is missing.
+    """
     config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    if stage in (None, Stage.RETRIEVE):
+        _retrieve(config, run_dir, refresh)
+    if stage in (None, Stage.EXTRACT):
+        _extract(config, run_dir, dev, model, dry_run, live, prices_file)
+
+
+def _retrieve(config: QuestionConfig, run_dir: Path, refresh: bool) -> None:
     try:
         with connect_eutils(os.environ) as client:
-            manifest = retrieve(config, runs_dir / config.id, client, refresh=refresh)
+            manifest = retrieve(config, run_dir, client, refresh=refresh)
     except EutilsError as error:
         typer.echo(f"retrieve failed: {error}", err=True)
         raise typer.Exit(1) from error
@@ -70,6 +103,80 @@ def run(
         f"{len(stage_report.unavailable)} unavailable; {stage_report.requests} requests"
     )
     typer.echo(f"{stage_report.kept} kept; dropped: {dropped}")
+
+
+def _extract(
+    config: QuestionConfig,
+    run_dir: Path,
+    dev: bool,
+    model: extract.ModelChoice,
+    dry_run: bool,
+    live: bool,
+    prices_file: Path,
+) -> None:
+    sample = "dev" if dev else "corpus"
+    source = run_dir / "dev" / "abstracts.jsonl" if dev else run_dir / "abstracts.jsonl"
+    try:
+        abstracts = gold.read_abstracts(source)
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no current abstracts in {source}; run --stage retrieve first", err=True)
+        raise typer.Exit(1) from error
+    # Dev and corpus share recordings: a dev abstract is also in the corpus, with the same request.
+    replay_dir = run_dir / "replay" / "extraction" / model.value
+    outcome = _send_batches(
+        abstracts, config, replay_dir, model, dry_run, live, prices_file, sample
+    )
+    if outcome is None:
+        return
+    out = run_dir / "extract" / f"{sample}-{model.value}.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, "".join(r.model_dump_json() + "\n" for r in outcome.results).encode())
+    typer.echo(f"wrote {out}")
+    _report_missing(outcome)
+
+
+def _send_batches(
+    abstracts: list[Abstract],
+    config: QuestionConfig,
+    replay_dir: Path,
+    model: extract.ModelChoice,
+    dry_run: bool,
+    live: bool,
+    prices_file: Path,
+    sample: str,
+) -> batch.BatchRun | None:
+    """The shared part of run --stage extract and gold record: estimate, or replay and send."""
+    prices = load_prices(prices_file)
+    if dry_run:
+        try:
+            result = batch.estimate(abstracts, config, replay_dir, model, prices)
+        except ValueError as error:
+            typer.echo(str(error), err=True)
+            raise typer.Exit(1) from error
+        typer.echo(batch.describe_estimate(result, prices))
+        return None
+    try:
+        send = batch.anthropic_batches(os.environ, on_poll=typer.echo) if live else None
+    except RuntimeError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    outcome = batch.extract_batched(abstracts, config, replay_dir, model, send)
+    typer.echo(f"{sample}: {len(abstracts)} abstracts on {extract.SETTINGS[model].model}")
+    for line in batch.describe(outcome, prices):
+        typer.echo(line)
+    return outcome
+
+
+def _report_missing(outcome: batch.BatchRun) -> None:
+    if outcome.missing:
+        shown = ", ".join(f"{p} ({why})" for p, why in list(outcome.missing.items())[:10])
+        more = len(outcome.missing) - 10
+        typer.echo(
+            f"missing: {shown}{f' and {more} more' if more > 0 else ''}; "
+            "record them with --live after a dry run",
+            err=True,
+        )
+        raise typer.Exit(1)
 
 
 gold_app = typer.Typer(no_args_is_help=True, help="Draw and inspect the eval samples.")
@@ -243,49 +350,35 @@ def gold_record(
     replay_dir: Annotated[
         Path, typer.Option(help="Where the committed model recordings live.")
     ] = Path("replay"),
-    model: Annotated[
-        extract.ModelChoice, typer.Option(help="The extraction model.")
-    ] = extract.ModelChoice.HAIKU,
-    live: Annotated[
-        bool,
-        typer.Option(
-            "--live/--replay",
-            help="Send the requests that have no recording, and remove unused recordings. "
-            "Live requests cost money.",
-        ),
-    ] = False,
+    model: Model = extract.ModelChoice.HAIKU,
+    dry_run: DryRun = False,
+    live: Live = False,
+    prices_file: PricesFile = PRICES_FILE,
 ) -> None:
     """Run extraction on every gold abstract through the recordings the eval replays.
 
     In replay, the default, this checks that every current request is recorded and exits with
     status 1 if any is missing, as it is after a change to the prompt, schema or model settings.
+    With --live it sends what is missing and removes the recordings no request uses.
     """
     config = load_config(resolve_question(question))
     abstracts = [g.abstract for g in labels.read_gold(gold_dir / config.id)]
     recordings = extract.gold_replay_dir(replay_dir, config, model)
-    client = ModelClient(recordings, Mode.LIVE if live else Mode.REPLAY)
-    try:
-        result = extract.record_gold(abstracts, config, client, model)
-    except RuntimeError as error:
-        typer.echo(str(error), err=True)
-        raise typer.Exit(1) from error
-    failed = sum(r.study is None for r in result.results)
-    typer.echo(
-        f"{len(abstracts)} gold abstracts: {len(result.results)} recorded, "
-        f"{len(result.missing)} missing; {failed} invalid after the retry"
+    outcome = _send_batches(
+        abstracts, config, recordings, model, dry_run, live, prices_file, "gold"
     )
-    if result.stale and live:
-        for name in result.stale:
+    if outcome is None:
+        return
+    unused = batch.stale(recordings, outcome.used)
+    if unused and live and not outcome.missing:
+        for name in unused:
             (recordings / name).unlink()
-        typer.echo(f"removed {len(result.stale)} stale recordings from {recordings}")
-    elif result.stale:
-        typer.echo(f"{len(result.stale)} stale recordings in {recordings}; --live removes them")
-    if result.missing:
+        typer.echo(f"removed {len(unused)} stale recordings from {recordings}")
+    elif unused:
         typer.echo(
-            f"missing: {', '.join(result.missing)}; re-record with --live after a dry run",
-            err=True,
+            f"{len(unused)} stale recordings in {recordings}; a complete --live run removes them"
         )
-        raise typer.Exit(1)
+    _report_missing(outcome)
 
 
 @gold_app.command("review")

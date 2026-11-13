@@ -294,9 +294,17 @@ title alone.
   models. Haiku 5.5 takes `disabled`; Sonnet 5.5 rejects it, so it takes `between_tools`, its
   lowest setting, which gives text only when there are no tools. The settings stay fixed per
   model because changing them invalidates the cached prefix.
-- The static instructions and schema form a cached prompt prefix. Cache reads cost 0.1× the input
-  price on Haiku 5.5 and 0.05× on Sonnet 5.5 and Opus 5.5, and they stack with the batch
-  discount ([pricing][pricing]).
+- The static instructions and schema form a cached prompt prefix: the system prompt carries the
+  cache marker and the abstract follows it. Cache reads cost 0.1× the input price on Haiku 5.5
+  and 0.05× on Sonnet 5.5 and Opus 5.5, and they stack with the batch discount
+  ([pricing][pricing]).
+- **Batches in rounds.** An abstract's retries each depend on the response before them, so a
+  batch run goes in rounds: each round replays every abstract as far as the recordings go,
+  sends the requests that come next in one batch, and records the answers. Three rounds cover
+  the first request, the retry for invalid output and the retry for missed quotes. A request
+  the batch fails, errored or expired, is reported and not sent again in that run. Batch
+  responses are recorded exactly as direct ones, so a run replays the same either way; dev and
+  corpus runs share recordings, since a dev abstract makes the same request in both.
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
   normalization: curly and straight marks match, and so do runs of spaces and line breaks;
   anything else, a dropped mark or a changed number, is a miss. The abstract's sections are the
@@ -413,6 +421,14 @@ optional `council` dependency group.
 **Dry run.** `--dry-run` runs retrieval, extraction and normalization, then stops before
 classification. It prints pairs by outcome and the estimated cost per arm: pairs × mean tokens per
 pair, measured on the dev set, × the prices in a dated `prices.toml`.
+
+Until classification exists, the dry run prices extraction, and nothing is sent without one. It
+counts the first requests that have no recording, at about three characters per token, a low
+figure on purpose for the current tokenizer, and gives two numbers at batch prices: a typical
+cost, one request each with an assumed 1,500 output tokens and no cache reads, and a ceiling,
+every abstract taking all three requests at full output, which real spend cannot pass. It
+refuses a request that could pass 100,000 prompt tokens, where Haiku 5.5's price changes. Each
+run then prints what its recorded responses cost from their token counts.
 
 **Panel.** Genuine contradictions are grouped by reason and ordered by the two studies' combined
 design weight, then combined sample size. Apparent contradictions sit in a collapsed list under
@@ -669,7 +685,8 @@ $1.30 per 1,000 pairs. These are estimates; the README's cost table reports meas
 A small Typer CLI drives every stage, and each pipeline step is one module.
 
 - `claimgraph run QUESTION [--depth ARM] [--dry-run] [--replay | --live]`. QUESTION is a config
-  path or id; a config, not free text, keeps runs reproducible.
+  path or id; a config, not free text, keeps runs reproducible. `--stage` runs one stage,
+  `--dev` extracts the dev sample, and `--model` picks the extraction model.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
   unmapped.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
@@ -684,7 +701,9 @@ claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
-    normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    verbatim.py  batch.py  normalize.py  compare.py  arms.py  summary.py  graph.py  llm.py
+    prices.py  cli.py
+  prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
   evals/       gold/LABELING.md  gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml,

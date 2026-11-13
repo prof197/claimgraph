@@ -15,7 +15,12 @@ uv run claimgraph gold review vitamin-d-depression     # local labeling page on 
 uv run claimgraph gold trim vitamin-d-depression       # keep only the labeled gold records
 uv run claimgraph gold relabel vitamin-d-depression    # blind second pass: 5 blank templates
 uv run claimgraph gold agreement vitamin-d-depression --readme README.md  # agreement table
+uv run claimgraph run vitamin-d-depression --stage extract --dev --dry-run
+                                          # estimate a dev extraction; sends nothing
+uv run --env-file .env claimgraph run vitamin-d-depression --stage extract --dev --live
+                                          # extract the dev sample through batches (costs money)
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
+uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-recording them
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live
                                           # re-record gold extraction responses (costs money)
 uv run pytest                             # tests

@@ -31,7 +31,14 @@ class Mode(StrEnum):
 
 
 class ReplayMiss(LookupError):
-    pass
+    """No recording for a request; carries the request so a batch can send it."""
+
+    def __init__(self, key: str, params: Mapping[str, Any], replay_dir: Path) -> None:
+        super().__init__(
+            f"no recorded response for request {key[:12]} in {replay_dir}; record it with --live"
+        )
+        self.key = key
+        self.params = params
 
 
 class Usage(Record):
@@ -140,14 +147,17 @@ class ModelClient:
                 raise ValueError(f"{path} does not match the request it is named for")
             return parse_reply(recorded["response"])
         if self.mode is Mode.REPLAY:
-            raise ReplayMiss(
-                f"no recorded response for request {key[:12]} in {self.replay_dir}; "
-                "record it with --live"
-            )
+            raise ReplayMiss(key, params, self.replay_dir)
         if self._transport is None:
             # Built only when a request is actually sent, so replay never needs a key.
             self._transport = anthropic_transport(os.environ)
         response = self._transport(params)
-        self.replay_dir.mkdir(parents=True, exist_ok=True)
-        write_atomic(path, recording(params, response).encode())
+        self.record(params, response)
         return parse_reply(response)
+
+    def record(self, params: Mapping[str, Any], response: Mapping[str, Any]) -> None:
+        """Save a response however it was obtained, directly or through a batch."""
+        self.replay_dir.mkdir(parents=True, exist_ok=True)
+        write_atomic(
+            self.replay_dir / f"{request_key(params)}.json", recording(params, response).encode()
+        )

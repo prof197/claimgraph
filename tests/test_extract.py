@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 
-from claimgraph import extract, llm
+from claimgraph import batch, extract
 from claimgraph.config import QuestionConfig, load_config
 from claimgraph.design_tree import QUESTIONS, READINGS, answers_for
 from claimgraph.dimensions import NOT_REACHED
@@ -512,6 +512,20 @@ def gold_question(tmp_path: Path) -> Path:
     return gold_dir
 
 
+def batches_from(transport: Scripted) -> Any:
+    """A stand-in for the live batch sender that answers through a scripted transport."""
+
+    def connect(env: Mapping[str, str], on_poll: Any = None) -> batch.BatchSender:
+        def send(requests: Mapping[str, Mapping[str, Any]]) -> batch.BatchOutcome:
+            return batch.BatchOutcome(
+                responses={k: transport(p) for k, p in requests.items()}, failures={}
+            )
+
+        return send
+
+    return connect
+
+
 def record(tmp_path: Path, *args: str) -> Any:
     from typer.testing import CliRunner
 
@@ -538,7 +552,7 @@ def test_recording_the_gold_set_then_checking_it(
 ) -> None:
     gold_question(tmp_path)
     transport = Scripted(response(json.dumps(output())), response(json.dumps(output(findings=[]))))
-    monkeypatch.setattr(llm, "anthropic_transport", lambda env: transport)
+    monkeypatch.setattr(batch, "anthropic_batches", batches_from(transport))
     recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
 
     unrecorded = record(tmp_path)
@@ -546,12 +560,12 @@ def test_recording_the_gold_set_then_checking_it(
     checked = record(tmp_path)
 
     assert unrecorded.exit_code == 1
-    assert "0 recorded, 2 missing" in unrecorded.output
+    assert "0 extracted, 2 missing" in unrecorded.output
     assert live.exit_code == 0, live.output
     assert len(transport.requests) == 2
     assert len(list(recordings.glob("*.json"))) == 2
     assert checked.exit_code == 0, checked.output
-    assert "2 recorded, 0 missing" in checked.output
+    assert "2 extracted, 0 missing" in checked.output
 
 
 def test_a_live_recording_removes_recordings_no_request_uses(
@@ -559,7 +573,7 @@ def test_a_live_recording_removes_recordings_no_request_uses(
 ) -> None:
     gold_question(tmp_path)
     transport = Scripted(response(json.dumps(output())), response(json.dumps(output())))
-    monkeypatch.setattr(llm, "anthropic_transport", lambda env: transport)
+    monkeypatch.setattr(batch, "anthropic_batches", batches_from(transport))
     recordings = tmp_path / "replay" / "vitamin-d-depression" / "extraction" / "haiku"
     recordings.mkdir(parents=True)
     # Left behind by an earlier prompt: no current request has this key.
