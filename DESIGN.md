@@ -590,12 +590,13 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   subgroup name together, and a subgroup result is named whenever another finding shares its
   quote and outcome.
 - **Consistency check.** Five labeled records with findings, drawn at random with a fixed seed,
-  are labeled a second time, blind: `claimgraph gold relabel` writes blank templates to `relabel/`, the
-  labeling page labels them there without showing the first pass, and `claimgraph gold
-  agreement` counts agreement field by field. Findings pair as the extraction eval pairs them,
-  on quote and subgroup, so a reworded outcome counts against the outcome field rather than as a
-  missed finding. The README reports the agreement
-  beside the extraction results.
+  are labeled a second time, blind. `claimgraph gold relabel` writes blank templates to
+  `relabel/` and keeps a copy of the first pass as it stood in `relabel/first/`, so later gold
+  corrections don't move the agreement. The labeling page labels them without showing the first
+  pass, and `claimgraph gold agreement` counts agreement field by field. Findings pair as the
+  extraction eval pairs them, on quote and subgroup, so a reworded outcome counts against the
+  outcome field rather than as a missed finding. The README reports the agreement beside the
+  extraction results.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
   ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
   the null study could not rule out the effect, by its own account or its confidence interval,

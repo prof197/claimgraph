@@ -246,7 +246,8 @@ uv run claimgraph gold agreement vitamin-d-depression        # field-level agree
 
 `gold relabel` draws once, at random with a fixed seed, from the records with findings, and only
 when every gold record has a passing label. A review or an off-topic record carries only its
-design and sample size, so it would say little about consistency. Its templates go in `relabel/`. With `--relabel` the page shows only those
+design and sample size, so it would say little about consistency. Its templates go in `relabel/`, and a copy of the first pass for those records in
+`relabel/first/`, so later corrections to the gold labels don't move the agreement. With `--relabel` the page shows only those
 records, and nothing from the first pass: not its labels, outcomes, notes or flags. Label them
 by the same rules, without opening the first-pass files.
 

@@ -28,6 +28,9 @@ from claimgraph.models import Record
 SEED = 20261112
 COUNT = 5
 RELABEL_DIR = "relabel"
+# Inside relabel/: the first-pass labels as they stood when the second pass was drawn, so a
+# later correction to a gold label does not move the agreement.
+FIRST_PASS_DIR = "first"
 # The README block that gold agreement --readme writes.
 AGREEMENT_BLOCK = "gold-agreement"
 
@@ -61,13 +64,20 @@ def write_templates(out_dir: Path, config: QuestionConfig, count: int = COUNT) -
     target.mkdir(parents=True, exist_ok=True)
     for pmid in picks:
         (target / f"{pmid}.toml").write_text(label_template(gold[pmid], config))
+    kept = target / FIRST_PASS_DIR
+    kept.mkdir()
+    for pmid in picks:
+        (kept / f"{pmid}.toml").write_bytes((out_dir / "labels" / f"{pmid}.toml").read_bytes())
     return picks
 
 
 def read_passes(
     out_dir: Path, config: QuestionConfig
 ) -> tuple[dict[str, AbstractLabel], dict[str, AbstractLabel]]:
-    """Both passes over the relabeled records; raises ValueError naming any unfinished file."""
+    """Both passes over the relabeled records: the first as kept when the second was drawn.
+
+    Raises ValueError naming any unfinished file or any record without a kept first pass.
+    """
     gold = {g.abstract.pmid: g for g in read_gold(out_dir)}
     paths = sorted((out_dir / RELABEL_DIR).glob("*.toml"))
     if not paths:
@@ -76,11 +86,11 @@ def read_passes(
     if problems:
         raise ValueError(f"finish the second pass first: {', '.join(problems)}")
     second = {p.stem: load_abstract_label(p) for p in paths}
-    first = {
-        pmid: load_abstract_label(out_dir / "labels" / f"{pmid}.toml")
-        for pmid in second
-        if (out_dir / "labels" / f"{pmid}.toml").exists()
-    }
+    kept = out_dir / RELABEL_DIR / FIRST_PASS_DIR
+    missing = [p for p in second if not (kept / f"{p}.toml").exists()]
+    if missing:
+        raise ValueError(f"no first pass kept from the draw for {', '.join(missing)}")
+    first = {pmid: load_abstract_label(kept / f"{pmid}.toml") for pmid in second}
     return first, second
 
 

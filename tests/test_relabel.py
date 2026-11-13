@@ -244,3 +244,29 @@ def test_the_readme_shows_the_current_agreement() -> None:
     readme = (ROOT / "README.md").read_text()
 
     assert replace_block(readme, AGREEMENT_BLOCK, table) == readme
+
+
+def test_the_draw_keeps_the_first_pass_as_it_stood(tmp_path: Path) -> None:
+    out = labeled_gold(tmp_path)
+    write_templates(out, VITAMIN_D, count=1)
+    first_pass = (out / "labels" / "999000001.toml").read_text()
+    (out / "relabel" / "999000001.toml").write_text(first_pass)
+    measured = agreement(*read_passes(out, VITAMIN_D))
+
+    # A later correction to the gold label does not move what the second pass is compared with.
+    corrected = first_pass.replace("sample_size = 120", "sample_size = 121")
+    assert corrected != first_pass
+    (out / "labels" / "999000001.toml").write_text(corrected)
+
+    assert (out / "relabel" / "first" / "999000001.toml").read_text() == first_pass
+    assert agreement(*read_passes(out, VITAMIN_D)) == measured
+
+
+def test_agreement_needs_the_kept_first_pass(tmp_path: Path) -> None:
+    out = labeled_gold(tmp_path)
+    write_templates(out, VITAMIN_D, count=1)
+    (out / "relabel" / "999000001.toml").write_text((EXAMPLES / "999000001.toml").read_text())
+    (out / "relabel" / "first" / "999000001.toml").unlink()
+
+    with pytest.raises(ValueError, match="first pass"):
+        read_passes(out, VITAMIN_D)
