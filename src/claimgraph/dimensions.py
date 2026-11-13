@@ -6,7 +6,7 @@ from pydantic import Field, PositiveInt, create_model
 
 from claimgraph.config import OUTSIDE_DOMAIN, Dimension, DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS
-from claimgraph.models import FindingFields, Record
+from claimgraph.models import FindingFacts, FindingFields, Record
 
 
 def _answer_type(values: list[str]) -> Any:
@@ -72,22 +72,38 @@ def _description(dimension: Dimension) -> str:
     return f"{dimension.definition} Unit: {dimension.unit}."
 
 
-def build_finding_model(config: QuestionConfig) -> type[FindingFields]:
+def _fixed_fields() -> dict[str, Any]:
+    # The model reports the facts the effect is worked out from, where the effect would sit,
+    # rather than the effect itself.
+    fields: dict[str, Any] = {}
+    for name, info in FindingFields.model_fields.items():
+        if name == "effect":
+            fields |= {n: (f.annotation, f) for n, f in FindingFacts.model_fields.items()}
+        else:
+            fields[name] = (info.annotation, info)
+    return fields
+
+
+def build_finding_model(config: QuestionConfig) -> type[Record]:
     # The model names the domain entry each finding is on, with an explicit way out, so a
     # finding on another outcome is marked and dropped rather than filed under a domain entry.
     domain: Any = Literal[tuple([*config.outcome_domain, OUTSIDE_DOMAIN])]
-    fields: dict[str, Any] = {
-        "domain_outcome": (
-            domain,
-            Field(
-                description=(
-                    "The entry of the outcome domain this finding is on, or "
-                    f"'{OUTSIDE_DOMAIN}' when its outcome fits none."
-                )
-            ),
-        )
-    } | {d.name: (_field_type(d), Field(description=_description(d))) for d in config.dimensions}
-    return create_model("ExtractedFinding", __base__=FindingFields, **fields)
+    fields: dict[str, Any] = (
+        _fixed_fields()
+        | {
+            "domain_outcome": (
+                domain,
+                Field(
+                    description=(
+                        "The entry of the outcome domain this finding is on, or "
+                        f"'{OUTSIDE_DOMAIN}' when its outcome fits none."
+                    )
+                ),
+            )
+        }
+        | {d.name: (_field_type(d), Field(description=_description(d))) for d in config.dimensions}
+    )
+    return create_model("ExtractedFinding", __base__=Record, **fields)
 
 
 def build_extraction_model(config: QuestionConfig) -> type[ExtractionFields]:

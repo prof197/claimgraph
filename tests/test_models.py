@@ -12,14 +12,17 @@ from claimgraph.models import (
     Arm,
     CandidatePair,
     Classification,
+    Comparison,
     Design,
     Effect,
+    ExposureSide,
     Finding,
     NormalizedOutcome,
     PairKind,
     Reason,
     Study,
     Verdict,
+    effect_from,
 )
 
 
@@ -46,6 +49,9 @@ def finding(**overrides: Any) -> Finding:
         "quote": "Synthetic quote: scores fell more with vitamin D than with placebo.",
         "outcome_reported": "synthetic depression score",
         "effect": Effect.DECREASED,
+        "exposure_side": ExposureSide.MORE,
+        "outcome_direction": Effect.DECREASED,
+        "comparison": Comparison.BETWEEN,
         "is_primary": True,
         "is_subgroup": False,
         "subgroup": None,
@@ -237,3 +243,21 @@ def test_every_design_has_exactly_one_role() -> None:
     roles = [weighted, REVIEW_DESIGNS, DEFAULT_EXCLUDED_DESIGNS, {Design.OTHER}]
     for design in Design:
         assert sum(design in role for role in roles) == 1, design
+
+
+@pytest.mark.parametrize(
+    ("side", "direction", "effect"),
+    [
+        (ExposureSide.MORE, Effect.DECREASED, Effect.DECREASED),
+        (ExposureSide.MORE, Effect.INCREASED, Effect.INCREASED),
+        # "Deficiency was linked to more of the outcome": less of the exposure, outcome up.
+        (ExposureSide.LESS, Effect.INCREASED, Effect.DECREASED),
+        (ExposureSide.LESS, Effect.DECREASED, Effect.INCREASED),
+        (ExposureSide.LESS, Effect.NO_CHANGE, Effect.NO_CHANGE),
+        (ExposureSide.MORE, Effect.NO_CHANGE, Effect.NO_CHANGE),
+    ],
+)
+def test_the_effect_is_read_from_the_side_with_more_of_the_exposure(
+    side: ExposureSide, direction: Effect, effect: Effect
+) -> None:
+    assert effect_from(side, direction) is effect

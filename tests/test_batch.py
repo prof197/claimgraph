@@ -438,3 +438,31 @@ def test_the_summary_counts_what_was_dropped_and_seen(tmp_path: Path) -> None:
     assert (summary.findings, summary.outside_domain, summary.other_outcomes) == (1, 1, 2)
     assert summary.single_arm == 1
     assert summary.cost_usd > 0
+
+
+def test_the_summary_counts_trial_findings_within_one_group(tmp_path: Path) -> None:
+    from claimgraph.design_tree import full_answers
+    from claimgraph.models import Design
+
+    within = finding(
+        quote="Synthetic depression scores fell more with synthetic vitamin D than with placebo "
+        "(p = 0.01).",
+        comparison="within_one_group",
+    )
+    trial = response(
+        json.dumps(output(design_answers=full_answers(Design.RCT), findings=[finding(), within]))
+    )
+    run = extract_batched(
+        [titled("Trial.")],
+        VITAMIN_D,
+        tmp_path,
+        ModelChoice.HAIKU,
+        FakeBatches(by_title({"Trial.": [trial]})),
+    )
+
+    summary = batch.summarize(run, "claude-haiku-5-5", PRICES)
+
+    assert (summary.findings, summary.within_or_pooled) == (1, 1)
+    assert "1 more dropped as within one group or pooled in a trial" in "\n".join(
+        batch.describe(run, summary)
+    )

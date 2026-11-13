@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig, load_config
 from claimgraph.design_tree import QUESTIONS, full_answers
 from claimgraph.dimensions import build_extraction_model, build_finding_model
-from claimgraph.models import Design, FindingFields
+from claimgraph.models import Design
 
 ROOT = Path(__file__).parents[1]
 SNAPSHOTS = Path(__file__).parent / "snapshots"
@@ -45,7 +45,9 @@ def extracted_finding(**dimension_values: Any) -> dict[str, Any]:
         "claim": "Synthetic claim.",
         "quote": "Synthetic quote.",
         "outcome_reported": "synthetic score",
-        "effect": "no_change",
+        "exposure_side": "more",
+        "outcome_direction": "no_change",
+        "comparison": "between_groups_or_across_participants",
         "is_primary": True,
         "is_subgroup": False,
         "subgroup": None,
@@ -70,7 +72,21 @@ def test_extraction_schema_matches_snapshot() -> None:
 def test_without_dimensions_only_fixed_fields_and_the_domain() -> None:
     model = build_finding_model(config())
 
-    assert list(model.model_fields) == [*FindingFields.model_fields, "domain_outcome"]
+    assert list(model.model_fields) == [
+        "claim",
+        "quote",
+        "outcome_reported",
+        "exposure_side",
+        "outcome_direction",
+        "comparison",
+        "is_primary",
+        "is_subgroup",
+        "subgroup",
+        "population",
+        "intervention",
+        "comparator",
+        "domain_outcome",
+    ]
 
 
 def test_the_domain_field_offers_the_domain_and_an_explicit_way_out() -> None:

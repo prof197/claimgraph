@@ -1,5 +1,15 @@
 {
   "$defs": {
+    "Comparison": {
+      "description": "What a result compares. A trial's findings are its comparisons between groups.",
+      "enum": [
+        "between_groups_or_across_participants",
+        "within_one_group",
+        "pooled_across_groups"
+      ],
+      "title": "Comparison",
+      "type": "string"
+    },
     "DesignAnswers": {
       "additionalProperties": false,
       "properties": {
@@ -131,6 +141,15 @@
       "title": "Effect",
       "type": "string"
     },
+    "ExposureSide": {
+      "description": "Which way the abstract's own wording of a result points on the exposure.",
+      "enum": [
+        "more",
+        "less"
+      ],
+      "title": "ExposureSide",
+      "type": "string"
+    },
     "ExtractedFinding": {
       "additionalProperties": false,
       "properties": {
@@ -152,9 +171,17 @@
           "title": "Outcome Reported",
           "type": "string"
         },
-        "effect": {
+        "exposure_side": {
+          "$ref": "#/$defs/ExposureSide",
+          "description": "Which side of the result the abstract's sentence names: more when it is worded from more of the exposure, a higher level, intake or dose, or getting it rather than placebo; less when it is worded from less, such as deficiency, low levels, the lowest group or placebo."
+        },
+        "outcome_direction": {
           "$ref": "#/$defs/Effect",
-          "description": "What happened to the measure with the intervention compared with the comparator: increased, decreased, or no_change when the abstract reports no significant difference."
+          "description": "What happened to the outcome on that named side: increased, decreased, or no_change when the abstract reports no significant difference."
+        },
+        "comparison": {
+          "$ref": "#/$defs/Comparison",
+          "description": "What the result compares: between_groups_or_across_participants for groups compared with each other or an association across participants; within_one_group for a change over time inside one group; pooled_across_groups for a change over time with all groups taken together."
         },
         "is_primary": {
           "description": "True if the abstract names this as the study's primary outcome.",
@@ -222,7 +249,9 @@
         "claim",
         "quote",
         "outcome_reported",
-        "effect",
+        "exposure_side",
+        "outcome_direction",
+        "comparison",
         "is_primary",
         "is_subgroup",
         "subgroup",

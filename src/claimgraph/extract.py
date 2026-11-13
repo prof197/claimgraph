@@ -18,7 +18,16 @@ from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, READINGS, settle
 from claimgraph.dimensions import build_extraction_model
 from claimgraph.llm import ModelClient, Reply, Usage
-from claimgraph.models import REVIEW_DESIGNS, Design, Finding, FindingFields, Record
+from claimgraph.models import (
+    REVIEW_DESIGNS,
+    Comparison,
+    Design,
+    Finding,
+    FindingFacts,
+    FindingFields,
+    Record,
+    effect_from,
+)
 from claimgraph.retrieve import Abstract
 from claimgraph.verbatim import quote_in
 
@@ -97,19 +106,29 @@ with and without the outcome is a finding on the outcome, read with the exposure
 - quote: copied exactly, character for character. If the result spans two sentences, take the \
 one with the result. One sentence can back several findings, such as two subgroups: give each \
 finding its own entry with the same quote.
-- effect: what happened to the measure on the side with more of the exposure, compared with \
-the side with less: increased, decreased, or no_change when the abstract reports no significant \
-difference, a non-significant trend included. More of the exposure means a higher measured \
-level, a higher intake or dose, or getting it rather than placebo or nothing. In a trial it is \
-the arm that got more: the exposure against placebo, or the higher dose against the lower. In a \
-single-arm study it is after against before. Turn a result stated the other way round, as too \
-little of the exposure against enough, so that more of the exposure is the exposure side. For \
-example, "deficiency was linked to more of the outcome" is decreased: on the side with more of \
-the exposure, the outcome was lower. "The outcome was less common with enough of the exposure" \
-is decreased too, and "deficiency made no difference to the outcome" is no_change. When \
+- exposure_side and outcome_direction: code works out the effect from these two facts, so \
+report each as the sentence words it, without turning anything round. exposure_side is the side \
+the sentence is worded from: more for more of the exposure, such as a higher measured level, a \
+higher intake or dose, getting it rather than placebo or nothing, the higher dose against the \
+lower, or after against before in a single-arm study; less for less of the exposure, such as \
+deficiency, low levels, the lowest group, or placebo against the exposure. outcome_direction \
+is what happened to the outcome on that side: increased, decreased, or no_change when the \
+abstract reports no significant difference, a non-significant trend included. For example, \
+"deficiency was linked to more of the outcome" is less and increased; "higher levels went with \
+lower outcome scores" is more and decreased; "deficiency made no difference to the outcome" is \
+less and no_change. An association stated as a correlation is worded from more of the \
+exposure: "levels were inversely associated with outcome scores" is more and decreased. When \
 the abstract groups people by the outcome, as in "people with the outcome had lower levels of \
-the exposure", read it with the exposure as the cause: that is decreased, and outcome_reported \
-names the outcome measure, not the exposure level.
+the exposure", read it with the exposure as the cause: less of the exposure went with more of \
+the outcome, so it is less and increased, and outcome_reported names the outcome measure, not \
+the exposure level.
+- comparison: between_groups_or_across_participants for groups compared with each other, such \
+as the exposure arm against placebo or the deficient against the sufficient, and for an \
+association between the exposure's level and the outcome across participants, such as "levels \
+were inversely associated with scores"; within_one_group for a change over time inside one \
+group, such as "scores fell in the exposure group", and for a single-arm study's after against \
+before; pooled_across_groups for a change over time with all groups taken together, such as \
+"scores improved in both arms".
 - is_primary: true only when the abstract calls this the primary outcome or endpoint; \
 co-primary outcomes are all true. Otherwise false, even when it is the only outcome reported. A \
 subgroup result is never primary.
@@ -353,6 +372,11 @@ TAGGED_DESIGNS: tuple[tuple[str, Design], ...] = (
 )
 
 
+# Designs whose findings are their comparisons between groups, with the design as code works it
+# out. A case series keeps after against before, and observational designs never drop on this.
+BETWEEN_GROUPS_ONLY = frozenset({Design.RCT, Design.NON_RANDOMIZED_TRIAL})
+
+
 def tagged_design(publication_types: Iterable[str]) -> Design | None:
     types = set(publication_types)
     return next((design for tag, design in TAGGED_DESIGNS if tag in types), None)
@@ -376,6 +400,9 @@ class ExtractedStudy(Record):
     # Findings the model marked outside the outcome domain: dropped, and their outcomes added to
     # other_outcomes, so they are counted with the other outcomes seen.
     outside_domain: int
+    # Findings in a trial that compare within one group or pool across its groups: not
+    # findings of the trial, so dropped and counted.
+    within_or_pooled: int
 
 
 def match_enums(value: Any, node: Mapping[str, Any], defs: Mapping[str, Any]) -> Any:
@@ -425,16 +452,19 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
     answered = settle(answers)
     tagged = tagged_design(abstract.publication_types)
     design = tagged or answered
-    fixed = FindingFields.model_fields.keys()
+    fixed = FindingFields.model_fields.keys() | FindingFacts.model_fields.keys()
     findings: list[Finding] = []
     outside: list[str] = []
-    primary_subgroups = 0
+    primary_subgroups = within_or_pooled = 0
     for n, finding in enumerate(fields["findings"], start=1):
         if finding["subgroup"] is not None and not finding["is_subgroup"]:
             raise InvalidOutput(f"findings.{n - 1}.subgroup: named, but is_subgroup is false")
         domain_outcome = finding.pop("domain_outcome")
         if domain_outcome == OUTSIDE_DOMAIN:
             outside.append(finding["outcome_reported"])
+            continue
+        if design in BETWEEN_GROUPS_ONLY and finding["comparison"] is not Comparison.BETWEEN:
+            within_or_pooled += 1
             continue
         if finding["is_primary"] and finding["is_subgroup"]:
             # A subgroup result never stands for its study, so it is kept as a subgroup.
@@ -444,6 +474,7 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
             Finding(
                 finding_id=f"{abstract.pmid}-{n}",
                 domain_outcome=domain_outcome,
+                effect=effect_from(finding["exposure_side"], finding["outcome_direction"]),
                 dimensions={k: v for k, v in finding.items() if k not in fixed},
                 **{k: v for k, v in finding.items() if k in fixed},
             )
@@ -462,6 +493,7 @@ def read_extraction(reply: Reply, abstract: Abstract, config: QuestionConfig) ->
         primary_subgroups=0 if is_review else primary_subgroups,
         review_findings_dropped=len(findings) if is_review else 0,
         outside_domain=0 if is_review else len(outside),
+        within_or_pooled=0 if is_review else within_or_pooled,
     )
 
 

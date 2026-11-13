@@ -48,6 +48,37 @@ class Effect(StrEnum):
     NO_CHANGE = "no_change"
 
 
+class ExposureSide(StrEnum):
+    """Which way the abstract's own wording of a result points on the exposure."""
+
+    MORE = "more"
+    LESS = "less"
+
+
+_FLIPPED = {Effect.INCREASED: Effect.DECREASED, Effect.DECREASED: Effect.INCREASED}
+
+
+def effect_from(side: ExposureSide, direction: Effect) -> Effect:
+    """The effect on the side with more of the exposure, from a result worded either way round.
+
+    "Deficiency was linked to more of the outcome" is less of the exposure and the outcome up,
+    so the effect is decreased. The model reports the two facts and code turns them round, so a
+    result stated from deficiency cannot flip and make a false contradiction.
+    """
+    if side is ExposureSide.MORE:
+        return direction
+    return _FLIPPED.get(direction, direction)
+
+
+class Comparison(StrEnum):
+    """What a result compares. A trial's findings are its comparisons between groups."""
+
+    # Named so that a continuous association across participants plainly fits it.
+    BETWEEN = "between_groups_or_across_participants"
+    WITHIN = "within_one_group"
+    POOLED = "pooled_across_groups"
+
+
 class Direction(StrEnum):
     """Effect combined with the reviewed polarity of the outcome."""
 
@@ -145,11 +176,11 @@ class FindingFields(Record):
             "abstract names one, such as 'symptom severity (PHQ-9)' or 'PHQ-9 score'."
         )
     )
+    # Worked out by effect_from from the facts the model reports, never asked for directly.
     effect: Effect = Field(
         description=(
-            "What happened to the measure with the intervention compared with the comparator: "
-            "increased, decreased, or no_change when the abstract reports no significant "
-            "difference."
+            "What happened to the measure on the side with more of the exposure: increased, "
+            "decreased, or no_change when the abstract reports no significant difference."
         )
     )
     is_primary: bool = Field(
@@ -176,7 +207,34 @@ class FindingFields(Record):
     comparator: str = Field(description="Placebo, active treatment or usual care, as reported.")
 
 
-class Finding(FindingFields):
+class FindingFacts(Record):
+    """Facts the model reports for each finding in place of its effect, kept as provenance."""
+
+    exposure_side: ExposureSide = Field(
+        description=(
+            "Which side of the result the abstract's sentence names: more when it is worded "
+            "from more of the exposure, a higher level, intake or dose, or getting it rather "
+            "than placebo; less when it is worded from less, such as deficiency, low levels, "
+            "the lowest group or placebo."
+        )
+    )
+    outcome_direction: Effect = Field(
+        description=(
+            "What happened to the outcome on that named side: increased, decreased, or "
+            "no_change when the abstract reports no significant difference."
+        )
+    )
+    comparison: Comparison = Field(
+        description=(
+            "What the result compares: between_groups_or_across_participants for groups "
+            "compared with each other or an association across participants; "
+            "within_one_group for a change over time inside one group; pooled_across_groups "
+            "for a change over time with all groups taken together."
+        )
+    )
+
+
+class Finding(FindingFields, FindingFacts):
     finding_id: FindingId
     # Which entry of the question's outcome domain the finding is on, as the model named it.
     domain_outcome: NonBlank

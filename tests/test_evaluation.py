@@ -100,7 +100,9 @@ def test_an_extra_finding_costs_precision_and_a_missed_one_recall() -> None:
 
 
 def test_a_matched_finding_can_still_get_a_field_wrong() -> None:
-    wrong = result(findings=[finding(effect="decreased", baseline_vitamin_d_status="mixed")])
+    wrong = result(
+        findings=[finding(outcome_direction="decreased", baseline_vitamin_d_status="mixed")]
+    )
 
     scored = fields(score([wrong]))
 
@@ -176,7 +178,7 @@ def test_design_other_is_counted() -> None:
 
 
 def test_the_table_gives_counts_and_rates() -> None:
-    table = extraction_table(score([result(findings=[finding(effect="decreased")])]))
+    table = extraction_table(score([result(findings=[finding(outcome_direction="decreased")])]))
 
     assert "| design | 1 of 1 (100%) |" in table
     assert "| effect | 0 of 1 (0%) | 0 of 1 (0%) |" in table

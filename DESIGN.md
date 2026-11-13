@@ -72,7 +72,10 @@ several outcomes, arms or subgroups.
 | Finding | `claim` | str | One plain sentence written by the model |
 | Finding | `quote` | str | The exact sentence from the abstract; must match verbatim |
 | Finding | `outcome_reported` | str | The measure as reported, such as "PHQ-8 mood score" |
-| Finding | `effect` | Effect | `increased`, `decreased` or `no_change`, on the outcome as reported |
+| Finding | `effect` | Effect | `increased`, `decreased` or `no_change`, on the side with more of the exposure; worked out by code from the next two |
+| Finding | `exposure_side` | ExposureSide | `more` or `less`: the side the abstract's sentence is worded from, reported by the model |
+| Finding | `outcome_direction` | Effect | What happened to the outcome on that side, reported by the model |
+| Finding | `comparison` | Comparison | `between_groups_or_across_participants`, `within_one_group` or `pooled_across_groups` |
 | Finding | `is_primary` | bool | The abstract names this as its primary outcome |
 | Finding | `is_subgroup` | bool | The result covers only part of the analyzed sample, split by a characteristic such as sex, age or baseline status |
 | Finding | `subgroup` | str or None | For a subgroup result, which part of the sample, as the abstract names it |
@@ -113,6 +116,22 @@ or narrative, the other outcomes it saw, and the list of findings.
   question after "the researchers did not give the exposure", or the first question on a
   review. Answering every question on its facts replaced it, so that class of error cannot
   occur; the retry stays for other errors.
+- **Effect from two facts.** The model does not give the effect. It reports the side the
+  sentence is worded from, more or less of the exposure, and what happened to the outcome on
+  that side, and code turns a result worded from less round. "Deficiency was linked to more
+  depression" is less and increased, so the effect is decreased. Two prompt wordings that asked
+  the model to turn such results round itself still left it reading deficiency the wrong way
+  on 2 dev abstracts each time, and a flipped direction makes a false contradiction, the
+  costliest error the extraction can make. In gold the effect stays the label; the two facts
+  are provenance, never labeled or scored, as the design answers are.
+- **Comparison as a fact.** Each finding says what it compares: groups with each other or an
+  association across participants, a change within one group, or a change pooled across the
+  groups. Code drops the last two only when the design, as code works it out, is an RCT or a
+  non-randomized trial, whose findings are its comparisons between arms; a case series keeps
+  after against before, and observational designs never drop on this field. The kept choice
+  is named so a correlation across participants plainly fits it. A prompt rule against
+  within-group change still left 3 dev trials reporting one. Dropped findings are counted in
+  the extract manifest.
 - **Other outcomes** are the outcomes outside the domain that the abstract reports results for.
   They are counted as out of scope in the run manifest, and never scored, labeled or stored as
   findings.
@@ -338,10 +357,11 @@ title alone.
 - **One prompt for every question.** The extraction prompt states the labeling rules in
   general terms, filled in from the question config. Examples specific to a question live in its
   config and the labeling guide, never in the shared prompt, so a new question needs no prompt
-  edits. The one worked example, a result stated from deficiency, is in general terms too. Read
-  as written, such a result flips its direction and makes a false contradiction, the costliest
-  error the extraction can make, so the example went in when dev showed it on two abstracts,
-  without waiting for a pattern on more. The rules:
+  edits. The worked examples for the effect's two facts, such as a result stated from
+  deficiency, are in general terms too. Read as written, such a result flips its direction and
+  makes a false contradiction, the costliest error the extraction can make, so the first
+  example went in when dev showed it on two abstracts, without waiting for a pattern on more.
+  The rules:
   - The effect is read from the side with more of the exposure.
   - Measures that combine the outcome domain with something else don't count, and neither do
     scales for a neighbouring construct.
@@ -376,7 +396,8 @@ title alone.
   broad search adds recall without filling the map with unrelated outcomes.
 - **Extract manifest.** Each extraction run writes an entry, such as `dev-haiku`, to
   `extract/manifest.json` in the run directory: abstracts extracted and missing, output invalid
-  after the retry, findings kept and dropped as outside the domain, other outcomes seen,
+  after the retry, findings kept, dropped as outside the domain and dropped as within one group
+  or pooled in a trial, other outcomes seen,
   primary results kept as subgroups, review findings dropped, single-arm studies, the quote
   counts, the token counts and their cost. Retrieval rewrites `manifest.json` whole, so the
   extract stage keeps its own.
@@ -686,7 +707,8 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   deficiency against sufficiency is turned round, so that direction can be derived the same
   way for trials and observational studies. An association reported with depression as the
   exposure, such as lower vitamin D in depressed patients, is read the same way round, with the
-  depression measure as the outcome.
+  depression measure as the outcome. In extraction, code does the turning round, from the two facts
+  the model reports.
 - **Primary means named.** A finding is primary only when the abstract calls it the primary or
   a co-primary outcome; a subgroup result on the primary outcome is not.
 - **Subgroups are marked.** A subgroup result covers part of the analyzed sample, split by sex,
@@ -744,6 +766,10 @@ the latest, generated by `claimgraph eval extraction`; earlier numbers are kept 
    Dev review: a change within one group still reported beside a comparison group (3
    abstracts), and a result stated from deficiency still read the wrong way round (2
    abstracts).
+5. **Haiku 5.5, effect and comparison as facts** (2026-11-13). Changed: each finding reports the
+   side its sentence is worded from and the outcome's direction on it, and code works out the
+   effect; each finding says what it compares, and code drops within-group and pooled changes
+   in trials. The last round of prompt changes: the prompt is frozen after this run.
 
 ## Cost
 

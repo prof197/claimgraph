@@ -273,6 +273,8 @@ class ExtractManifest(Record):
     findings: int
     # Findings the model marked outside the outcome domain, dropped from the findings.
     outside_domain: int
+    # Trial findings within one group or pooled across groups, dropped from the findings.
+    within_or_pooled: int
     # Outcome names outside the domain, across abstracts, the dropped findings' included.
     other_outcomes: int
     primary_subgroups: int
@@ -304,6 +306,7 @@ def summarize(run: BatchRun, model: str, prices: Prices) -> ExtractManifest:
         invalid=sum(r.study is None for r in results),
         findings=sum(len(s.findings) for s in studies),
         outside_domain=sum(s.outside_domain for s in studies),
+        within_or_pooled=sum(s.within_or_pooled for s in studies),
         other_outcomes=sum(len(s.other_outcomes) for s in studies),
         primary_subgroups=sum(s.primary_subgroups for s in studies),
         review_findings_dropped=sum(s.review_findings_dropped for s in studies),
@@ -335,7 +338,8 @@ def describe(run: BatchRun, summary: ExtractManifest) -> list[str]:
     return [
         *resumed,
         f"{s.extracted} extracted, {s.missing} missing; {s.invalid} invalid after the retry",
-        f"{s.findings} findings, {s.outside_domain} more dropped as outside the domain; "
+        f"{s.findings} findings, {s.outside_domain} more dropped as outside the domain, "
+        f"{s.within_or_pooled} more dropped as within one group or pooled in a trial; "
         f"{s.other_outcomes} other outcomes seen; {s.single_arm} single-arm",
         f"quotes: {s.quotes_checked} checked, {s.quote_misses} missed, {s.quotes_dropped} dropped",
         f"{s.requests} requests, {run.batches} batches sent now; tokens: {s.input_tokens} input, "

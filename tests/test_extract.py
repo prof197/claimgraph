@@ -28,7 +28,7 @@ from claimgraph.extract import (
 )
 from claimgraph.labels import read_gold
 from claimgraph.llm import Mode, ModelClient, Reply, Usage
-from claimgraph.models import Design, Effect
+from claimgraph.models import Comparison, Design, Effect, ExposureSide
 from claimgraph.retrieve import Abstract
 
 CREATINE = load_config(ROOT / "questions" / "creatine-cognition.toml")
@@ -45,7 +45,9 @@ def finding(**overrides: Any) -> dict[str, Any]:
         "claim": "Synthetic remission did not differ.",
         "quote": QUOTE,
         "outcome_reported": "synthetic remission",
-        "effect": "no_change",
+        "exposure_side": "more",
+        "outcome_direction": "no_change",
+        "comparison": "between_groups_or_across_participants",
         "is_primary": False,
         "is_subgroup": False,
         "subgroup": None,
@@ -308,7 +310,9 @@ def test_a_valid_response_becomes_a_study_with_findings() -> None:
 def test_closed_values_match_whatever_their_case() -> None:
     upper = output(
         design_answers={k: v.upper() for k, v in answers().items()},
-        findings=[finding(effect="No_Change", baseline_vitamin_d_status="BELOW_20_NG_ML")],
+        findings=[
+            finding(outcome_direction="No_Change", baseline_vitamin_d_status="BELOW_20_NG_ML")
+        ],
     )
 
     study = read_extraction(reply(json.dumps(upper)), synthetic_abstract(), VITAMIN_D)
@@ -400,7 +404,11 @@ def test_a_primary_subgroup_result_is_kept_as_a_subgroup_and_counted() -> None:
     ("text", "stop_reason", "message"),
     [
         ("not json", "end_turn", "not valid JSON"),
-        (json.dumps(output(findings=[finding(effect="worse")])), "end_turn", "findings.0.effect"),
+        (
+            json.dumps(output(findings=[finding(outcome_direction="worse")])),
+            "end_turn",
+            "findings.0.outcome_direction",
+        ),
         (json.dumps(output(sample_size=0)), "end_turn", "sample_size"),
         (json.dumps(output(findings=[finding(quote=" ")])), "end_turn", "findings.0.quote"),
         (
@@ -771,7 +779,109 @@ def test_the_prompt_says_the_exposure_is_never_the_outcome() -> None:
 
 
 def test_the_prompt_works_a_deficiency_example_from_the_side_with_more() -> None:
-    # A result stated from deficiency flips if read as written, so the prompt works one through.
+    # A result stated from deficiency flips if read as written, so the prompt works one through
+    # as the two facts code turns round.
     prompt = " ".join(system_prompt(VITAMIN_D).split())
 
-    assert '"deficiency was linked to more of the outcome" is decreased' in prompt
+    assert '"deficiency was linked to more of the outcome" is less and increased' in prompt
+
+
+# The effect and the comparison, as facts the model reports and code reads
+
+
+def test_the_effect_is_worked_out_from_the_two_facts_and_the_facts_are_kept() -> None:
+    deficiency = finding(exposure_side="less", outcome_direction="increased")
+
+    study = read_extraction(
+        reply(json.dumps(output(findings=[deficiency]))), synthetic_abstract(), VITAMIN_D
+    )
+
+    (stored,) = study.findings
+    assert stored.effect is Effect.DECREASED
+    assert (stored.exposure_side, stored.outcome_direction) == (
+        ExposureSide.LESS,
+        Effect.INCREASED,
+    )
+    assert stored.comparison is Comparison.BETWEEN
+    assert not {"exposure_side", "outcome_direction", "comparison"} & stored.dimensions.keys()
+
+
+def test_the_model_reports_the_facts_not_the_effect() -> None:
+    defs = response_schema(VITAMIN_D)["$defs"]
+    properties = defs["ExtractedFinding"]["properties"]
+
+    def options(name: str) -> list[str]:
+        return defs[properties[name]["$ref"].rsplit("/", 1)[-1]]["enum"]
+
+    assert "effect" not in properties
+    assert options("exposure_side") == ["more", "less"]
+    assert options("outcome_direction") == ["increased", "decreased", "no_change"]
+    assert options("comparison") == [
+        "between_groups_or_across_participants",
+        "within_one_group",
+        "pooled_across_groups",
+    ]
+
+
+@pytest.mark.parametrize("design", [Design.RCT, Design.NON_RANDOMIZED_TRIAL])
+@pytest.mark.parametrize("comparison", ["within_one_group", "pooled_across_groups"])
+def test_a_trial_keeps_only_comparisons_between_its_groups(design: Design, comparison: str) -> None:
+    within = scores(comparison=comparison)
+    out = output(design_answers=full_answers(design), findings=[finding(), within])
+
+    study = read_extraction(reply(json.dumps(out)), synthetic_abstract(), VITAMIN_D)
+
+    assert [f.quote for f in study.findings] == [QUOTE]
+    assert study.within_or_pooled == 1
+
+
+def test_a_trial_set_by_publication_type_drops_within_group_change_too() -> None:
+    out = output(
+        design_answers=full_answers(Design.COHORT), findings=[scores(comparison="within_one_group")]
+    )
+
+    study = read_extraction(
+        reply(json.dumps(out)), tagged("Randomized Controlled Trial"), VITAMIN_D
+    )
+
+    assert (study.design, study.findings, study.within_or_pooled) == (Design.RCT, [], 1)
+
+
+def test_a_case_series_keeps_after_against_before() -> None:
+    out = output(
+        design_answers=full_answers(Design.CASE_SERIES),
+        findings=[finding(comparison="within_one_group")],
+    )
+
+    study = read_extraction(reply(json.dumps(out)), synthetic_abstract(), VITAMIN_D)
+
+    assert len(study.findings) == 1
+    assert study.within_or_pooled == 0
+
+
+@pytest.mark.parametrize(
+    "design", [Design.COHORT, Design.CROSS_SECTIONAL, Design.CASE_CONTROL, Design.OTHER]
+)
+def test_observational_designs_never_drop_on_the_comparison(design: Design) -> None:
+    out = output(
+        design_answers=full_answers(design),
+        findings=[
+            finding(comparison="within_one_group"),
+            scores(comparison="pooled_across_groups"),
+        ],
+    )
+
+    study = read_extraction(reply(json.dumps(out)), synthetic_abstract(), VITAMIN_D)
+
+    assert len(study.findings) == 2
+    assert study.within_or_pooled == 0
+
+
+def test_the_prompt_fits_continuous_associations_to_the_kept_comparison() -> None:
+    prompt = " ".join(system_prompt(VITAMIN_D).split())
+
+    assert "between_groups_or_across_participants" in prompt
+    assert (
+        "an association between the exposure's level and the outcome across participants" in prompt
+    )
+    assert "exposure_side" in prompt and "outcome_direction" in prompt
