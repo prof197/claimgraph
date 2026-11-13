@@ -377,9 +377,18 @@ TAGGED_DESIGNS: tuple[tuple[str, Design], ...] = (
 BETWEEN_GROUPS_ONLY = frozenset({Design.RCT, Design.NON_RANDOMIZED_TRIAL})
 
 
-def tagged_design(publication_types: Iterable[str]) -> Design | None:
+# The review tags alone. Reviews tagged systematic or meta-analysis almost always state their
+# methods, while a trial tag also lands on secondary analyses that are observational.
+REVIEW_TAGS: tuple[tuple[str, Design], ...] = tuple(
+    (tag, design) for tag, design in TAGGED_DESIGNS if design in REVIEW_DESIGNS
+)
+
+
+def tagged_design(
+    publication_types: Iterable[str], tags: Sequence[tuple[str, Design]] = TAGGED_DESIGNS
+) -> Design | None:
     types = set(publication_types)
-    return next((design for tag, design in TAGGED_DESIGNS if tag in types), None)
+    return next((design for tag, design in tags if tag in types), None)
 
 
 class ExtractedStudy(Record):

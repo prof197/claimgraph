@@ -180,7 +180,8 @@ def test_design_other_is_counted() -> None:
 def test_the_table_gives_counts_and_rates() -> None:
     table = extraction_table(score([result(findings=[finding(outcome_direction="decreased")])]))
 
-    assert "| design | 1 of 1 (100%) |" in table
+    assert "| design, publication types first | 1 of 1 (100%) |" in table
+    assert "| design, review tags first and the answers otherwise | 1 of 1 (100%) |" in table
     assert "| effect | 0 of 1 (0%) | 0 of 1 (0%) |" in table
     assert "| finding, matched on quote | 1 of 1 (100%) | 1 of 1 (100%) |" in table
 
@@ -188,3 +189,26 @@ def test_the_table_gives_counts_and_rates() -> None:
 def test_every_label_needs_a_result() -> None:
     with pytest.raises(ValueError, match="999000001"):
         score([])
+
+
+def test_review_tags_first_keeps_review_tags_and_ignores_a_trial_tag() -> None:
+    # A secondary analysis tagged a trial, answered as the cohort it is labeled.
+    secondary = tagged("Randomized Controlled Trial")
+    cohort = result(secondary, design_answers=full_answers(Design.COHORT))
+    # A review tagged systematic, whose answers say narrative review.
+    review_tag = tagged("Systematic Review")
+    narrative = result(review_tag, design_answers=full_answers(Design.NARRATIVE_REVIEW))
+
+    scores = score(
+        [cohort],
+        [label(design="cohort")],
+        [gold_entry(abstract=secondary)],
+    )
+    review = score(
+        [narrative],
+        [label(design="systematic_review", finding=[], review_summary="Synthetic summary.")],
+        [gold_entry(abstract=review_tag)],
+    )
+
+    assert (scores.design.agree, scores.design_review_tags_first.agree) == (0, 1)
+    assert (review.design_answers_alone.agree, review.design_review_tags_first.agree) == (0, 1)

@@ -14,11 +14,13 @@ from claimgraph.batch import extract_batched
 from claimgraph.config import QuestionConfig
 from claimgraph.design_tree import diverges, settle
 from claimgraph.extract import (
+    REVIEW_TAGS,
     DesignSource,
     ExtractedStudy,
     ExtractionResult,
     ModelChoice,
     gold_replay_dir,
+    tagged_design,
 )
 from claimgraph.gold import GoldAbstract
 from claimgraph.labels import AbstractLabel, load_abstract_label, read_gold
@@ -59,6 +61,8 @@ class ExtractionScores(Record):
     invalid: int
     design: Count
     design_answers_alone: Count
+    # Publication types set the design only for review tags; the answers set every other design.
+    design_review_tags_first: Count
     sample_size: Count
     findings: list[FieldScore]
     quotes_checked: int
@@ -94,7 +98,7 @@ def score_extraction(
         d.name for d in config.dimensions
     ]
     correct: Counter[str] = Counter()
-    design = alone = size = off_topic = off_topic_empty = invalid = other = 0
+    design = alone = review_first = size = off_topic = off_topic_empty = invalid = other = 0
     model_findings = gold_findings = 0
     wrong: list[WrongDesign] = []
     for entry in gold:
@@ -112,7 +116,11 @@ def score_extraction(
         off_topic_empty += not entry.on_topic and not study.findings
         other += study.design is Design.OTHER
         design += study.design is lab.design
-        alone += settle(study.design_answers) is lab.design
+        answered = settle(study.design_answers)
+        alone += answered is lab.design
+        review_first += (
+            tagged_design(entry.abstract.publication_types, REVIEW_TAGS) or answered
+        ) is lab.design
         if study.design is not lab.design:
             wrong.append(
                 WrongDesign(
@@ -139,6 +147,7 @@ def score_extraction(
         invalid=invalid,
         design=Count(agree=design, of=n),
         design_answers_alone=Count(agree=alone, of=n),
+        design_review_tags_first=Count(agree=review_first, of=n),
         sample_size=Count(agree=size, of=n),
         findings=[
             FieldScore(name=name, correct=correct[name], model=model_findings, gold=gold_findings)
@@ -172,9 +181,11 @@ def extraction_table(scores: ExtractionScores) -> str:
         "",
         "| Study field | Correct |",
         "|---|---|",
-        f"| design | {_rate(scores.design.agree, scores.design.of)} |",
+        f"| design, publication types first | {_rate(scores.design.agree, scores.design.of)} |",
         "| design, from the model's answers alone | "
         f"{_rate(scores.design_answers_alone.agree, scores.design_answers_alone.of)} |",
+        "| design, review tags first and the answers otherwise | "
+        f"{_rate(scores.design_review_tags_first.agree, scores.design_review_tags_first.of)} |",
         f"| sample size | {_rate(scores.sample_size.agree, scores.sample_size.of)} |",
         "",
         "| Finding field | Precision | Recall |",

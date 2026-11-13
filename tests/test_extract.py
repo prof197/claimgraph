@@ -885,3 +885,11 @@ def test_the_prompt_fits_continuous_associations_to_the_kept_comparison() -> Non
         "an association between the exposure's level and the outcome across participants" in prompt
     )
     assert "exposure_side" in prompt and "outcome_direction" in prompt
+
+
+def test_only_review_tags_count_as_review_tags() -> None:
+    assert [tag for tag, _ in extract.REVIEW_TAGS] == [
+        "Meta-Analysis",
+        "Systematic Review",
+        "Scoping Review",
+    ]

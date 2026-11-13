@@ -546,7 +546,7 @@ data is labeled by hand, from openly licensed articles only.
 
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
-| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design also from the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
+| Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: publication types first, the model's answers alone, and review tags first; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Labeled outcome-string pairs, merge or not, including the hard cases | About 200 pairs | Merge precision and recall | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
@@ -876,11 +876,16 @@ These are expectations, to be replaced with measurements.
 - **Mis-normalized outcomes:** over-merging, under-merging, or a polarity error that flips benefit
   and harm. The reviewed mapping and the normalization eval guard this.
 - **Design misclassification:** wrong weights. Publication types come first, and design is scored
-  in the extraction eval. The first eval run reports design accuracy two ways from the same
-  outputs, publication types first and the model's design answers alone; if the answers alone
-  do better, publication types stop coming first. Only the four types named under Design from
-  publication types set a design: Clinical Trial, its phases and Controlled Clinical Trial never
-  do.
+  in the extraction eval, three ways from the same outputs: publication types first, the
+  model's design answers alone, and review tags first, where only Systematic Review,
+  Meta-Analysis and Scoping Review tags set the design and the answers set every other. Review
+  tags are reliable: 1 of the 109 records tagged systematic review or meta-analysis lacked a
+  stated method. The trial tag is not, since it also lands on secondary analyses that are
+  observational and would get trial weight. The choice is made on the second Haiku 5.5 gold run
+  and the Sonnet 5.5 gold run, both on the frozen prompt: review tags first is adopted if it
+  matches or beats publication types first on both, and publication types first stays
+  otherwise. Only the four types named under Design from publication types set a design:
+  Clinical Trial, its phases and Controlled Clinical Trial never do.
 - **Secondary analyses tagged as trials:** a secondary analysis of trial participants that does
   not compare the randomized arms is observational, but PubMed can tag it Randomized Controlled
   Trial, and the tag then sets the design to rct. One of the 15 gold records whose types name a
