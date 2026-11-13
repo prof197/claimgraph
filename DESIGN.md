@@ -463,8 +463,9 @@ data is labeled by hand, from openly licensed articles only.
 - **Reason classes:** six classes leave about 25 labeled pairs each, so per-class accuracy is
   reported with its interval, not as a headline.
 - **Matching findings:** the extraction eval pairs each gold finding with a model finding on
-  quote, outcome and subgroup together, not on the quote alone, because one sentence can back
-  several findings.
+  quote and subgroup. One sentence can back several findings, so findings that share a sentence
+  pair by the most outcome words in common. The outcome's wording never decides a match; the
+  outcome is scored as a field of the pair, or the eval would score wording.
 - **Replay cache:** responses are keyed by a hash of model, parameters and request. CI fails on a
   missing response rather than calling out.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
@@ -585,8 +586,8 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   are labeled a second time, blind: `claimgraph gold relabel` writes blank templates to `relabel/`, the
   labeling page labels them there without showing the first pass, and `claimgraph gold
   agreement` counts agreement field by field. Findings pair as the extraction eval pairs them,
-  on quote, outcome and subgroup, then on quote and subgroup alone, so a reworded outcome counts
-  against the outcome field rather than as a missed finding. The README reports the agreement
+  on quote and subgroup, so a reworded outcome counts against the outcome field rather than as a
+  missed finding. The README reports the agreement
   beside the extraction results.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
   ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:

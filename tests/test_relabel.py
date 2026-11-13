@@ -112,6 +112,33 @@ def test_findings_match_on_quote_and_subgroup_preferring_the_same_outcome() -> N
     ]
 
 
+def test_findings_on_one_sentence_pair_by_outcome_words_in_common() -> None:
+    sentence = "Synthetic remission rates did not differ between groups."
+    first = [
+        finding(quote=sentence, outcome_reported="synthetic incidence", is_primary=False),
+        finding(quote=sentence, outcome_reported="synthetic recurrence", is_primary=False),
+    ]
+    # Reworded and in the other order: wording does not decide whether findings match.
+    second = [
+        finding(quote=sentence, outcome_reported="recurrence of synthetic mood", is_primary=False),
+        finding(quote=sentence, outcome_reported="new synthetic incidence", is_primary=False),
+    ]
+
+    pairs = match_findings(label(finding=first).findings, label(finding=second).findings)
+
+    assert [(a.outcome_reported, b.outcome_reported) for a, b in pairs] == [
+        ("synthetic incidence", "new synthetic incidence"),
+        ("synthetic recurrence", "recurrence of synthetic mood"),
+    ]
+
+
+def test_findings_on_different_subgroups_never_pair() -> None:
+    first = [finding(is_primary=False, is_subgroup=True, subgroup="synthetic women")]
+    second = [finding(is_primary=False, is_subgroup=True, subgroup="synthetic men")]
+
+    assert match_findings(label(finding=first).findings, label(finding=second).findings) == []
+
+
 def test_agreement_counts_each_field() -> None:
     first = label(sample_size=120, finding=[finding(), finding(**REMISSION)])
     second = label(

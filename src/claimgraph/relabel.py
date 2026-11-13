@@ -7,7 +7,8 @@ without showing the first pass. Agreement between the passes is counted field by
 """
 
 import random
-from collections.abc import Callable, Mapping, Sequence
+import re
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from claimgraph.config import QuestionConfig
@@ -92,8 +93,8 @@ def _same_sentence(a: FindingLabel, b: FindingLabel) -> bool:
     return normalize_quote(a.quote) == normalize_quote(b.quote) and same_subgroup
 
 
-def _same_finding(a: FindingLabel, b: FindingLabel) -> bool:
-    return _same_sentence(a, b) and _text(a.outcome_reported) == _text(b.outcome_reported)
+def _words(outcome: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", outcome.casefold()))
 
 
 def match_findings(
@@ -101,20 +102,20 @@ def match_findings(
 ) -> list[tuple[FindingLabel, FindingLabel]]:
     """Pairs of findings the two passes share, in the first pass's order.
 
-    Findings pair on quote, outcome and subgroup, as the extraction eval pairs them, then on
-    quote and subgroup alone, so a reworded outcome counts against the outcome field rather than
-    as a missed finding.
+    Findings pair on quote and subgroup, never on the outcome's wording, so the outcome is
+    scored as a field rather than deciding the match. When one sentence holds several findings,
+    they pair by the most outcome words in common, then in the order they were labeled.
     """
+    candidates = sorted(
+        (-len(_words(a.outcome_reported) & _words(b.outcome_reported)), i, j)
+        for i, a in enumerate(first)
+        for j, b in enumerate(second)
+        if _same_sentence(a, b)
+    )
     pairs: list[tuple[int, int]] = []
-    rule: Callable[[FindingLabel, FindingLabel], bool]
-    for rule in (_same_finding, _same_sentence):
-        for i, a in enumerate(first):
-            if any(i == p for p, _ in pairs):
-                continue
-            taken = {q for _, q in pairs}
-            j = next((j for j, b in enumerate(second) if j not in taken and rule(a, b)), None)
-            if j is not None:
-                pairs.append((i, j))
+    for _, i, j in candidates:
+        if all(i != p and j != q for p, q in pairs):
+            pairs.append((i, j))
     return [(first[i], second[j]) for i, j in sorted(pairs)]
 
 
