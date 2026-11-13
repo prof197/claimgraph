@@ -298,8 +298,13 @@ title alone.
   price on Haiku 5.5 and 0.05× on Sonnet 5.5 and Opus 5.5, and they stack with the batch
   discount ([pricing][pricing]).
 - **Verbatim check.** Each quote must appear in its abstract after whitespace and quote-mark
-  normalization. A miss gets one retry that names the miss; a second miss drops the finding and
-  counts it. The page never shows an unchecked quote.
+  normalization: curly and straight marks match, and so do runs of spaces and line breaks;
+  anything else, a dropped mark or a changed number, is a miss. The abstract's sections are the
+  source, not its title. A miss gets one retry that names the missed quotes, separate from the
+  retry for invalid output; a second miss drops the finding and counts it, and so does a miss
+  whose retry comes back invalid. The quote is stored as the model wrote it; only the check
+  normalizes. Each abstract records how many quotes were checked, missed and dropped, for the
+  eval's verbatim-quote rate. The page never shows an unchecked quote.
 - **One prompt for every question.** The extraction prompt states the labeling rules in
   general terms, filled in from the question config. Examples specific to a question live in its
   config and the labeling guide, never in the shared prompt, so a new question needs no prompt
@@ -743,8 +748,9 @@ These are expectations, to be replaced with measurements.
   design is such a case, labeled cohort.
 - **Double counting:** one trial can publish several papers, and large trials publish many
   secondary analyses. The trial-ID merge handles it.
-- **A real quote that doesn't support the claim:** the extraction eval scores support, not just
-  presence.
+- **A real quote that doesn't support the claim:** claim wording is unscored, so the eval does
+  not measure support. The page shows the verbatim quote beside every claim, so a reader checks
+  the two against each other.
 - **The classifier leaning on one reason:** the confusion matrix shows it, and `also_differs`
   keeps the other differences visible.
 - **A badly defined custom dimension:** vague definitions extract inconsistently. Operational

@@ -38,6 +38,7 @@ from claimgraph.models import (
     check_also_differs,
 )
 from claimgraph.retrieve import Abstract, write_atomic
+from claimgraph.verbatim import abstract_source, normalize_quote
 
 Participants = Annotated[int, Field(strict=True, gt=0)]
 # Abstract lines in a template are wrapped to this width, after the "# " comment prefix.
@@ -200,15 +201,6 @@ def _no_repeats(keys: list[str]) -> None:
 
 # Checking labels against their abstract and question
 
-_QUOTE_MARKS = str.maketrans(
-    dict.fromkeys("\u201c\u201d\u201e", '"') | dict.fromkeys("\u2018\u2019", "'")
-)
-
-
-def normalize_quote(text: str) -> str:
-    """Whitespace collapsed and curly quote marks straightened, as the verbatim check does."""
-    return " ".join(text.translate(_QUOTE_MARKS).split())
-
 
 def check_abstract_label(
     label: AbstractLabel, abstract: Abstract, config: QuestionConfig
@@ -216,7 +208,7 @@ def check_abstract_label(
     problems: list[str] = []
     if label.pmid != abstract.pmid:
         problems.append(f"label is for PMID {label.pmid}, not {abstract.pmid}")
-    source = normalize_quote(" ".join(s.text for s in abstract.sections))
+    source = abstract_source(abstract)
     # One sentence can back several findings, on different outcomes or different subgroups; only
     # the same quote, outcome and subgroup together is one finding entered twice.
     seen: dict[tuple[str, str, str | None], int] = {}

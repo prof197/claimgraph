@@ -580,3 +580,114 @@ def test_each_model_records_in_its_own_place(tmp_path: Path) -> None:
 
     assert haiku != sonnet
     assert haiku.parent == sonnet.parent == tmp_path / "vitamin-d-depression" / "extraction"
+
+
+# The verbatim check
+
+MISQUOTED = "Synthetic remission did not differ between the groups."
+SCORES = (
+    "Synthetic depression scores fell more with synthetic vitamin D than with placebo (p = 0.01)."
+)
+
+
+def scores(**overrides: Any) -> dict[str, Any]:
+    return finding(quote=SCORES, outcome_reported="synthetic depression score") | overrides
+
+
+def test_verbatim_quotes_need_no_quote_retry(tmp_path: Path) -> None:
+    result, transport = run(tmp_path, response(json.dumps(output(findings=[finding(), scores()]))))
+
+    assert len(transport.requests) == 1
+    assert (result.quotes_checked, result.quote_misses, result.quotes_dropped) == (2, [], 0)
+
+
+def test_a_missed_quote_gets_one_retry_that_names_it(tmp_path: Path) -> None:
+    missed = output(findings=[finding(quote=MISQUOTED), scores()])
+    fixed = output(findings=[finding(), scores()])
+
+    result, transport = run(tmp_path, response(json.dumps(missed)), response(json.dumps(fixed)))
+
+    assert len(transport.requests) == 2
+    note = transport.requests[1]["messages"][2]["content"]
+    assert MISQUOTED in note
+    assert SCORES not in note
+    assert transport.requests[1]["messages"][1]["content"] == json.dumps(missed)
+    assert result.study is not None
+    assert [f.quote for f in result.study.findings] == [QUOTE, SCORES]
+    assert (result.quotes_checked, result.quote_misses, result.quotes_dropped) == (
+        2,
+        [MISQUOTED],
+        0,
+    )
+    # A quote miss is not invalid output.
+    assert result.errors == []
+
+
+def test_a_second_miss_drops_the_finding_and_counts_it(tmp_path: Path) -> None:
+    missed = output(findings=[finding(quote=MISQUOTED), scores()])
+
+    result, _ = run(tmp_path, response(json.dumps(missed)), response(json.dumps(missed)))
+
+    assert result.study is not None
+    assert [f.quote for f in result.study.findings] == [SCORES]
+    assert result.quotes_dropped == 1
+
+
+def test_an_invalid_quote_retry_keeps_the_first_output_less_its_misses(tmp_path: Path) -> None:
+    missed = output(findings=[finding(quote=MISQUOTED), scores()])
+
+    result, _ = run(tmp_path, response(json.dumps(missed)), response("not json"))
+
+    assert result.study is not None
+    assert [f.quote for f in result.study.findings] == [SCORES]
+    assert result.quotes_dropped == 1
+    assert len(result.errors) == 1
+
+
+def test_a_validation_retry_and_a_quote_retry_each_happen_once(tmp_path: Path) -> None:
+    missed = output(findings=[finding(quote=MISQUOTED)])
+
+    result, transport = run(
+        tmp_path,
+        response("not json"),
+        response(json.dumps(missed)),
+        response(json.dumps(missed)),
+    )
+
+    assert len(transport.requests) == 3
+    assert result.study is not None
+    assert result.study.findings == []
+    assert (result.quote_misses, result.quotes_dropped) == ([MISQUOTED], 1)
+
+
+def test_curly_marks_and_line_breaks_are_not_misses(tmp_path: Path) -> None:
+    curly = abstract_with("Synthetic “remission” rates did not differ\nbetween groups.")
+    straight = finding(quote='Synthetic "remission" rates did not differ between groups.')
+
+    result, transport = run(
+        tmp_path, response(json.dumps(output(findings=[straight]))), abstract=curly
+    )
+
+    assert len(transport.requests) == 1
+    assert result.study is not None
+    # The quote is kept as the model wrote it; only the check normalizes.
+    assert result.study.findings[0].quote == straight["quote"]
+
+
+def abstract_with(text: str) -> Abstract:
+    from claimgraph.retrieve import AbstractSection
+
+    section = AbstractSection(label="RESULTS", category="RESULTS", text=text)
+    return synthetic_abstract().model_copy(update={"sections": [section]})
+
+
+def test_no_returned_finding_has_an_unchecked_quote(tmp_path: Path) -> None:
+    from claimgraph.verbatim import quote_in
+
+    missed = output(findings=[finding(quote=MISQUOTED), scores(), finding(quote="Synthetic.")])
+
+    result, _ = run(tmp_path, response(json.dumps(missed)), response(json.dumps(missed)))
+
+    assert result.study is not None
+    assert all(quote_in(f.quote, synthetic_abstract()) for f in result.study.findings)
+    assert result.quotes_dropped == 2

@@ -19,11 +19,11 @@ from claimgraph.labels import (
     check_labels,
     label_template,
     load_abstract_label,
-    normalize_quote,
     read_gold,
 )
 from claimgraph.measures import abstract_text, same_measure
 from claimgraph.models import Record
+from claimgraph.verbatim import normalize_quote
 
 SEED = 20261112
 COUNT = 5

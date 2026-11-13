@@ -20,6 +20,7 @@ from claimgraph.dimensions import NOT_REACHED, build_extraction_model
 from claimgraph.llm import ModelClient, ReplayMiss, Reply, Usage
 from claimgraph.models import REVIEW_DESIGNS, Design, Finding, FindingFields, Record
 from claimgraph.retrieve import Abstract
+from claimgraph.verbatim import quote_in
 
 # Room for a long abstract's findings; a response cut off here is invalid and retried.
 MAX_TOKENS = 8192
@@ -452,16 +453,19 @@ class ExtractionResult(Record):
     study: ExtractedStudy | None
     # What was wrong with each invalid attempt, in order.
     errors: list[str]
+    # The verbatim check on the first valid output: how many quotes it checked, and the quotes
+    # the abstract does not hold, which got one retry naming them.
+    quotes_checked: int
+    quote_misses: list[str]
+    # Findings dropped because their quote still missed after the retry. No other quote is kept.
+    quotes_dropped: int
     # One entry per request sent, for the cost report.
     usage: list[Usage]
 
 
-def _retry(params: Mapping[str, Any], reply: Reply, error: str) -> dict[str, Any]:
-    note = (
-        f"That output was invalid: {error}. Return the complete JSON object again, corrected, "
-        "following the same instructions."
-    )
-    (first,) = params["messages"]
+def _retry(params: Mapping[str, Any], reply: Reply, note: str) -> dict[str, Any]:
+    """The first request again, with the output it got and a note on what to fix."""
+    (first, *_) = params["messages"]
     if reply.text:
         messages = [
             first,
@@ -474,13 +478,35 @@ def _retry(params: Mapping[str, Any], reply: Reply, error: str) -> dict[str, Any
     return {**params, "messages": messages}
 
 
+def _invalid_note(error: str) -> str:
+    return (
+        f"That output was invalid: {error}. Return the complete JSON object again, corrected, "
+        "following the same instructions."
+    )
+
+
+def _quote_note(missed: Sequence[Finding]) -> str:
+    listed = "\n".join(f'- finding {f.finding_id.rsplit("-", 1)[1]}: "{f.quote}"' for f in missed)
+    return (
+        "These quotes are not in the abstract word for word:\n"
+        f"{listed}\n"
+        "Copy each quote exactly from the abstract, character for character, and leave out any "
+        "finding no sentence reports. Return the complete JSON object again, following the same "
+        "instructions."
+    )
+
+
 def extract_abstract(
     abstract: Abstract,
     config: QuestionConfig,
     client: ModelClient,
     choice: ModelChoice = ModelChoice.HAIKU,
 ) -> ExtractionResult:
-    """One abstract's extraction: invalid output gets one retry naming the error."""
+    """One abstract's extraction, checked twice over.
+
+    Invalid output gets one retry naming the error. Then every quote must be in the abstract: a
+    miss gets one retry naming the quotes, and findings whose quotes still miss are dropped.
+    """
     params = request(abstract, config, choice)
     errors: list[str] = []
     usage: list[Usage] = []
@@ -494,12 +520,34 @@ def extract_abstract(
             errors.append(str(error))
             return reply, None
 
+    def result(study: ExtractedStudy | None, misses: list[str], dropped: int) -> ExtractionResult:
+        return ExtractionResult(
+            pmid=abstract.pmid,
+            model=SETTINGS[choice].model,
+            study=study,
+            errors=errors,
+            quotes_checked=0 if study is None else checked,
+            quote_misses=misses,
+            quotes_dropped=dropped,
+            usage=usage,
+        )
+
     reply, study = attempt(params)
     if study is None:
-        _, study = attempt(_retry(params, reply, errors[-1]))
-    return ExtractionResult(
-        pmid=abstract.pmid, model=SETTINGS[choice].model, study=study, errors=errors, usage=usage
-    )
+        reply, study = attempt(_retry(params, reply, _invalid_note(errors[-1])))
+    checked = 0
+    if study is None:
+        return result(None, [], 0)
+    checked = len(study.findings)
+    missed = [f for f in study.findings if not quote_in(f.quote, abstract)]
+    if missed:
+        _, retried = attempt(_retry(params, reply, _quote_note(missed)))
+        # An invalid retry leaves the first output, which still loses its missed findings.
+        study = retried or study
+    kept = [f for f in study.findings if quote_in(f.quote, abstract)]
+    dropped = len(study.findings) - len(kept)
+    study = study.model_copy(update={"findings": kept})
+    return result(study, [f.quote for f in missed], dropped)
 
 
 # Recording the gold set
