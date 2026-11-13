@@ -148,10 +148,9 @@ comparison. If the result spans two sentences, take the one with the result. One
 subgroups, or incidence and recurrence: give each finding its own block with the same quote. The check tolerates only differences in whitespace and
 curly versus straight quote marks.
 
-**`outcome_reported`**: the measure's name as the quote gives it, plus the instrument in
-brackets when the abstract names one anywhere, such as `"depression severity (BDI)"` or
-`"incident depression"`. When the quote names the measure by its instrument, as in "CES-D
-scores", the name already carries it: `"CES-D score"`.
+**`outcome_reported`**: the measure as the abstract names it, including the instrument when the
+abstract names one, such as `"depression severity (BDI)"` or `"incident depression"`. An
+instrument's name alone is complete, such as `"PHQ-2"` or `"CES-D score"`.
 
 **`effect`**: what happened to the measure on the side with more vitamin D, compared with the
 side with less: `increased`, `decreased` or `no_change`. More vitamin D means a higher serum

@@ -141,8 +141,8 @@ class FindingFields(Record):
     )
     outcome_reported: NonBlank = Field(
         description=(
-            "The measure's name as the quote gives it, plus the instrument in brackets when the "
-            "abstract names one anywhere, such as 'symptom severity (PHQ-9)'."
+            "The outcome measure as the abstract names it, including the instrument when the "
+            "abstract names one, such as 'symptom severity (PHQ-9)' or 'PHQ-9 score'."
         )
     )
     effect: Effect = Field(

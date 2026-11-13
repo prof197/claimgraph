@@ -283,8 +283,8 @@ title alone.
   - The quote is the Results sentence that reports the finding, a Conclusion sentence only when
     no Results sentence does, and without headings the sentence that reports the measured
     comparison.
-  - The outcome as reported is the measure's name as the quote gives it, plus the instrument in
-    brackets when the abstract names one anywhere.
+  - The outcome as reported is the measure as the abstract names it, including the instrument
+    when the abstract names one; an instrument's name alone is complete.
   - The sample size is the number enrolled or randomized: for a secondary analysis, the number
     entering it; for several samples, their total; the only count, when there is just one; never
     a planned size; for Mendelian randomization, cases plus controls in the main outcome dataset.
