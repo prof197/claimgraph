@@ -198,8 +198,9 @@ def stale(replay_dir: Path, used: frozenset[str]) -> list[str]:
 # Characters per token, set low on purpose: about four for English text, less on the current
 # tokenizer, which counts about 30% more tokens for the same text.
 CHARS_PER_TOKEN = 3.0
-# Output tokens assumed for a typical first response, until a run measures them.
-TYPICAL_OUTPUT_TOKENS = 1500
+# Output tokens for a typical response: the mean over the 67 requests of the first dev run on
+# Haiku 5.5, 2026-11-13. The ceiling does not use it.
+TYPICAL_OUTPUT_TOKENS = 590
 # A retry's note on top of the first request and the output it shows back.
 RETRY_NOTE_TOKENS = 300
 

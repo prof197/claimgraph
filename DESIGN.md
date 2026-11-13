@@ -438,10 +438,10 @@ pair, measured on the dev set, × the prices in a dated `prices.toml`.
 
 Until classification exists, the dry run prices extraction, and nothing is sent without one. It
 counts the first requests that have no recording, at about three characters per token, a low
-figure on purpose for the current tokenizer, and gives two numbers at batch prices: a typical
-cost, one request each with an assumed 1,500 output tokens and no cache reads, and a ceiling,
-every abstract taking all three requests at full output, which real spend cannot pass. It
-refuses a request that could pass 100,000 prompt tokens, where Haiku 5.5's price changes. Each
+figure on purpose for the current tokenizer, and gives two numbers at batch prices. The
+typical cost is one request each, with no cache reads and 590 output tokens, the mean over the
+67 requests of the first dev run. The ceiling is every abstract taking all three requests at
+full output, which real spend cannot pass. It refuses a request that could pass 100,000 prompt tokens, where Haiku 5.5's price changes. Each
 run then prints what its recorded responses cost from their token counts.
 
 **Panel.** Genuine contradictions are grouped by reason and ordered by the two studies' combined
