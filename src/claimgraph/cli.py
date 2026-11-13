@@ -460,3 +460,29 @@ def eval_extraction(
             typer.echo(f"- {line}")
     if rerun is not None:
         typer.echo(f"\n{rerun}", nl=False)
+
+
+@eval_app.command("models")
+def eval_models(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the committed model recordings live.")
+    ] = Path("replay"),
+    prices_file: PricesFile = PRICES_FILE,
+    readme: Annotated[
+        Path | None, typer.Option(help="Also write the table into this README's block.")
+    ] = None,
+) -> None:
+    """Every model with gold recordings side by side, with what its responses cost."""
+    config = load_config(resolve_question(question))
+    try:
+        rows = evaluation.recorded_models(gold_dir, replay_dir, config, load_prices(prices_file))
+    except ValueError as error:
+        typer.echo(f"no scores: {error}", err=True)
+        raise typer.Exit(1) from error
+    table = evaluation.models_table(rows)
+    if readme is not None:
+        text = relabel.replace_block(readme.read_text(), evaluation.MODELS_BLOCK, table)
+        readme.write_text(text)
+    typer.echo(table, nl=False)

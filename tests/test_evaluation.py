@@ -11,8 +11,10 @@ from claimgraph.design_tree import full_answers
 from claimgraph.evaluation import (
     EXTRACTION_BLOCK,
     ExtractionScores,
+    ModelRow,
     extraction_table,
     gold_scores,
+    models_table,
     score_extraction,
 )
 from claimgraph.extract import ExtractionResult, read_extraction
@@ -223,3 +225,22 @@ def test_the_readme_shows_the_current_extraction_scores() -> None:
     table = extraction_table(gold_scores(ROOT / "evals" / "gold", ROOT / "replay", VITAMIN_D))
 
     assert replace_block(readme, EXTRACTION_BLOCK, table) == readme
+
+
+def test_the_model_table_puts_each_model_on_one_row_with_its_cost() -> None:
+    haiku = score([result()])
+    sonnet = score([result(findings=[finding(outcome_direction="decreased")])]).model_copy(
+        update={"model": "claude-sonnet-5-5"}
+    )
+
+    table = models_table(
+        [ModelRow(scores=haiku, cost_usd=0.0082), ModelRow(scores=sonnet, cost_usd=0.21)]
+    )
+
+    rows = [line for line in table.splitlines() if line.startswith("| claude-")]
+    assert rows == [
+        "| claude-haiku-5-5 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 "
+        "| 1 of 1 | $0.0082 |",
+        "| claude-sonnet-5-5 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 1 of 1 | 0 of 1 "
+        "| 0 of 1 | $0.2100 |",
+    ]

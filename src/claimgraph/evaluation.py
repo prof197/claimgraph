@@ -10,11 +10,12 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from claimgraph.batch import extract_batched
+from claimgraph.batch import BatchRun, extract_batched, summarize
 from claimgraph.config import QuestionConfig
 from claimgraph.design_tree import diverges, settle
 from claimgraph.extract import (
     REVIEW_TAGS,
+    SETTINGS,
     DesignSource,
     ExtractedStudy,
     ExtractionResult,
@@ -26,11 +27,13 @@ from claimgraph.gold import GoldAbstract
 from claimgraph.labels import AbstractLabel, load_abstract_label, read_gold
 from claimgraph.measures import abstract_text, same_measure
 from claimgraph.models import Design, Record
+from claimgraph.prices import Prices
 from claimgraph.relabel import Agreement, agreement, match_findings
 
 # The README block that eval extraction --readme writes.
 EXTRACTION_BLOCK = "extraction-eval"
 RERUN_BLOCK = "extraction-rerun"
+MODELS_BLOCK = "extraction-models"
 
 
 class Count(Record):
@@ -201,6 +204,41 @@ def extraction_table(scores: ExtractionScores) -> str:
     return "\n".join(lines) + "\n"
 
 
+class ModelRow(Record):
+    scores: ExtractionScores
+    # What the recorded responses cost at batch prices.
+    cost_usd: float
+
+
+def models_table(rows: Sequence[ModelRow]) -> str:
+    """One row per model on the same gold abstracts and prompt: the fields the choice rests on."""
+
+    def counted(count: Count) -> str:
+        return f"{count.agree} of {count.of}"
+
+    lines = [
+        "Each model on the same gold abstracts and prompt, scored from the committed recordings; "
+        "cost of the recorded responses at batch prices.",
+        "",
+        "| Model | Design, publication types first | Design, answers alone | Design, review tags "
+        "first | Sample size | Finding precision | Finding recall | Effect precision | Effect "
+        "recall | Cost |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        s = row.scores
+        by_name = {f.name: f for f in s.findings}
+        found, effect = by_name["finding"], by_name["effect"]
+        lines.append(
+            f"| {s.model} | {counted(s.design)} | {counted(s.design_answers_alone)} | "
+            f"{counted(s.design_review_tags_first)} | {counted(s.sample_size)} | "
+            f"{found.correct} of {found.model} | {found.correct} of {found.gold} | "
+            f"{effect.correct} of {effect.model} | {effect.correct} of {effect.gold} | "
+            f"${row.cost_usd:.4f} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def wrong_design_lines(scores: ExtractionScores) -> list[str]:
     return [
         f"{w.pmid}: labeled {w.gold}, extracted {w.model or 'nothing'}, from {w.cause}"
@@ -223,16 +261,22 @@ def _gold(
     return gold, labels
 
 
-def _replayed(
+def _replayed_run(
     gold: Sequence[GoldAbstract], replay_dir: Path, config: QuestionConfig, choice: ModelChoice
-) -> list[ExtractionResult]:
+) -> BatchRun:
     run = extract_batched([g.abstract for g in gold], config, replay_dir, choice, None)
     if run.missing:
         raise ValueError(
             f"no recording in {replay_dir} for {', '.join(run.missing)}; re-record with "
             "gold record --live after a dry run"
         )
-    return run.results
+    return run
+
+
+def _replayed(
+    gold: Sequence[GoldAbstract], replay_dir: Path, config: QuestionConfig, choice: ModelChoice
+) -> list[ExtractionResult]:
+    return _replayed_run(gold, replay_dir, config, choice).results
 
 
 def gold_scores(
@@ -244,6 +288,28 @@ def gold_scores(
     gold, labels = _gold(gold_root, config)
     results = _replayed(gold, gold_replay_dir(replay_root, config, choice), config, choice)
     return score_extraction(gold, labels, results, config)
+
+
+def model_row(
+    gold_root: Path, replay_root: Path, config: QuestionConfig, choice: ModelChoice, prices: Prices
+) -> ModelRow:
+    gold, labels = _gold(gold_root, config)
+    run = _replayed_run(gold, gold_replay_dir(replay_root, config, choice), config, choice)
+    return ModelRow(
+        scores=score_extraction(gold, labels, run.results, config),
+        cost_usd=summarize(run, SETTINGS[choice].model, prices).cost_usd,
+    )
+
+
+def recorded_models(
+    gold_root: Path, replay_root: Path, config: QuestionConfig, prices: Prices
+) -> list[ModelRow]:
+    """A row for every model with gold recordings, in the order of ModelChoice."""
+    return [
+        model_row(gold_root, replay_root, config, choice, prices)
+        for choice in ModelChoice
+        if gold_replay_dir(replay_root, config, choice).is_dir()
+    ]
 
 
 def rerun_agreement(
