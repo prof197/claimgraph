@@ -516,7 +516,9 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   patients, whether the researchers gave the exposure, a concurrent comparison group, allocation
   by chance, a proxy or outside exposure, selection by outcome, and timing. The label keeps the
   answers, the check requires the design to follow from them, and so every gold design traces
-  back to what the abstract says. The questions are worded for any question, with "the
+  back to what the abstract says. The labeling page can also jump straight to a design; the jump
+  fills in the answers on that design's path, so the label still records them. The questions are
+  worded for any question, with "the
   exposure" and "the outcome"; the labeling guide spells them out for vitamin D and depression.
 - **Every value is explicit.** TOML has no null, so a missing value is written
   `"not_reported"`, and a blank template fails the check rather than passing as unlabeled.

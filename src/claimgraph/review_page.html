@@ -95,6 +95,8 @@ code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
 .opt.sep { margin-left: 8px; }
 .field { margin: 8px 0; }
 .q { margin: 4px 0 10px; }
+.jump { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin: 4px 0 10px; }
+.jump .opt { font-size: 12px; padding: 1px 6px; }
 .field > .name { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
 .blank { outline: 2px dashed var(--warn); outline-offset: 2px; border-radius: 6px; }
 input[type=text], input[type=number], textarea { width: 100%; border: 1px solid var(--line);
@@ -478,8 +480,25 @@ function treeWalk(answers) {
   }
   return { path, result };
 }
-function answer(key, value) {
-  const { path, result } = treeWalk({ ...draft.design_answers, [key]: value });
+// Every way through the tree, one per design except where two paths settle the same one.
+function designPaths() {
+  const byKey = Object.fromEntries(S.design_tree.map((q) => [q.key, q])), out = [];
+  const walk = (key, answers) => {
+    for (const o of byKey[key].options) {
+      const here = { ...answers, [key]: o.value };
+      if (o.design) out.push({ design: o.design, answers: here, via: /^(yes|no)$/.test(o.value) ? human(key) : o.label });
+      else walk(o.next, here);
+    }
+  };
+  walk(S.design_tree[0].key, {});
+  return out;
+}
+function answer(key, value) { setAnswers({ ...draft.design_answers, [key]: value }); }
+// A jump fills in the answers on the design's path, so the label still shows why; each stays
+// open to change.
+function jump(answers) { setAnswers({ ...answers }); }
+function setAnswers(answers) {
+  const { path, result } = treeWalk(answers);
   draft.design_answers = Object.fromEntries(path.filter(([, o]) => o).map(([q, o]) => [q.key, o.value]));
   if (result) applyDesign(result); else draft.design = "";
   const mark = S.marks[cur().pmid];
@@ -505,7 +524,14 @@ function treeField() {
   } else if (earlier) {
     check = el("div", { class: "small warn" }, `You picked ${human(earlier)} before; answer the questions to check it.`);
   }
-  return field(result ? `design: ${human(result)}` : "design: answer the questions", "design", !result, check, ...rows);
+  const paths = designPaths(), shared = (p) => paths.filter((x) => x.design === p.design).length > 1;
+  const reviewFirst = cur().review_stratum ? (p) => (isReview(p.design) ? 0 : 1) : () => 0;
+  const jumps = el("div", { class: "jump" }, el("span", { class: "small muted" }, "Jump to: "),
+    [...paths].sort((a, b) => reviewFirst(a) - reviewFirst(b) || S.designs.indexOf(a.design) - S.designs.indexOf(b.design)).map((p) => el("button", {
+      class: result === p.design && treeWalk(p.answers).result === result && Object.keys(p.answers).every((k) => d.design_answers[k] === p.answers[k]) ? "opt on" : "opt",
+      title: "Fills in the answers that lead here; check them", onclick: () => jump(p.answers) },
+      human(p.design) + (shared(p) ? ` (${p.via.toLowerCase()})` : ""))));
+  return field(result ? `design: ${human(result)}` : "design: answer the questions, or jump", "design", !result, check, jumps, ...rows);
 }
 // Reviews carry a summary, other designs findings; whichever is set aside is kept for a switch back.
 function applyDesign(v) {

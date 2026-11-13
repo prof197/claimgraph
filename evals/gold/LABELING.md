@@ -37,7 +37,8 @@ given.
 
 **`design`** is settled by the design questions, asked in order and stopping at the first answer
 that names a design. Answer from the abstract, not from PubMed's publication types. A protocol
-answers for its planned design. The review page asks the questions and sets the design.
+answers for its planned design. The review page asks the questions and sets the design; it can
+also jump to a design, which fills in the answers on that design's path for you to check.
 
 | # | Key | Question | Answers |
 |---|---|---|---|
