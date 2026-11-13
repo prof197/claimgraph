@@ -28,7 +28,8 @@ Every label was made by the maintainer following [LABELING.md](LABELING.md). For
 (22848407, 33372187), he discussed how the rules applied with an AI assistant before labeling;
 the rules that came out of those discussions were added to LABELING.md. After labeling, an AI
 coding assistant checked the labels against the written rules, and the maintainer reviewed and
-accepted the 10 corrections listed below.
+accepted the first 10 corrections listed below. The 11th was made after the extraction eval
+was first scored, because the label contradicted a rule that predates the label check.
 
 | PMID | Field | Was | Now | Rule |
 |---|---|---|---|---|
@@ -42,6 +43,7 @@ accepted the 10 corrections listed below.
 | 32629761 | findings | — | Women, `decreased` | One finding per subgroup the abstract reports |
 | 32629761 | findings | — | White participants, `decreased` | One finding per subgroup the abstract reports |
 | 30157761 | `baseline_vitamin_d_status` | `mixed` | `not_reported` | `mixed` needs values on both sides of 20 ng/mL; both group means are above it |
+| 38931184 | findings | One, a before-and-after change in the vitamin D arm | None | Between groups only: a change within one arm is not a finding. Made after scoring |
 
 ## Licence
 

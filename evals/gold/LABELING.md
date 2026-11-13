@@ -123,7 +123,9 @@ Null results are findings.
 - **Between groups only.** In a study with a comparison group, only comparisons between groups
   are findings. A change over time within one group, such as "scores fell in the vitamin D
   group", is not, and neither is one pooled across all groups, such as "scores improved in both
-  arms".
+  arms". A Conclusion sentence that rests on a within-group change, such as "supplementation
+  reduced depression scores" after a before-and-after result in one arm, is not a
+  between-groups finding either.
 - **"The rest were not significant."** When the abstract names vitamin D among the factors it
   tested and a sentence says the others were not significant, label a `no_change` finding
   quoting that sentence.
