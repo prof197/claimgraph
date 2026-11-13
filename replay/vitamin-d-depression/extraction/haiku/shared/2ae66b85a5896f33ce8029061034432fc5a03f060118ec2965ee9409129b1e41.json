@@ -1,0 +1,306 @@
+{
+ "output_config": {
+  "effort": "medium",
+  "format": {
+   "schema": {
+    "$defs": {
+     "Comparison": {
+      "description": "What a result compares. A trial's findings are its comparisons between groups.",
+      "enum": [
+       "between_groups_or_across_participants",
+       "within_one_group",
+       "pooled_across_groups"
+      ],
+      "type": "string"
+     },
+     "DesignAnswers": {
+      "additionalProperties": false,
+      "properties": {
+       "by_chance": {
+        "description": "Was who got what assigned by chance, to individuals or to clusters?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "concurrent_comparison": {
+        "description": "Is there a concurrent comparison group: placebo, none or another dose?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "gave_exposure": {
+        "description": "Did the researchers give the exposure, with results comparing the outcome by who got it, how much, or before and after?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "individual_patients": {
+        "description": "Does it describe one or a few patients individually?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "measured_before": {
+        "description": "Was the exposure measured before the outcome was assessed?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "pools": {
+        "description": "Does it pool results into one number?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "proxy_or_event": {
+        "description": "Does the exposure come only from genetic proxies or an outside event, such as a fortification policy?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "selected_by_outcome": {
+        "description": "Were participants picked because they had the outcome or did not?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       },
+       "source": {
+        "description": "Does it report its own data, or summarize other studies?",
+        "enum": [
+         "own_data",
+         "summary",
+         "neither"
+        ],
+        "type": "string"
+       },
+       "subjects": {
+        "description": "Is it a study on people?",
+        "enum": [
+         "people",
+         "animals",
+         "cells_or_tissue"
+        ],
+        "type": "string"
+       },
+       "systematic_methods": {
+        "description": "Does it say how it searched and how it chose studies, or call itself systematic, scoping, umbrella or a meta-analysis?",
+        "enum": [
+         "yes",
+         "no"
+        ],
+        "type": "string"
+       }
+      },
+      "required": [
+       "subjects",
+       "source",
+       "systematic_methods",
+       "pools",
+       "individual_patients",
+       "gave_exposure",
+       "concurrent_comparison",
+       "by_chance",
+       "proxy_or_event",
+       "selected_by_outcome",
+       "measured_before"
+      ],
+      "type": "object"
+     },
+     "Effect": {
+      "description": "What happened to the measure as reported, before polarity is applied.",
+      "enum": [
+       "increased",
+       "decreased",
+       "no_change"
+      ],
+      "type": "string"
+     },
+     "ExposureSide": {
+      "description": "Which way the abstract's own wording of a result points on the exposure.",
+      "enum": [
+       "more",
+       "less"
+      ],
+      "type": "string"
+     },
+     "ExtractedFinding": {
+      "additionalProperties": false,
+      "properties": {
+       "baseline_vitamin_d_status": {
+        "description": "Baseline serum 25-hydroxyvitamin D band of this finding's population, cut at 20 ng/mL (50 nmol/L), the deficiency cut-off in the Endocrine Society's 2011 guideline; its 2024 guideline endorses no thresholds, so the cut-off only groups studies. below_20_ng_ml: strictly below 20 ng/mL (50 nmol/L). at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) or higher; exactly 20 ng/mL (50 nmol/L) is at_or_above_20_ng_ml. A subgroup finding takes its subgroup's band. Assign the band by precedence: (a) if the population was restricted by vitamin D status at eligibility, use that restriction, but only when its whole range is strictly below 20 ng/mL (50 nmol/L) or at or above it, in either unit; a restriction that includes values on both sides, such as ≤20 ng/mL, ≤50 nmol/L, <30 ng/mL or <75 nmol/L, does not settle the band; a restriction that settles it applies to every finding in the study, subgroups included; (b) otherwise, use the baseline mean or median the abstract reports for that population; a mean or median for the whole sample does not carry over to a subgroup; (c) use mixed only when the abstract reports values on both sides of 20 ng/mL with no single summary for that population; (d) otherwise not_reported. Words such as low, deficient or hypovitaminosis D without a number do not settle the band.",
+        "enum": [
+         "below_20_ng_ml",
+         "at_or_above_20_ng_ml",
+         "mixed",
+         "not_reported"
+        ],
+        "type": "string"
+       },
+       "claim": {
+        "description": "One plain-language sentence stating the finding.",
+        "type": "string"
+       },
+       "comparator": {
+        "description": "Placebo, active treatment or usual care, as reported.",
+        "type": "string"
+       },
+       "comparison": {
+        "$ref": "#/$defs/Comparison",
+        "description": "What the result compares: between_groups_or_across_participants for groups compared with each other or an association across participants; within_one_group for a change over time inside one group; pooled_across_groups for a change over time with all groups taken together."
+       },
+       "domain_outcome": {
+        "description": "The entry of the outcome domain this finding is on, or 'outside the domain' when its outcome fits none.",
+        "enum": [
+         "depressive symptoms",
+         "depression diagnosis or incidence",
+         "remission",
+         "response",
+         "seasonal affective disorder",
+         "outside the domain"
+        ],
+        "type": "string"
+       },
+       "exposure_side": {
+        "$ref": "#/$defs/ExposureSide",
+        "description": "Which side of the result the abstract's sentence names: more when it is worded from more of the exposure, a higher level, intake or dose, or getting it rather than placebo; less when it is worded from less, such as deficiency, low levels, the lowest group or placebo."
+       },
+       "intervention": {
+        "description": "Agent, dose, duration, route and form, as reported.",
+        "type": "string"
+       },
+       "is_primary": {
+        "description": "True if the abstract names this as the study's primary outcome.",
+        "type": "boolean"
+       },
+       "is_subgroup": {
+        "description": "True if the result covers only part of the analyzed sample, split by a characteristic such as sex, age or baseline exposure. A study that enrolled only one group reports that group as its population, not as a subgroup.",
+        "type": "boolean"
+       },
+       "outcome_direction": {
+        "$ref": "#/$defs/Effect",
+        "description": "What happened to the outcome on that named side: increased, decreased, or no_change when the abstract reports no significant difference."
+       },
+       "outcome_reported": {
+        "description": "The outcome measure as the abstract names it, including the instrument when the abstract names one, such as 'symptom severity (PHQ-9)' or 'PHQ-9 score'.",
+        "type": "string"
+       },
+       "population": {
+        "description": "Who was enrolled, as reported.",
+        "type": "string"
+       },
+       "quote": {
+        "description": "The sentence from the abstract that reports this finding, copied exactly: a Results sentence, or a Conclusion sentence only when no Results sentence reports it.",
+        "type": "string"
+       },
+       "subgroup": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "For a subgroup result, which part of the sample it covers, as the abstract names it. Null for a result on the whole analyzed sample."
+       }
+      },
+      "required": [
+       "claim",
+       "quote",
+       "outcome_reported",
+       "exposure_side",
+       "outcome_direction",
+       "comparison",
+       "is_primary",
+       "is_subgroup",
+       "subgroup",
+       "population",
+       "intervention",
+       "comparator",
+       "domain_outcome",
+       "baseline_vitamin_d_status"
+      ],
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "properties": {
+     "design_answers": {
+      "$ref": "#/$defs/DesignAnswers",
+      "description": "Every design question, each answered on the abstract's own facts; a question that does not fit the study is answered no."
+     },
+     "findings": {
+      "description": "Every finding the abstract reports, one per outcome, arm or subgroup. Empty for a review.",
+      "items": {
+       "$ref": "#/$defs/ExtractedFinding"
+      },
+      "type": "array"
+     },
+     "other_outcomes": {
+      "description": "Outcomes outside the outcome domain that the abstract reports results for, named as the abstract names them. Empty if there are none.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "review_summary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "For a review only, systematic, meta-analysis or narrative: one sentence summarizing its conclusion. Null for any other design."
+     },
+     "sample_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Participants enrolled or randomized, not analyzed; null if the abstract does not say."
+     }
+    },
+    "required": [
+     "design_answers",
+     "sample_size",
+     "review_summary",
+     "other_outcomes",
+     "findings"
+    ],
+    "type": "object"
+   },
+   "type": "json_schema"
+  }
+ },
+ "system": [
+  {
+   "cache_control": {
+    "type": "ephemeral"
+   },
+   "text": "You extract findings from one PubMed abstract for a map of the evidence on one question.\n\nQuestion: Does vitamin D affect depression?\nThe exposure is what the question asks about. The outcome domain, the outcomes the question is about: depressive symptoms; depression diagnosis or incidence; remission; response; seasonal affective disorder.\n\nAnswer from the abstract alone, not from the full paper or your own knowledge. Return one JSON object that follows the schema.\n\n## Design\n\nAnswer every design question below about this abstract, each on its own facts, whatever the other answers are. A question that does not fit the study is answered no: a trial does not pool results, and a review gave no exposure. Code works out the design from the answers. Answer for what the abstract describes, not for its publication type.\n\n1. subjects: Is it a study on people? Answers: people; animals; cells_or_tissue.\n2. source: Does it report its own data, or summarize other studies? Answers: own_data (its own data); summary (a summary of other studies); neither (neither, such as a bibliometric study).\n3. systematic_methods: Does it say how it searched and how it chose studies, or call itself systematic, scoping, umbrella or a meta-analysis? Answers: yes; no.\n   Saying how it searched means more than naming the databases; saying how it chose studies means eligibility criteria, screening, or a count of included studies. A review that says it followed PRISMA answers yes. A review titled narrative that says both is systematic. Guidelines, position statements and perspectives that review others' results are summaries, so this question decides them too.\n4. pools: Does it pool results into one number? Answers: yes; no.\n5. individual_patients: Does it describe one or a few patients individually? Answers: yes; no.\n6. gave_exposure: Did the researchers give the exposure, with results comparing the outcome by who got it, how much, or before and after? Answers: yes; no.\n   An exposure the participants chose to take themselves was not given by the researchers. A follow-up analysis of trial participants that does not compare the randomized arms answers no.\n7. concurrent_comparison: Is there a concurrent comparison group: placebo, none or another dose? Answers: yes; no.\n   A single-arm study, where everyone gets the exposure and outcomes are compared before and after, answers no, as does a comparison with historical controls only, an earlier group that did not get the exposure. Both are case series, even when the abstract calls them a trial. A comparison group got none of the exposure or a different amount; a group that differs only by outcome status, such as healthy controls beside treated patients, is not one.\n8. by_chance: Was who got what assigned by chance, to individuals or to clusters? Answers: yes; no.\n   Allocation by alternation, date of birth or clinic is not by chance.\n9. proxy_or_event: Does the exposure come only from genetic proxies or an outside event, such as a fortification policy? Answers: yes; no.\n   Mendelian randomization and natural experiments answer yes.\n10. selected_by_outcome: Were participants picked because they had the outcome or did not? Answers: yes; no.\n   Yes when the study picked people with the outcome and people without it to compare; a sample of people with the outcome alone answers no.\n11. measured_before: Was the exposure measured before the outcome was assessed? Answers: yes; no.\n   A study that measures the exposure and the outcome at the same visit answers no, even inside a cohort study that reports only that visit.\n\n## Study fields\n\n- sample_size: participants enrolled or randomized, not analyzed or completed; null if the abstract gives no count, and null for a review, whose pooled total is neither.\n- review_summary: for a systematic review, meta-analysis or narrative review only, one sentence stating its conclusion; a review protocol's summary says what the review will assess. Null for any other design.\n- A review has no findings: it reports others' results, not its own. A protocol reports no results, so it has no findings, and its design is the planned design.\n\n## Rules\n\n- The effect is read from the side with more of the exposure.\n- Measures that combine the outcome domain with something else don't count, and neither do scales for a neighbouring construct.\n- The quote is the Results sentence that reports the finding, a Conclusion sentence only when no Results sentence does, and without headings the sentence that reports the measured comparison.\n- The outcome as reported is the measure as the abstract names it, including the instrument when the abstract names one; an instrument's name alone is complete.\n- The sample size is the number enrolled or randomized: for a secondary analysis, the number entering it; for several samples, their total; the only count, when there is just one; never a planned size; for Mendelian randomization, cases plus controls in the main outcome dataset.\n- Time points of one measure that agree are one finding, and ones that disagree are one each.\n- With a comparison group, only comparisons between groups are findings: not a change over time within one group, nor one pooled across the groups.\n- Interaction or moderation results are subgroup findings, one per subgroup comparison, null ones included. When only the interaction's significance is reported, the abstract's words set each subgroup's direction.\n- When the exposure is among the factors tested and a sentence says the rest were not significant, that sentence backs a no-change finding.\n- Results from a genetic proxy for the exposure are findings only in a study whose design is other, such as Mendelian randomization, and only from exposure to outcome. A study that also measures the exposure keeps only its measured results, so proxy results are not counted under its design.\n- A comparison group got none of the exposure or a different amount; a group that differs only by outcome status is not one. A review that says it followed PRISMA has systematic methods.\n\n## Findings\n\n- Report one finding per outcome, arm or subgroup the abstract reports a result for, on the outcomes in the domain only. Null results are findings. An abstract with no result in the domain has no findings.\n- List results on outcomes outside the domain in other_outcomes, by the abstract's names for them, and never as findings. A subscale of a mixed instrument that measures the outcome on its own counts as the outcome.\n- domain_outcome: the entry of the outcome domain the finding is on. When the finding's outcome fits no entry, give \"outside the domain\"; such findings are dropped and counted, so never stretch an entry to fit.\n- The exposure's level is never the outcome. A result comparing the exposure between people with and without the outcome is a finding on the outcome, read with the exposure as the cause.\n- quote: copied exactly, character for character. If the result spans two sentences, take the one with the result. One sentence can back several findings, such as two subgroups: give each finding its own entry with the same quote.\n- exposure_side and outcome_direction: code works out the effect from these two facts, so report each as the sentence words it, without turning anything round. exposure_side is the side the sentence is worded from: more for more of the exposure, such as a higher measured level, a higher intake or dose, getting it rather than placebo or nothing, the higher dose against the lower, or after against before in a single-arm study; less for less of the exposure, such as deficiency, low levels, the lowest group, or placebo against the exposure. outcome_direction is what happened to the outcome on that side: increased, decreased, or no_change when the abstract reports no significant difference, a non-significant trend included. For example, \"deficiency was linked to more of the outcome\" is less and increased; \"higher levels went with lower outcome scores\" is more and decreased; \"deficiency made no difference to the outcome\" is less and no_change. An association stated as a correlation is worded from more of the exposure: \"levels were inversely associated with outcome scores\" is more and decreased. When the abstract groups people by the outcome, as in \"people with the outcome had lower levels of the exposure\", read it with the exposure as the cause: less of the exposure went with more of the outcome, so it is less and increased, and outcome_reported names the outcome measure, not the exposure level.\n- comparison: between_groups_or_across_participants for groups compared with each other, such as the exposure arm against placebo or the deficient against the sufficient, and for an association between the exposure's level and the outcome across participants, such as \"levels were inversely associated with scores\"; within_one_group for a change over time inside one group, such as \"scores fell in the exposure group\", and for a single-arm study's after against before; pooled_across_groups for a change over time with all groups taken together, such as \"scores improved in both arms\".\n- is_primary: true only when the abstract calls this the primary outcome or endpoint; co-primary outcomes are all true. Otherwise false, even when it is the only outcome reported. A subgroup result is never primary.\n- is_subgroup: true when the result covers only part of the analyzed sample, split by a characteristic such as sex, age or baseline status. A study that enrolled only one group reports that group as its population, so its results are false.\n- subgroup: for a subgroup result, which part of the sample it covers, as the abstract names it; null for a result on the whole sample. Two findings on one sentence and one outcome need different subgroup names.\n\n## Dimensions\n\nEach finding also takes one value for each of these dimensions:\n- baseline_vitamin_d_status: Baseline serum 25-hydroxyvitamin D band of this finding's population, cut at 20 ng/mL (50 nmol/L), the deficiency cut-off in the Endocrine Society's 2011 guideline; its 2024 guideline endorses no thresholds, so the cut-off only groups studies. below_20_ng_ml: strictly below 20 ng/mL (50 nmol/L). at_or_above_20_ng_ml: 20 ng/mL (50 nmol/L) or higher; exactly 20 ng/mL (50 nmol/L) is at_or_above_20_ng_ml. A subgroup finding takes its subgroup's band. Assign the band by precedence: (a) if the population was restricted by vitamin D status at eligibility, use that restriction, but only when its whole range is strictly below 20 ng/mL (50 nmol/L) or at or above it, in either unit; a restriction that includes values on both sides, such as ≤20 ng/mL, ≤50 nmol/L, <30 ng/mL or <75 nmol/L, does not settle the band; a restriction that settles it applies to every finding in the study, subgroups included; (b) otherwise, use the baseline mean or median the abstract reports for that population; a mean or median for the whole sample does not carry over to a subgroup; (c) use mixed only when the abstract reports values on both sides of 20 ng/mL with no single summary for that population; (d) otherwise not_reported. Words such as low, deficient or hypovitaminosis D without a number do not settle the band.\n",
+   "type": "text"
+  }
+ ]
+}
