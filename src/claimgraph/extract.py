@@ -17,7 +17,7 @@ from pydantic import PositiveInt, ValidationError
 from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, READINGS, settle
 from claimgraph.dimensions import build_extraction_model
-from claimgraph.llm import ModelClient, Reply, Usage
+from claimgraph.llm import ModelClient, Reply, Usage, retry_request
 from claimgraph.models import (
     REVIEW_DESIGNS,
     Comparison,
@@ -530,21 +530,6 @@ class ExtractionResult(Record):
     usage: list[Usage]
 
 
-def _retry(params: Mapping[str, Any], reply: Reply, note: str) -> dict[str, Any]:
-    """The first request again, with the output it got and a note on what to fix."""
-    (first, *_) = params["messages"]
-    if reply.text:
-        messages = [
-            first,
-            {"role": "assistant", "content": reply.text},
-            {"role": "user", "content": note},
-        ]
-    else:
-        # Nothing to show back, such as an empty refusal: ask again in the one user turn.
-        messages = [{"role": "user", "content": f"{first['content']}\n\n{note}"}]
-    return {**params, "messages": messages}
-
-
 def _invalid_note(error: str) -> str:
     return (
         f"That output was invalid: {error}. Return the complete JSON object again, corrected, "
@@ -601,14 +586,14 @@ def extract_abstract(
 
     reply, study = attempt(params)
     if study is None:
-        reply, study = attempt(_retry(params, reply, _invalid_note(errors[-1])))
+        reply, study = attempt(retry_request(params, reply, _invalid_note(errors[-1])))
     checked = 0
     if study is None:
         return result(None, [], 0)
     checked = len(study.findings)
     missed = [f for f in study.findings if not quote_in(f.quote, abstract)]
     if missed:
-        _, retried = attempt(_retry(params, reply, _quote_note(missed)))
+        _, retried = attempt(retry_request(params, reply, _quote_note(missed)))
         # An invalid retry leaves the first output, which still loses its missed findings.
         study = retried or study
     kept = [f for f in study.findings if quote_in(f.quote, abstract)]

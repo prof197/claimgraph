@@ -144,6 +144,21 @@ def read_request(replay_dir: Path, recorded: Mapping[str, Any]) -> dict[str, Any
     return request
 
 
+def retry_request(params: Mapping[str, Any], reply: Reply, note: str) -> dict[str, Any]:
+    """The first request again, with the output it got and a note on what to fix."""
+    (first, *_) = params["messages"]
+    if reply.text:
+        messages = [
+            first,
+            {"role": "assistant", "content": reply.text},
+            {"role": "user", "content": note},
+        ]
+    else:
+        # Nothing to show back, such as an empty refusal: ask again in the one user turn.
+        messages = [{"role": "user", "content": f"{first['content']}\n\n{note}"}]
+    return {**params, "messages": messages}
+
+
 def anthropic_transport(env: Mapping[str, str]) -> Transport:
     if not env.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set; live runs need it (see .env.example)")
