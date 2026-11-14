@@ -815,9 +815,9 @@ records all one way give p = 0.125 on an exact sign test, so this is a judgment,
 significant difference. Haiku's misses repeat across its two runs, which agree on design for
 32 of 32 records, so they are systematic, not noise. Findings did not separate the models:
 Sonnet's 25 and 26 matched findings over its two runs sit inside Haiku's run-to-run spread of
-22 to 26. On the real corpus, the measured rates put extraction of the
-1,901 kept abstracts at about $8 on Sonnet against about $0.50 on Haiku, at batch prices. Haiku
-stays recorded on gold as the comparison.
+22 to 26. Extracting the 1,901 kept abstracts on Sonnet cost $5.26 at batch prices; the gold
+rate on Haiku puts the same corpus at about $0.50. Haiku stays recorded on gold as the
+comparison.
 
 ## Cost
 
@@ -839,7 +839,12 @@ $1/$5, Opus 5.5 $2/$10 ([pricing][pricing]). Before measurement, we estimate ext
 500 abstracts at roughly $0.08 on Haiku or $1.60 on Sonnet, and classification at roughly $0.07 or
 $1.30 per 1,000 pairs. These are estimates; the README's cost table reports measured spend.
 Measured on gold, extraction costs about $0.0042 an abstract on Sonnet 5.5 and $0.00026 on
-Haiku 5.5, so about $8 or $0.50 for the 1,901 kept abstracts.
+Haiku 5.5. The corpus costs less per abstract than gold does: extracting the 1,901 kept
+abstracts on Sonnet 5.5 cost $5.26, or $0.0028 an abstract, because gold oversamples trials and
+most corpus abstracts report no finding on depression, so their output is shorter. Among the
+1,901, two records carry the same title and abstract, so they make one request between them;
+neither reports a finding. The run sent 1,900 first requests, then 2 retries for missed quotes
+and none for invalid output. Cache reads were 13.6M of the 14.9M input tokens.
 
 ## CLI and repository
 
