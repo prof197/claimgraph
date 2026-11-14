@@ -9,9 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import batch, evaluation, extract, gold, labels, relabel, review
+from claimgraph import batch, evaluation, extract, gold, labels, normalize, relabel, review
 from claimgraph.config import QuestionConfig, load_config, resolve_question
-from claimgraph.prices import PRICES_FILE, load_prices
+from claimgraph.llm import ReplayMiss
+from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
 
 app = typer.Typer(no_args_is_help=True, help="Map where studies on one health question disagree.")
@@ -41,6 +42,7 @@ def main(
 class Stage(StrEnum):
     RETRIEVE = "retrieve"
     EXTRACT = "extract"
+    NORMALIZE = "normalize"
 
 
 Model = Annotated[extract.ModelChoice, typer.Option(help="The extraction model.")]
@@ -51,7 +53,8 @@ Live = Annotated[
     bool,
     typer.Option(
         "--live/--replay",
-        help="Send the requests that have no recording, through the batch API. Costs money.",
+        help="Send the requests that have no recording; extraction goes through the batch API. "
+        "Costs money.",
     ),
 ]
 PricesFile = Annotated[Path, typer.Option(help="The dated price file.")]
@@ -79,10 +82,16 @@ def run(
     dry_run: DryRun = False,
     live: Live = False,
     prices_file: PricesFile = PRICES_FILE,
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the committed outcome proposal recordings live.")
+    ] = Path("replay"),
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are written.")
+    ] = Path("mappings"),
 ) -> None:
-    """Run the pipeline for one question: retrieve, then extract.
+    """Run the pipeline for one question: retrieve, extract, then propose the outcome mapping.
 
-    Extraction replays recorded responses by default and exits with status 1 if any is missing.
+    Model calls replay recorded responses by default and exit with status 1 if any is missing.
     """
     config = load_config(resolve_question(question))
     run_dir = runs_dir / config.id
@@ -90,6 +99,8 @@ def run(
         _retrieve(config, run_dir, refresh)
     if stage in (None, Stage.EXTRACT):
         _extract(config, run_dir, dev, model, dry_run, live, prices_file, limit)
+    if stage in (None, Stage.NORMALIZE):
+        _normalize(config, run_dir, model, dry_run, live, prices_file, replay_dir, mappings_dir)
 
 
 def _retrieve(config: QuestionConfig, run_dir: Path, refresh: bool) -> None:
@@ -147,6 +158,71 @@ def _extract(
     write_atomic(out, "".join(r.model_dump_json() + "\n" for r in outcome.results).encode())
     typer.echo(f"wrote {out}")
     _report_missing(outcome)
+
+
+def _normalize(
+    config: QuestionConfig,
+    run_dir: Path,
+    model: extract.ModelChoice,
+    dry_run: bool,
+    live: bool,
+    prices_file: Path,
+    replay_root: Path,
+    mappings_dir: Path,
+) -> None:
+    source = run_dir / "extract" / f"corpus-{model.value}.jsonl"
+    try:
+        lines = source.read_text().splitlines()
+        results = [extract.ExtractionResult.model_validate_json(line) for line in lines]
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no corpus extraction in {source}; run --stage extract first", err=True)
+        raise typer.Exit(1) from error
+    out = mappings_dir / f"{config.id}.toml"
+    if out.exists():
+        # Reviewed outcomes are kept; nothing proposed replaces a person's edits.
+        typer.echo(f"{out} exists and is not overwritten")
+        return
+    strings = normalize.outcome_strings(results)
+    replay_dir = replay_root / config.id / "normalization" / model.value
+    prices = load_prices(prices_file)
+    if dry_run:
+        try:
+            result = normalize.estimate(strings, config, replay_dir, model, prices)
+        except ValueError as error:
+            typer.echo(str(error), err=True)
+            raise typer.Exit(1) from error
+        state = "recorded, so nothing is sent" if result.recorded else "not recorded yet"
+        typer.echo(
+            f"dry run: {result.strings} outcome strings to send to {result.model} in one "
+            f"request, about {result.input_tokens} input tokens ({state}); typical "
+            f"${result.typical_usd:.4f}, at most ${result.ceiling_usd:.4f} at standard prices "
+            f"(prices checked {prices.checked})"
+        )
+        return
+    try:
+        client = normalize.model_client(replay_dir, live)
+        proposal = normalize.propose(strings, config, client, model)
+    except (RuntimeError, ReplayMiss) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    spent = sum(cost(u, proposal.model, prices, batch=False) for u in proposal.usage)
+    tokens = sum(u.input_tokens + u.cache_read_input_tokens for u in proposal.usage)
+    output = sum(u.output_tokens for u in proposal.usage)
+    typer.echo(
+        f"{len(proposal.usage)} requests to {proposal.model}; tokens: {tokens} input, "
+        f"{output} output; ${spent:.4f} at standard prices"
+    )
+    if proposal.outcomes is None:
+        typer.echo(f"invalid proposal: {'; '.join(proposal.errors)}", err=True)
+        raise typer.Exit(1)
+    header = normalize.mapping_header(config, proposal)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, normalize.mapping_toml(proposal.outcomes, header).encode())
+    typer.echo(f"{proposal.strings} outcome strings in {len(proposal.outcomes)} outcomes")
+    for outcome in proposal.outcomes:
+        better = "higher is better" if outcome.higher_is_better else "lower is better"
+        typer.echo(f"  {len(outcome.members):>4}  {outcome.name} ({better})")
+    typer.echo(f"wrote {out}, unreviewed")
 
 
 def _send_batches(

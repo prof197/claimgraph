@@ -419,11 +419,26 @@ title alone.
 Normalization is the load-bearing step: one model proposal over the unique outcome strings, then
 a person reviews the mapping before anything is published.
 
-- Collect the unique `outcome_reported` strings across all findings. We expect a few hundred for
-  one question.
+- Collect the unique `outcome_reported` strings across all findings. We expected a few hundred
+  for one question; the vitamin D corpus has 547, from 815 findings.
 - One model call proposes groups: a canonical name, the member strings and `higher_is_better`.
   The result is written to `mappings/<id>.toml` with `reviewed = false`. The file is TOML,
   committed and edited by hand.
+- **The proposal call.** `run --stage normalize` sends the sorted strings, numbered, in one
+  direct request on the extraction model's settings, and the model answers with numbers, not
+  strings, so it cannot misspell a member. Code checks that every number is in exactly one
+  outcome and that no name repeats; a failure gets one retry naming it, like extraction's. The
+  recording is committed under `replay/<id>/normalization/`, so the eval replays the proposal
+  it scores. An existing mapping file is never overwritten.
+- **What the prompt groups by.** Strings group by what is measured, not how: the instrument,
+  scale, cut-off, timing and population a string names stay inside one outcome, where the
+  classifier weighs them as an outcome-measure reason. Whether a condition occurs and how severe
+  its symptoms are stay apart, and no outcome spans two entries of the outcome domain. A string
+  that measures nothing in the domain gets an outcome of its own, so the reviewer sees it.
+- **One string, two domain entries.** A mapping keys on the string alone, so a string that
+  findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
+  "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The
+  hard case below puts it with symptoms, and the reviewer sees the split.
 - The hosted build refuses an unreviewed mapping. The CLI demo may run unreviewed and labels its
   output so.
 - Reruns keep reviewed groups and propose only strings the mapping has not seen, so review effort
