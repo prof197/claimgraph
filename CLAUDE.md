@@ -27,6 +27,7 @@ uv run --env-file .env claimgraph run vitamin-d-depression --stage normalize --l
                                           # propose the outcome mapping, unreviewed (costs money)
 uv run claimgraph mapping check vitamin-d-depression   # every outcome reviewed, every string mapped
 uv run claimgraph eval normalization vitamin-d-depression  # score the recorded outcome proposal
+uv run claimgraph eval normalization vitamin-d-depression --readme README.md  # README block
 uv run claimgraph gold outcome-pairs sample vitamin-d-depression
                                           # draw the outcome pairs from the recorded proposal
 uv run claimgraph gold outcome-pairs template vitamin-d-depression  # the pair file to label

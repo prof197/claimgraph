@@ -30,3 +30,9 @@ jobs:
           uv run claimgraph eval extraction vitamin-d-depression | tee -a "$GITHUB_STEP_SUMMARY"
           uv run claimgraph eval models vitamin-d-depression --second-run replay/second-run \
             | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Normalization eval
+        run: |
+          set -o pipefail
+          uv run claimgraph eval normalization vitamin-d-depression | tee -a "$GITHUB_STEP_SUMMARY"
+          uv run claimgraph eval normalization vitamin-d-depression --baseline \
+            | tee -a "$GITHUB_STEP_SUMMARY"

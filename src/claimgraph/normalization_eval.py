@@ -11,10 +11,23 @@ from the proposal, so their rates are not rates over all pairs.
 from collections import Counter
 from collections.abc import Collection, Sequence
 from math import comb
+from pathlib import Path
 
+from claimgraph import normalize, outcome_kinds
+from claimgraph.config import QuestionConfig
+from claimgraph.extract import ModelChoice
+from claimgraph.llm import ReplayMiss, recorded_request
 from claimgraph.models import NormalizedOutcome, Record
-from claimgraph.outcome_kinds import Kind, KindLabel
-from claimgraph.outcome_pairs import PairSample, Stratum
+from claimgraph.normalize import Proposal
+from claimgraph.outcome_kinds import (
+    CORRECTIONS_FILE,
+    Found,
+    Kind,
+    KindLabel,
+    before,
+    load_corrections,
+)
+from claimgraph.outcome_pairs import SAMPLE_FILE, PairSample, Stratum, load_sample
 
 
 class MergeCounts(Record):
@@ -140,25 +153,131 @@ def _row(name: str, counts: MergeCounts, *lead: str) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
-def table(scores: NormalizationScores) -> str:
-    """The scores as Markdown: all pairs and the drawn subset, then each stratum."""
-    head = "Scored | Labeled merges | Proposed merges | Both | Merge precision | Merge recall"
+_HEAD = "Scored | Labeled merges | Proposed merges | Both | Merge precision | Merge recall"
+
+
+def strata_table(scores: NormalizationScores) -> str:
     lines = [
-        f"| Pairs | {head} |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
-        _row("Every pair of in-domain strings", scores.all_pairs),
-        _row("Drawn pairs", scores.drawn),
-        "",
-        f"| Stratum | Pool | Drawn | Out of domain | {head} |",
+        f"| Stratum | Pool | Drawn | Out of domain | {_HEAD} |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for s in scores.strata:
         lead = (f"{s.pool:,}", str(s.drawn), str(s.out_of_domain))
         lines.append(_row(s.stratum.value.replace("_", " "), s.counts, *lead))
-    lines += [
-        "",
+    return "\n".join(lines) + "\n"
+
+
+def footer(scores: NormalizationScores) -> str:
+    return (
         f"{scores.strings} strings, {scores.labeled_out} labeled out of domain and left out of "
         f"every pair. The proposal has {scores.outcomes} outcomes and put {scores.proposed_out} "
-        f"strings outside the domain, {scores.both_out} of them labeled out of domain.",
+        f"strings outside the domain, {scores.both_out} of them labeled out of domain.\n"
+    )
+
+
+def table(scores: NormalizationScores) -> str:
+    """The scores as Markdown: all pairs and the drawn subset, then each stratum."""
+    lines = [
+        f"| Pairs | {_HEAD} |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        _row("Every pair of in-domain strings", scores.all_pairs),
+        _row("Drawn pairs", scores.drawn),
     ]
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n\n" + strata_table(scores) + "\n" + footer(scores)
+
+
+# Replaying the recorded proposals
+
+README_BLOCK = "normalization-eval"
+
+
+def labeled(out_dir: Path) -> list[KindLabel]:
+    """The outcome kinds, every string labeled and checked against the draw."""
+    report = outcome_kinds.check(out_dir)
+    if report.problems:
+        raise ValueError("; ".join(report.problems))
+    return report.labels
+
+
+def replayed(
+    labels: Sequence[KindLabel],
+    config: QuestionConfig,
+    replay_dir: Path,
+    choice: ModelChoice,
+    drawn: PairSample,
+    baseline: bool,
+) -> Proposal:
+    """The current prompt's recorded proposal, or with baseline the one the pairs were drawn
+    from, replayed by its key under any later prompt."""
+    strings = sorted(label.string for label in labels)
+    params = None
+    if baseline:
+        try:
+            params = recorded_request(replay_dir, drawn.proposal)
+        except FileNotFoundError as error:
+            raise ValueError(f"no recorded proposal in {replay_dir}") from error
+        if params["messages"][0]["content"] != normalize.user_message(strings):
+            raise ValueError(
+                "the kind file's strings are not the ones the drawn proposal was made on"
+            )
+    client = normalize.model_client(replay_dir, False)
+    try:
+        proposal = normalize.propose(strings, config, client, choice, params=params)
+    except ReplayMiss as error:
+        raise ValueError(f"no recorded proposal in {replay_dir}") from error
+    if proposal.outcomes is None:
+        raise ValueError(f"the recorded proposal is invalid: {'; '.join(proposal.errors)}")
+    return proposal
+
+
+def readme(out_dir: Path, replay_dir: Path, config: QuestionConfig, choice: ModelChoice) -> str:
+    """The README block: each proposal before and after the corrections its disagreements found,
+    then the frozen prompt's proposal by stratum."""
+    labels = labeled(out_dir)
+    drawn = load_sample(out_dir / SAMPLE_FILE)
+    corrections = load_corrections(out_dir / CORRECTIONS_FILE)
+    proposals = [
+        (
+            "First proposal",
+            replayed(labels, config, replay_dir, choice, drawn, True),
+            Found.FIRST_PROPOSAL,
+        ),
+        (
+            "Rules prompt, frozen",
+            replayed(labels, config, replay_dir, choice, drawn, False),
+            Found.RULES_PROPOSAL,
+        ),
+    ]
+    head = ["Proposal", "Labels", "Scored pairs", "Merge precision", "Merge recall"]
+    head += ["Drawn precision", "Drawn recall"]
+    rows = ["| " + " | ".join(head) + " |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+    final: NormalizationScores | None = None
+    for name, proposal, found in proposals:
+        assert proposal.outcomes is not None
+        count = sum(c.found is found for c in corrections)
+        versions = [
+            (
+                f"Before the {count} corrections its disagreements found",
+                before(labels, corrections, {found}),
+            ),
+            (f"All {len(corrections)} corrections", labels),
+        ]
+        for described, version in versions:
+            s = score(version, proposal.outcomes, proposal.outside, drawn)
+            cells = [name, described, f"{s.all_pairs.pairs:,}"]
+            cells += [_rate(s.all_pairs.precision), _rate(s.all_pairs.recall)]
+            cells += [_rate(s.drawn.precision), _rate(s.drawn.recall)]
+            rows.append("| " + " | ".join(cells) + " |")
+            final = s
+    assert final is not None
+    return (
+        f"Outcome proposals by {proposals[1][1].model} on the {final.strings} outcome strings, "
+        "scored from the committed recordings over every pair of in-domain strings and over the "
+        f"{final.drawn.pairs} drawn pairs that are in the domain. In sample: the outcome rules "
+        "were written while labeling these same strings, so the rules prompt's rates are not "
+        "held-out estimates. A correction found only where a proposal disagreed can raise its "
+        "score but never lower it, so each proposal is shown before and after those.\n\n"
+        + "\n".join(rows)
+        + "\n\nThe frozen prompt's proposal, against all corrections, by stratum of the draw; "
+        "the strata come from the first proposal.\n\n" + strata_table(final) + "\n" + footer(final)
+    )

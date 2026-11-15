@@ -660,7 +660,9 @@ data is labeled by hand, from openly licensed articles only.
 - **Scoring the proposal:** `claimgraph eval normalization` replays the current prompt's
   proposal from the strings in the kind file, so CI needs no run outputs; `--baseline` replays
   the recording the pairs were drawn from, by its key, so the first proposal stays scorable after
-  the prompt changes. The strata are always the draw's. A string the proposal puts under an
+  the prompt changes. The strata are always the draw's. `--readme` writes both proposals into
+  the README, each before and after the corrections its own disagreements found, with the
+  frozen prompt's proposal by stratum and a note that its rates are in sample. CI prints both. A string the proposal puts under an
   outcome it marks outside the domain merges with nothing, since review deletes that outcome,
   and the eval counts how many strings each side puts out of domain.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6

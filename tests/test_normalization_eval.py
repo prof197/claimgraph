@@ -280,3 +280,21 @@ def test_the_vitamin_d_baseline_scores_from_committed_files() -> None:
 
     assert result.exit_code == 0, result.output
     assert "Every pair of in-domain strings" in result.output
+
+
+def test_the_readme_block_is_current() -> None:
+    from claimgraph.config import load_config
+    from claimgraph.extract import ModelChoice
+    from claimgraph.relabel import replace_block
+
+    config = load_config(ROOT / "questions" / "vitamin-d-depression.toml")
+    block = normalization_eval.readme(
+        ROOT / "evals" / "gold" / "vitamin-d-depression",
+        ROOT / "replay" / "vitamin-d-depression" / "normalization" / "sonnet",
+        config,
+        ModelChoice.SONNET,
+    )
+    readme = (ROOT / "README.md").read_text()
+
+    assert replace_block(readme, normalization_eval.README_BLOCK, block) == readme
+    assert "In sample" in block

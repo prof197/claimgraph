@@ -24,7 +24,7 @@ from claimgraph import (
     review,
 )
 from claimgraph.config import QuestionConfig, load_config, resolve_question
-from claimgraph.llm import ReplayMiss, recorded_request, request_key
+from claimgraph.llm import ReplayMiss, request_key
 from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
@@ -890,6 +890,10 @@ def eval_normalization(
             "--baseline", help="Score the proposal the pairs were drawn from, not the current one."
         ),
     ] = False,
+    readme: Annotated[
+        Path | None,
+        typer.Option(help="Write both proposals, before and after corrections, into this README."),
+    ] = None,
 ) -> None:
     """Merge precision and recall of the recorded outcome proposal against the outcome kinds.
 
@@ -898,40 +902,20 @@ def eval_normalization(
     """
     config = load_config(resolve_question(question))
     out_dir = gold_dir / config.id
-    report = outcome_kinds.check(out_dir)
-    if report.problems:
-        typer.echo(f"no scores: {'; '.join(report.problems)}", err=True)
-        raise typer.Exit(1)
-    found = report.labels
-    drawn = outcome_pairs.load_sample(out_dir / outcome_pairs.SAMPLE_FILE)
-    strings = sorted(label.string for label in found)
     replay = replay_dir / config.id / "normalization" / model.value
-    params = None
-    if baseline:
-        try:
-            params = recorded_request(replay, drawn.proposal)
-        except FileNotFoundError as error:
-            typer.echo(f"no scores: no recorded proposal in {replay_dir}", err=True)
-            raise typer.Exit(1) from error
-        if params["messages"][0]["content"] != normalize.user_message(strings):
-            typer.echo(
-                "no scores: the kind file's strings are not the ones the drawn proposal was "
-                "made on",
-                err=True,
-            )
-            raise typer.Exit(1)
-    client = normalize.model_client(replay, False)
     try:
-        proposal = normalize.propose(strings, config, client, model, params=params)
-    except ReplayMiss as error:
-        typer.echo(f"no scores: no recorded proposal in {replay_dir}", err=True)
-        raise typer.Exit(1) from error
-    if proposal.outcomes is None:
-        typer.echo(f"no scores: the recorded proposal is invalid: {proposal.errors}", err=True)
-        raise typer.Exit(1)
-    try:
+        if readme is not None:
+            block = normalization_eval.readme(out_dir, replay, config, model)
+            text = readme.read_text()
+            readme.write_text(relabel.replace_block(text, normalization_eval.README_BLOCK, block))
+            typer.echo(block, nl=False)
+            return
+        found = normalization_eval.labeled(out_dir)
+        drawn = outcome_pairs.load_sample(out_dir / outcome_pairs.SAMPLE_FILE)
+        proposal = normalization_eval.replayed(found, config, replay, model, drawn, baseline)
+        assert proposal.outcomes is not None
         scores = normalization_eval.score(found, proposal.outcomes, proposal.outside, drawn)
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         typer.echo(f"no scores: {error}", err=True)
         raise typer.Exit(1) from error
     typer.echo(normalization_eval.table(scores), nl=False)
