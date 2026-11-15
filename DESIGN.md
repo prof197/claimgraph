@@ -646,6 +646,13 @@ data is labeled by hand, from openly licensed articles only.
   mostly splits on scale or timing and merges of a cut-off with a score, and that is why the
   labeling unit changed. Polarity follows the kind too: lower is better for score and case
   status, higher for remission and response, and the mapping review sets it so.
+- **Corrections found where a model disagrees:** checking a label only where a proposal
+  disagrees with it can raise that proposal's score but never lower it, since a wrong label the
+  proposal happens to agree with is never looked at. 20 of the 23 outcome corrections came that
+  way: 17 from the first proposal's disagreements and 3 from the rules proposal's. The other 3
+  came from comparing the kinds with the first-pass pair verdicts, before scoring.
+  `outcome_kind_corrections.toml` records how each was found, and the README reports each
+  proposal before and after the corrections its own disagreements turned up.
 - **Scoring the proposal:** `claimgraph eval normalization` replays the current prompt's
   proposal from the strings in the kind file, so CI needs no run outputs; `--baseline` replays
   the recording the pairs were drawn from, by its key, so the first proposal stays scorable after

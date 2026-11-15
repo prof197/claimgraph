@@ -7,7 +7,7 @@ out of domain if either string is, merge if both share a kind, separate otherwis
 
 import re
 import tomllib
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -157,6 +157,71 @@ def check(out_dir: Path) -> KindReport:
     return KindReport(
         drawn=None if drawn is None else drawn.strings, labels=labels, problems=problems
     )
+
+
+# Corrections made after labeling
+
+CORRECTIONS_FILE = "outcome_kind_corrections.toml"
+
+
+class Found(StrEnum):
+    """How a correction was found. One found only where a model disagreed with the labels can
+    raise that model's score but never lower it, so the eval reports it before and after."""
+
+    PAIR_VERDICTS = "pair_verdicts"  # comparing the kinds with the first-pass pair verdicts
+    FIRST_PROPOSAL = "first_proposal"  # where the first proposal disagreed, after scoring
+    RULES_PROPOSAL = "rules_proposal"  # where the proposal under the rules prompt disagreed
+
+    @property
+    def described(self) -> str:
+        return {
+            Found.PAIR_VERDICTS: "The first-pass pair verdicts, before scoring",
+            Found.FIRST_PROPOSAL: "The first proposal's disagreements, after scoring",
+            Found.RULES_PROPOSAL: "The rules proposal's disagreements, after scoring",
+        }[self]
+
+
+class Correction(Record):
+    string: NonBlank
+    was: Kind
+    now: Kind
+    found: Found
+    rule: NonBlank
+
+
+class _CorrectionFile(Record):
+    correction: list[Correction] = Field(default_factory=list[Correction])
+
+
+def load_corrections(path: Path) -> list[Correction]:
+    with path.open("rb") as f:
+        return _CorrectionFile.model_validate(tomllib.load(f)).correction
+
+
+def before(
+    labels: Sequence[KindLabel], corrections: Sequence[Correction], found: Collection[Found]
+) -> list[KindLabel]:
+    """The labels as they were before the corrections found these ways."""
+    undo = {c.string: c for c in corrections if c.found in found}
+    out: list[KindLabel] = []
+    for label in labels:
+        c = undo.pop(label.string, None)
+        if c is not None:
+            if label.kind != c.now:
+                raise ValueError(f"{c.string!r} is labeled {label.kind!r}, not {c.now.value!r}")
+            label = label.model_copy(update={"kind": c.was})
+        out.append(label)
+    if undo:
+        raise ValueError(f"corrected strings not in the kind file: {', '.join(sorted(undo))}")
+    return out
+
+
+def correction_rows(corrections: Sequence[Correction]) -> list[str]:
+    """The corrections as rows of the gold README's table."""
+    return [
+        f"| {c.string} | `{c.was}` | `{c.now}` | {c.rule} | {c.found.described} |"
+        for c in corrections
+    ]
 
 
 # Pair verdicts entered by hand, compared with the ones the kinds give

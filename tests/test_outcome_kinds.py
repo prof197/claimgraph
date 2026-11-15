@@ -412,3 +412,61 @@ def test_committed_outcome_kinds_are_complete() -> None:
         if name.endswith("/" + outcome_kinds.LABEL_FILE):
             out = (ROOT / name).parent
             assert outcome_kinds.check(out).problems == [], out.name
+
+
+# Corrections made after labeling
+
+
+CORRECTIONS = """
+[[correction]]
+string = "synthetic score"
+was = "case_status"
+now = "score"
+found = "pair_verdicts"
+rule = "A synthetic rule."
+
+[[correction]]
+string = "synthetic onset"
+was = "score"
+now = "case_status"
+found = "first_proposal"
+rule = "Another synthetic rule."
+"""
+
+
+def test_corrections_restore_the_labels_they_replaced(tmp_path: Path) -> None:
+    path = tmp_path / outcome_kinds.CORRECTIONS_FILE
+    path.write_text(CORRECTIONS)
+    corrections = outcome_kinds.load_corrections(path)
+
+    before = outcome_kinds.before(KINDS, corrections, {outcome_kinds.Found.FIRST_PROPOSAL})
+
+    kinds = {label.string: label.kind for label in before}
+    assert kinds["synthetic onset"] == Kind.SCORE
+    assert kinds["synthetic score"] == Kind.SCORE
+    assert len(before) == len(KINDS)
+
+
+def test_a_correction_must_match_the_current_label(tmp_path: Path) -> None:
+    path = tmp_path / outcome_kinds.CORRECTIONS_FILE
+    path.write_text(CORRECTIONS.replace('now = "case_status"', 'now = "remission"'))
+
+    with pytest.raises(ValueError, match="synthetic onset"):
+        outcome_kinds.before(
+            KINDS, outcome_kinds.load_corrections(path), {outcome_kinds.Found.FIRST_PROPOSAL}
+        )
+
+
+def test_the_gold_readme_lists_every_outcome_correction() -> None:
+    out = ROOT / "evals" / "gold" / "vitamin-d-depression"
+    corrections = outcome_kinds.load_corrections(out / outcome_kinds.CORRECTIONS_FILE)
+    readme = (ROOT / "evals" / "gold" / "README.md").read_text()
+    labels = {
+        label.string: label.kind for label in outcome_kinds.load(out / outcome_kinds.LABEL_FILE)
+    }
+
+    rows = outcome_kinds.correction_rows(corrections)
+    assert all(row in readme for row in rows)
+    table = readme.split("| String | Was | Now | Rule | Found |", 1)[1].split("\n\n", 1)[0]
+    assert len([line for line in table.splitlines() if line.startswith("| ")]) == len(rows)
+    assert all(labels[c.string] == c.now for c in corrections)

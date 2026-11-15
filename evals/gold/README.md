@@ -51,34 +51,40 @@ was first scored, because the label contradicted a rule that predates the label 
 ### Outcome kinds
 
 Every outcome string was given a kind by the maintainer on the labeling page, following the
-outcome section of [LABELING.md](LABELING.md). The first 3 corrections below came from
-comparing the kinds with the maintainer's earlier pair verdicts, before the normalization eval
-was first scored. The other 17 were made after scoring: building the reviewed mapping from the
-kinds showed labels that contradicted the guide's words, and the maintainer accepted each
-correction.
+outcome section of [LABELING.md](LABELING.md). `vitamin-d-depression/outcome_kind_corrections.toml`
+records each correction since, listed below. The first 3 came from comparing the kinds with the
+maintainer's earlier pair verdicts, before the normalization eval was first scored. The other
+20 were found after scoring, by checking strings where a proposal disagreed with the labels:
+17 where the first proposal did and 3 where the proposal under the rules prompt did. The
+maintainer accepted each one. A correction found only where a model disagrees can raise that
+model's score but never lower it, so the README reports each proposal before and after the
+corrections its own disagreements turned up.
 
-| String | Was | Now | Rule | Scoring |
+| String | Was | Now | Rule | Found |
 |---|---|---|---|---|
-| elevated depressive symptoms (CES-D) | `score` | `case_status` | "Elevated" is a case-status word | Before |
-| elevated depressive symptoms (8-point CES-D) | `score` | `case_status` | "Elevated" is a case-status word | Before |
-| reduction of depressive symptoms | `response` | `score` | "Reduction" is a score word without a percentage threshold | Before |
-| depression symptoms | `case_status` | `score` | "Symptoms" is a score word | After |
-| symptoms of depression | `case_status` | `score` | "Symptoms" is a score word | After |
-| depression (symptom) | `case_status` | `score` | "Symptoms" is a score word | After |
-| depression symptom presentation | `case_status` | `score` | "Symptoms" is a score word | After |
-| depressed mood | `case_status` | `score` | "Mood" beside a depression word is a score word | After |
-| DASS-depression | `case_status` | `score` | A depression subscale with no cut-off is a score | After |
-| DISYPS-II parental rating of depressive symptoms | `case_status` | `score` | A rating scale with no cut-off is a score | After |
-| WURS depression | `case_status` | `score` | The WURS has a depression factor (Öncü et al. 2005), so it is a depression subscale | After |
-| incident depression (GDS) | `score` | `case_status` | "Incident" is a case-status word, and words beat symbols | After |
-| risk of depression (Beck Depression Inventory-II) | `score` | `case_status` | "Risk" is a case-status word | After |
-| depression risk (HAM-D) | `score` | `case_status` | "Risk" is a case-status word | After |
-| moderate-to-severe depression or major depression (PHQ-9) | `score` | `case_status` | "Major depression" is a case-status word | After |
-| elevated depressive symptoms (depression screening score) | `score` | `case_status` | "Elevated" and "screening" are case-status words | After |
-| comorbid depression | `score` | `case_status` | "Comorbid" names the population, not a second condition, so it is a bare condition | After |
-| depression (Mental Health Inventory-5) at 50 years | `case_status` | `out_of_domain` | The MHI-5 has no depression-only part | After |
-| psychiatric symptomatology (HSCL-56) | `score` | `out_of_domain` | A mixed instrument that does not say depression | After |
-| mental health scores (PHQ-9, PROMIS) | `score` | `out_of_domain` | Mental health is broader than depression | After |
+| elevated depressive symptoms (CES-D) | `score` | `case_status` | "Elevated" is a case-status word | The first-pass pair verdicts, before scoring |
+| elevated depressive symptoms (8-point CES-D) | `score` | `case_status` | "Elevated" is a case-status word | The first-pass pair verdicts, before scoring |
+| reduction of depressive symptoms | `response` | `score` | "Reduction" is a score word without a percentage threshold | The first-pass pair verdicts, before scoring |
+| depression symptoms | `case_status` | `score` | "Symptoms" is a score word | The first proposal's disagreements, after scoring |
+| symptoms of depression | `case_status` | `score` | "Symptoms" is a score word | The first proposal's disagreements, after scoring |
+| depression (symptom) | `case_status` | `score` | "Symptoms" is a score word | The first proposal's disagreements, after scoring |
+| depression symptom presentation | `case_status` | `score` | "Symptoms" is a score word | The first proposal's disagreements, after scoring |
+| depressed mood | `case_status` | `score` | "Mood" beside a depression word is a score word | The first proposal's disagreements, after scoring |
+| DASS-depression | `case_status` | `score` | A depression subscale with no cut-off is a score | The first proposal's disagreements, after scoring |
+| DISYPS-II parental rating of depressive symptoms | `case_status` | `score` | A rating scale with no cut-off is a score | The first proposal's disagreements, after scoring |
+| WURS depression | `case_status` | `score` | The WURS has a depression factor (Öncü et al. 2005), so it is a depression subscale | The first proposal's disagreements, after scoring |
+| incident depression (GDS) | `score` | `case_status` | "Incident" is a case-status word, and words beat symbols | The first proposal's disagreements, after scoring |
+| risk of depression (Beck Depression Inventory-II) | `score` | `case_status` | "Risk" is a case-status word | The first proposal's disagreements, after scoring |
+| depression risk (HAM-D) | `score` | `case_status` | "Risk" is a case-status word | The first proposal's disagreements, after scoring |
+| moderate-to-severe depression or major depression (PHQ-9) | `score` | `case_status` | "Major depression" is a case-status word | The first proposal's disagreements, after scoring |
+| elevated depressive symptoms (depression screening score) | `score` | `case_status` | "Elevated" and "screening" are case-status words | The first proposal's disagreements, after scoring |
+| comorbid depression | `score` | `case_status` | "Comorbid" names the population, not a second condition, so it is a bare condition | The first proposal's disagreements, after scoring |
+| depression (Mental Health Inventory-5) at 50 years | `case_status` | `out_of_domain` | The MHI-5 has no depression-only part | The first proposal's disagreements, after scoring |
+| psychiatric symptomatology (HSCL-56) | `score` | `out_of_domain` | A mixed instrument that does not say depression | The first proposal's disagreements, after scoring |
+| mental health scores (PHQ-9, PROMIS) | `score` | `out_of_domain` | Mental health is broader than depression | The first proposal's disagreements, after scoring |
+| psychiatric diagnoses (including major depressive disorder) | `case_status` | `out_of_domain` | It bundles depression with other conditions | The rules proposal's disagreements, after scoring |
+| depression/mental disorder status (patients versus healthy individuals) | `case_status` | `out_of_domain` | It bundles depression with other conditions | The rules proposal's disagreements, after scoring |
+| subjective improvement | `response` | `out_of_domain` | It names no depression measure, and "improvement" is a score word, not response | The rules proposal's disagreements, after scoring |
 
 ## Licence
 
