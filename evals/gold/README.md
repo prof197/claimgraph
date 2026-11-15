@@ -11,11 +11,11 @@ One directory per question:
   it in `runs/`.
 - `screening.toml`: the on- or off-topic reading of every record the sampler reached.
 - `sample.json`: the seed, quotas, and the composition of the corpus and the open pool.
-- `labels/`, `outcome_pairs.toml`, `contradiction_pairs.toml`: the hand labels, written by
+- `labels/`, `outcome_kinds.toml`, `contradiction_pairs.toml`: the hand labels, written by
   the rules in [LABELING.md](LABELING.md).
-- `outcome_pair_sample.json`: the outcome pairs drawn for labeling, with the stratum each came
-  from and the recorded proposal it was drawn from. It shows the model's grouping, so it is
-  opened only after the pairs are labeled.
+- `outcome_pair_sample.json`: the outcome pairs the normalization eval reports as a subset,
+  with the stratum each came from and the recorded proposal it was drawn from. It shows the
+  model's grouping, so it is opened only after every outcome string has a kind.
 
 ## Size
 

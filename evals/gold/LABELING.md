@@ -6,7 +6,7 @@ Three label sets feed the evals. Each is TOML, written by hand, and checked by
 | Labels | File | Eval |
 |---|---|---|
 | Abstracts | `QUESTION/labels/PMID.toml`, one per gold abstract | Extraction |
-| Outcome pairs | `QUESTION/outcome_pairs.toml` | Normalization |
+| Outcome kinds | `QUESTION/outcome_kinds.toml` | Normalization |
 | Contradiction pairs | `QUESTION/contradiction_pairs.toml` | Contradictions |
 
 Every value is explicit. TOML has no null, so a value the abstract does not give is written
@@ -331,6 +331,28 @@ mapping review sets each outcome's direction from its kind.
 
 Judge each string as written. If one is too vague to place, take the closest reading and mark
 it unsure. The mapping review applies the same rules.
+
+### The file
+
+```
+uv run claimgraph gold outcome-kinds template vitamin-d-depression  # every string, no kinds
+uv run claimgraph gold outcome-kinds check vitamin-d-depression     # validate the kinds
+uv run claimgraph gold outcome-kinds compare vitamin-d-depression   # against entered pairs
+```
+
+The template lists every string of the recorded proposal once, sorted. `compare` lists the pair
+verdicts entered by hand in `outcome_pairs.toml` that the kinds do not give.
+
+```toml
+[[outcome]]
+string = "PHQ-9 score"
+kind = "score"
+
+[[outcome]]
+string = "seasonal mood pattern"
+kind = "score"
+unsure = true
+```
 
 ## Contradiction pairs
 

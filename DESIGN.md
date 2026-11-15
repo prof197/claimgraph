@@ -593,7 +593,7 @@ data is labeled by hand, from openly licensed articles only.
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
 | Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
-| Normalization | Labeled outcome-string pairs, merge, separate or out of domain, including the hard cases | 200 pairs | Merge precision and recall, with the stratum sizes | Replay |
+| Normalization | Each outcome string labeled score, case status, remission, response or out of domain; pair verdicts follow from the kinds | 547 strings, so every pair; 200 drawn pairs, including the hard cases, as a subset | Merge precision and recall over every pair of in-domain strings, and on the drawn pairs with the stratum sizes; out-of-domain strings counted | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
 | Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
@@ -613,9 +613,18 @@ data is labeled by hand, from openly licensed articles only.
   75 grouped and 75 split-but-related pairs. Split pairs sharing neither are nearly all plain
   non-merges, so they are counted, not drawn. On vitamin D that is 200 of 149,331 pairs from 547
   strings: 61,070 grouped, 1,041 split but related and 52,897 split and unrelated. Because the
-  strata come from the proposal, precision and recall on the labeled set are not its rates over
-  all pairs, and the eval reports them with the stratum sizes. Pairs labeled out of domain are
-  left out of both and counted.
+  strata come from the proposal, precision and recall on the drawn pairs are not its rates over
+  all pairs, and the eval reports them with the stratum sizes. Pairs with an out-of-domain
+  string are left out of both and counted.
+- **Kinds, not pairs:** the labels began as verdicts on the 200 drawn pairs. Under the guide a
+  pair's verdict follows from its two strings: out of domain if either is, merge if both are
+  the same kind, separate otherwise. So each string gets one kind instead (score, case status,
+  remission, response or out of domain), which labels all 149,331 pairs for the effort of 547
+  strings. The eval scores merges over every pair of in-domain strings and reports the drawn
+  pairs as a subset, so the hard-case strata still show. The pair verdicts entered before
+  the change are compared once with the ones the kinds give; each disagreement is a slip or a
+  rule the guide has to state. Polarity follows the kind too: lower is better for score and
+  case status, higher for remission and response, and the mapping review sets it so.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.
@@ -790,7 +799,8 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   the null study could not rule out the effect, by its own account or its confidence interval,
   or the two findings measure different things. An apparent pair always names the reason and a
   detail saying what dissolves the conflict.
-- **Outcome pairs** label whether two reported strings merge, including the ruled hard cases.
+- **Outcome kinds** label what each reported string measures; whether two strings merge
+  follows from their kinds, including in the ruled hard cases.
   **Contradiction pairs** label a candidate pair's verdict, reason, other differences and
   detail, under the same rules as the classifier's output.
 
@@ -911,9 +921,12 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
 - `claimgraph gold outcome-pairs sample QUESTION` draws the outcome pairs from the recorded
-  proposal and never redraws over an existing draw. `template` writes the file to label,
-  shuffled and without strata, and `check` validates it against the draw and fails until every
-  pair has a verdict.
+  proposal and never redraws over an existing draw. `template` and `check` write and validate
+  a file of verdicts on those pairs, the labels the kinds replaced.
+- `claimgraph gold outcome-kinds template QUESTION` writes the kind file, every string of the
+  recorded proposal with no kind; `check` validates it against the draw and fails until every
+  string has a kind; `compare` lists the pair verdicts entered by hand that the kinds do not
+  give.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
@@ -924,14 +937,14 @@ claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
-    verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  compare.py
-    arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
+    compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
   evals/       gold/LABELING.md  gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml,
                sample.json, ATTRIBUTION.md, labels/, outcome_pair_sample.json,
-               outcome_pairs.toml, contradiction_pairs.toml)  run.py  results/
+               outcome_kinds.toml, contradiction_pairs.toml)  run.py  results/
   replay/      recorded model responses used by CI
   site/        React + TypeScript front end
   tests/

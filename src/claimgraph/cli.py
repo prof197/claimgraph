@@ -16,6 +16,7 @@ from claimgraph import (
     gold,
     labels,
     normalize,
+    outcome_kinds,
     outcome_pairs,
     relabel,
     review,
@@ -453,7 +454,11 @@ def gold_check(
         f"{len(report.labeled)} labeled, {len(report.problems)} with problems, "
         f"{len(report.missing)} not started, of {total}"
     )
-    if report.problems:
+    kinds = gold_dir / config.id / outcome_kinds.LABEL_FILE
+    kind_problems = outcome_kinds.check(kinds.parent).problems if kinds.exists() else []
+    for problem in kind_problems:
+        typer.echo(f"{kinds.name}: {problem}", err=True)
+    if report.problems or kind_problems:
         raise typer.Exit(1)
 
 
@@ -668,6 +673,102 @@ def pairs_check(
         typer.echo(problem, err=True)
     if report.problems:
         raise typer.Exit(1)
+
+
+kinds_app = typer.Typer(
+    no_args_is_help=True, help="Label each outcome string by what it measures, and check it."
+)
+gold_app.add_typer(kinds_app, name="outcome-kinds")
+
+
+@kinds_app.command("template")
+def kinds_template(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Write the outcome-kind label file: every string of the recorded proposal, no kinds.
+
+    The strings must be the ones the outcome pairs were drawn from, so the eval scores the
+    proposal the pairs came from. Never overwrites a label file.
+    """
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    source = out_dir / outcome_pairs.SAMPLE_FILE
+    if not source.exists():
+        typer.echo(f"no draw in {source}; run gold outcome-pairs sample first", err=True)
+        raise typer.Exit(1)
+    strings = _corpus_strings(runs_dir / config.id, model)
+    if request_key(normalize.request(strings, config, model)) != (
+        outcome_pairs.load_sample(source).proposal
+    ):
+        typer.echo(
+            f"the corpus strings in {runs_dir} are not the ones the recorded proposal in "
+            f"{source} was made on",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        path = outcome_kinds.write_template(out_dir, config.id, strings)
+    except FileExistsError as error:
+        typer.echo(f"{error} already exists and may hold labels; not overwritten", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"wrote {path}: {len(strings)} strings")
+
+
+@kinds_app.command("check")
+def kinds_check(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Check the outcome kinds against the draw; exits 1 until every string has a kind."""
+    config = load_config(resolve_question(question))
+    report = outcome_kinds.check(gold_dir / config.id)
+    labeled = [label for label in report.labels if label.kind]
+    counts = ", ".join(f"{report.count(k)} {k}" for k in outcome_kinds.Kind)
+    unsure = sum(label.unsure for label in report.labels)
+    typer.echo(f"{len(labeled)} of {len(report.labels)} strings labeled: {counts}; {unsure} unsure")
+    for problem in report.problems:
+        typer.echo(problem, err=True)
+    if report.problems:
+        raise typer.Exit(1)
+
+
+@kinds_app.command("compare")
+def kinds_compare(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    pairs: Annotated[
+        Path | None,
+        typer.Option(help="Pair verdicts entered by hand; the question's outcome_pairs.toml."),
+    ] = None,
+) -> None:
+    """List the pair verdicts entered by hand that the outcome kinds do not give."""
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    pairs_path = pairs or out_dir / outcome_pairs.LABEL_FILE
+    try:
+        labels_found = outcome_kinds.load(out_dir / outcome_kinds.LABEL_FILE)
+        entered = outcome_kinds.read_entered_pairs(pairs_path)
+    except (OSError, ValueError) as error:
+        typer.echo(f"not compared: {error}", err=True)
+        raise typer.Exit(1) from error
+    for problem in entered.problems:
+        typer.echo(problem, err=True)
+    result = outcome_kinds.compare(entered.pairs, labels_found)
+    typer.echo(
+        f"{len(entered.pairs)} pair verdicts entered and {entered.blank} left blank. "
+        f"Against the kinds: {result.agree} agree, {len(result.disagree)} disagree, "
+        f"{result.waiting} wait on a string with no kind."
+    )
+    for d in result.disagree:
+        unsure = "; a kind is marked unsure" if d.unsure else ""
+        comment = f"; your comment: {d.comment}" if d.comment else ""
+        typer.echo(
+            f"- {d.a} / {d.b}: entered {d.entered}, kinds give {d.derived} "
+            f"({d.kind_a} / {d.kind_b}){unsure}{comment}"
+        )
 
 
 eval_app = typer.Typer(no_args_is_help=True, help="Score the pipeline against the gold labels.")

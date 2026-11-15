@@ -264,7 +264,7 @@ def load_sample(path: Path) -> PairSample:
     return PairSample.model_validate_json(path.read_text())
 
 
-def _toml_string(value: str) -> str:
+def toml_string(value: str) -> str:
     # A JSON string is a TOML basic string: the same quotes, and escapes TOML accepts.
     return json.dumps(value, ensure_ascii=False)
 
@@ -283,8 +283,8 @@ def label_template(drawn: PairSample) -> str:
         lines += [
             "",
             "[[pair]]",
-            f"a = {_toml_string(pair.a)}",
-            f"b = {_toml_string(pair.b)}",
+            f"a = {toml_string(pair.a)}",
+            f"b = {toml_string(pair.b)}",
             'verdict = ""',
         ]
     return "\n".join(lines) + "\n"
