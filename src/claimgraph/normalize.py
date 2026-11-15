@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from claimgraph.batch import CHARS_PER_TOKEN, RETRY_NOTE_TOKENS
 from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig
@@ -257,6 +257,8 @@ class Proposal(Record):
     strings: int
     # None when both attempts were invalid.
     outcomes: list[NormalizedOutcome] | None
+    # The outcomes the model marked outside the domain, for review to delete.
+    outside: list[str] = Field(default_factory=list[str])
     # What was wrong with each invalid attempt, in order.
     errors: list[str]
     # One entry per request sent, for the cost report.
@@ -289,11 +291,17 @@ def propose(
     errors: list[str] = []
     usage: list[Usage] = []
     outcomes: list[NormalizedOutcome] | None = None
+    outside: list[str] = []
     for attempt in range(2):
         reply = client.create(params)
         usage.append(reply.usage)
         try:
             outcomes = read_proposal(reply, strings, config, existing)
+            outside = [
+                o.name
+                for o in _Proposal.model_validate_json(reply.text).outcomes
+                if o.domain == OUTSIDE_DOMAIN
+            ]
             break
         except InvalidProposal as error:
             errors.append(str(error))
@@ -303,6 +311,7 @@ def propose(
         model=SETTINGS[choice].model,
         strings=len(strings),
         outcomes=outcomes,
+        outside=outside,
         errors=errors,
         usage=usage,
     )

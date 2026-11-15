@@ -16,6 +16,7 @@ from claimgraph import (
     gold,
     kind_review,
     labels,
+    normalization_eval,
     normalize,
     outcome_kinds,
     outcome_pairs,
@@ -863,6 +864,52 @@ def eval_extraction(
             typer.echo(f"- {line}")
     if rerun is not None:
         typer.echo(f"\n{rerun}", nl=False)
+
+
+@eval_app.command("normalization")
+def eval_normalization(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the committed model recordings live.")
+    ] = Path("replay"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Merge precision and recall of the recorded outcome proposal against the outcome kinds.
+
+    The proposal is replayed from the strings in the kind file, so nothing is sent; exits with
+    status 1 if its recording is missing.
+    """
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    try:
+        found = outcome_kinds.load(out_dir / outcome_kinds.LABEL_FILE)
+        drawn = outcome_pairs.load_sample(out_dir / outcome_pairs.SAMPLE_FILE)
+    except (OSError, ValueError) as error:
+        typer.echo(f"no scores: {error}", err=True)
+        raise typer.Exit(1) from error
+    strings = sorted(label.string for label in found)
+    if request_key(normalize.request(strings, config, model)) != drawn.proposal:
+        typer.echo(
+            "no scores: the kind file's strings are not the ones the drawn proposal was made on",
+            err=True,
+        )
+        raise typer.Exit(1)
+    client = normalize.model_client(replay_dir / config.id / "normalization" / model.value, False)
+    try:
+        proposal = normalize.propose(strings, config, client, model)
+    except ReplayMiss as error:
+        typer.echo(f"no scores: no recorded proposal in {replay_dir}", err=True)
+        raise typer.Exit(1) from error
+    if proposal.outcomes is None:
+        typer.echo(f"no scores: the recorded proposal is invalid: {proposal.errors}", err=True)
+        raise typer.Exit(1)
+    try:
+        scores = normalization_eval.score(found, proposal.outcomes, proposal.outside, drawn)
+    except ValueError as error:
+        typer.echo(f"no scores: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(normalization_eval.table(scores), nl=False)
 
 
 @eval_app.command("models")

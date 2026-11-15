@@ -634,6 +634,10 @@ data is labeled by hand, from openly licensed articles only.
   mostly splits on scale or timing and merges of a cut-off with a score, and that is why the
   labeling unit changed. Polarity follows the kind too: lower is better for score and case
   status, higher for remission and response, and the mapping review sets it so.
+- **Scoring the proposal:** `claimgraph eval normalization` replays the recorded proposal from
+  the strings in the kind file, so CI needs no run outputs. A string the proposal puts under an
+  outcome it marks outside the domain merges with nothing, since review deletes that outcome,
+  and the eval counts how many strings each side puts out of domain.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.
@@ -949,7 +953,7 @@ claimgraph/
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
     verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
-    kind_review.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    kind_review.py  normalization_eval.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
