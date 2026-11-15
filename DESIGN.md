@@ -926,7 +926,9 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 - `claimgraph gold outcome-kinds template QUESTION` writes the kind file, every string of the
   recorded proposal with no kind; `check` validates it against the draw and fails until every
   string has a kind; `compare` lists the pair verdicts entered by hand that the kinds do not
-  give.
+  give; `review` serves a page on 127.0.0.1 for labeling the strings by kind, beside the
+  guide's outcome section, and saves each click to the file. It reads only the kind file and
+  the guide, so the model's grouping cannot show.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
@@ -938,7 +940,7 @@ claimgraph/
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
     verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
-    compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    kind_review.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml

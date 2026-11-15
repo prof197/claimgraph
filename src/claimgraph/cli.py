@@ -14,6 +14,7 @@ from claimgraph import (
     evaluation,
     extract,
     gold,
+    kind_review,
     labels,
     normalize,
     outcome_kinds,
@@ -578,7 +579,12 @@ def gold_review(
         typer.echo("no second pass yet; run gold relabel first", err=True)
         raise typer.Exit(1)
     try:
-        review.serve(session, review.write_page(page_dir), port, open_browser)
+        page = review.write_page(page_dir)
+        review.serve(
+            lambda method, path, body, kind: review.handle(session, page, method, path, body, kind),
+            port,
+            open_browser,
+        )
     except OSError as error:
         if error.errno != errno.EADDRINUSE:
             raise
@@ -769,6 +775,45 @@ def kinds_compare(
             f"- {d.a} / {d.b}: entered {d.entered}, kinds give {d.derived} "
             f"({d.kind_a} / {d.kind_b}){unsure}{comment}"
         )
+
+
+@kinds_app.command("review")
+def kinds_review(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+    port: Annotated[int, typer.Option(help="Port on 127.0.0.1; 0 picks a free one.")] = (
+        kind_review.PORT
+    ),
+    open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open a browser.")] = True,
+) -> None:
+    """Serve a local page for labeling each outcome string by kind; every click is saved.
+
+    The page shows the strings alone, shuffled, beside the guide's rules, and never the
+    model's grouping.
+    """
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    session = kind_review.KindSession(out_dir, config.id, config.title, gold_dir / "LABELING.md")
+    try:
+        session.state()
+    except FileNotFoundError as error:
+        missing = f"no kind file in {out_dir}; run gold outcome-kinds template first"
+        typer.echo(missing if not session.path.exists() else str(error), err=True)
+        raise typer.Exit(1) from error
+    except ValueError as error:
+        typer.echo(f"{session.path} does not read: {error}", err=True)
+        raise typer.Exit(1) from error
+    try:
+        review.serve(
+            lambda method, path, body, kind: kind_review.handle(session, method, path, body, kind),
+            port,
+            open_browser,
+        )
+    except OSError as error:
+        if error.errno != errno.EADDRINUSE:
+            raise
+        typer.echo(f"port {port} is in use; pass --port 0 to pick a free one", err=True)
+        raise typer.Exit(1) from error
 
 
 eval_app = typer.Typer(no_args_is_help=True, help="Score the pipeline against the gold labels.")

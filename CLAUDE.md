@@ -31,6 +31,7 @@ uv run claimgraph gold outcome-pairs sample vitamin-d-depression
 uv run claimgraph gold outcome-pairs template vitamin-d-depression  # the pair file to label
 uv run claimgraph gold outcome-pairs check vitamin-d-depression     # validate the pair labels
 uv run claimgraph gold outcome-kinds template vitamin-d-depression  # every string, to label by kind
+uv run claimgraph gold outcome-kinds review vitamin-d-depression    # label kinds on 127.0.0.1
 uv run claimgraph gold outcome-kinds check vitamin-d-depression     # validate the kinds
 uv run claimgraph gold outcome-kinds compare vitamin-d-depression   # kinds against entered pairs
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current

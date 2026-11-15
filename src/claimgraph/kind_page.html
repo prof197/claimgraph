@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outcome kinds</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
+  --accent: #2c5fb3; --accent-ink: #ffffff; --accent-soft: #e6eefb;
+  --warn: #a86400; --bad: #b3261e; --warn-soft: #fff4e0;
+  --k1: #2c5fb3; --k2: #b0472a; --k3: #2e7d4f; --k4: #7d3fb3; --k5: #6b6b66;
+  --top-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+    --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+    --warn: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17;
+    --k1: #7aa7f0; --k2: #f09a7a; --k3: #6cc28f; --k4: #c39af0; --k5: #a3a29b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+  --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+  --warn: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17;
+  --k1: #7aa7f0; --k2: #f09a7a; --k3: #6cc28f; --k4: #c39af0; --k5: #a3a29b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button { font: inherit; color: inherit; }
+.top { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.top h1 { font-size: 15px; margin: 0; }
+.progress { flex: 1 1 280px; min-width: 0; font-size: 13px; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); display: flex; overflow: hidden; margin: 2px 0; }
+.bar span { display: block; height: 100%; }
+.counts { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 10px; }
+.swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.opt { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 8px;
+  cursor: pointer; font-size: 13px; }
+.opt:hover { border-color: var(--accent); }
+.opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.saved { font-size: 12px; color: var(--muted); min-width: 6em; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 440px; align-items: start; }
+.list { padding: 8px 16px 40vh; min-width: 0; }
+.shown { font-size: 12px; color: var(--muted); margin: 0 0 6px 8px; }
+.rules { position: sticky; top: var(--top-h); height: calc(100vh - var(--top-h)); overflow-y: auto;
+  border-left: 1px solid var(--line); background: var(--panel); padding: 8px 16px 24px; font-size: 14px; }
+.rules-toggle { display: none; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .rules-toggle { display: inline-block; }
+  .rules { display: none; position: fixed; left: 0; right: 0; top: var(--top-h); height: auto;
+    max-height: calc(100vh - var(--top-h) - 24px); border-left: 0; border-bottom: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25); z-index: 4; }
+  body.rules-open .rules { display: block; }
+  /* The header stays in view, so it keeps to the essentials on a phone. */
+  .top { padding: 6px 12px; gap: 4px 12px; }
+  .top h1 { font-size: 14px; }
+  .counts, .tools .muted { display: none; }
+  .saved { min-width: 0; }
+  .list { padding: 6px 12px 40vh; }
+}
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 5px 8px;
+  border: 1px solid transparent; border-left: 4px solid transparent; border-radius: 8px;
+  scroll-margin-top: calc(var(--top-h) + 12px); scroll-margin-bottom: 30vh; cursor: default; }
+.row.labeled { border-left-color: var(--kc); }
+.row.current { border-color: var(--accent); background: var(--accent-soft); border-left-color: var(--kc, var(--accent)); }
+.row.unsaved { outline: 2px dashed var(--bad); outline-offset: 1px; }
+.row .n { font-size: 12px; color: var(--muted); min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.row .str { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.row .btns { display: flex; flex-wrap: wrap; gap: 3px; }
+.kind { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 1px 7px;
+  cursor: pointer; font-size: 13px; }
+.kind:hover { border-color: var(--kc); }
+.kind.on { background: var(--kc); border-color: var(--kc); color: var(--accent-ink); }
+.kind.on kbd { color: inherit; border-color: currentColor; }
+.unsure.on { background: var(--warn); border-color: var(--warn); color: var(--accent-ink); }
+kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 4px; padding: 0 3px; color: var(--muted); }
+.rules h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
+.rules p, .rules ul { margin: 0 0 8px; }
+.rules ul { padding-left: 18px; }
+.rules table { border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
+.rules td, .rules th { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+.rules pre { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 6px; padding: 6px 8px; overflow-x: auto; }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 3px; padding: 0 3px; }
+.keys { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin: 4px 0 8px; }
+.help { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.help > div { background: var(--panel); border-radius: 10px; padding: 16px 20px; max-width: 480px; width: 100%; }
+.help h1 { font-size: 16px; margin: 0 0 8px; }
+.help td { padding: 2px 12px 2px 0; vertical-align: top; }
+.banner { background: var(--bad); color: #fff; padding: 6px 16px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; }
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <h1 id="title">Outcome kinds</h1>
+  <div class="progress"><div id="progress">Loading…</div><div class="bar" id="bar"></div><div class="counts" id="counts"></div></div>
+  <div class="tools">
+    <span class="muted small">Show</span>
+    <button class="opt" data-filter="all">All</button>
+    <button class="opt" data-filter="unlabeled">Unlabeled</button>
+    <button class="opt" data-filter="unsure">Unsure</button>
+    <button class="opt rules-toggle" id="rules-toggle" aria-expanded="false">Rules</button>
+    <button class="opt" id="help-button" title="Keys (?)">?</button>
+    <span class="saved" id="saved"></span>
+  </div>
+</header>
+<div class="app">
+  <main class="list" id="list"><p class="shown" id="shown"></p></main>
+  <aside class="rules" id="rules"></aside>
+</div>
+<script>
+"use strict";
+// Every kind here is set by a click or a key; nothing is filled in for the labeler, and the page
+// knows nothing of the model's grouping.
+
+let S = null, cur = 0, filter = "all", visible = [];
+let saving = Promise.resolve(), pending = 0;
+const rows = [];
+const FILTERS = ["all", "unlabeled", "unsure"];
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === false || v == null) continue;
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k === "style") n.setAttribute("style", v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid);
+  return n;
+}
+const human = (v) => String(v).replace(/_/g, " ");
+const color = (kind) => `var(--k${S.kinds.indexOf(kind) + 1})`;
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+  return res.json();
+}
+function banner(text) {
+  let b = document.querySelector(".banner");
+  if (!text) { b && b.remove(); return; }
+  if (!b) { b = el("div", { class: "banner" }); document.body.append(b); }
+  b.textContent = text;
+}
+
+// Rules, from the labeling guide's outcome section
+
+function inline(text) {
+  const out = []; const re = /\*\*`([^`]+)`\*\*|\*\*([^*]+)\*\*|`([^`]+)`/g; let at = 0;
+  for (let m; (m = re.exec(text)); ) {
+    if (m.index > at) out.push(text.slice(at, m.index));
+    if (m[1]) out.push(el("strong", {}, el("code", {}, m[1])));
+    else if (m[2]) out.push(el("strong", {}, m[2]));
+    else out.push(el("code", {}, m[3]));
+    at = m.index + m[0].length;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+function markdown(md) {
+  // Fenced code first, since a code block may hold blank lines.
+  const parts = md.split(/```[a-z]*\n([\s\S]*?)```/);
+  if (parts.length > 1) return parts.flatMap((part, i) => (i % 2 ? [el("pre", {}, part)] : markdown(part)));
+  const out = [];
+  for (const block of md.split(/\n\s*\n/)) {
+    if (!block.trim()) continue;
+    const lines = block.split("\n");
+    if (lines[0].startsWith("|")) {
+      const rows = lines.filter((l) => !/^\|[-\s|]+\|$/.test(l))
+        .map((l) => l.replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+      out.push(el("table", {}, rows.map((r, i) => el("tr", {}, r.map((c) => el(i ? "td" : "th", {}, inline(c)))))));
+    } else if (lines[0].startsWith("- ")) {
+      out.push(el("ul", {}, block.split(/\n(?=- )/).map((i) => el("li", {}, inline(i.slice(2).replace(/\n\s*/g, " "))))));
+    } else if (lines[0].startsWith("#")) {
+      out.push(el("h2", {}, lines[0].replace(/^#+\s*/, "")), ...markdown(lines.slice(1).join("\n")));
+    } else out.push(el("p", {}, inline(block.replace(/\n/g, " "))));
+  }
+  return out;
+}
+function renderRules() {
+  const keys = el("div", { class: "keys" },
+    S.kinds.flatMap((k, j) => [el("kbd", {}, String(j + 1)), ` ${human(k)}  `]),
+    el("kbd", {}, "u"), " unsure  ", el("kbd", {}, "j"), el("kbd", {}, "k"), " move  ",
+    el("kbd", {}, "n"), " next unlabeled  ", el("kbd", {}, "?"), " all keys");
+  $("rules").replaceChildren(el("h2", {}, "Rules"), keys, ...markdown(S.rules));
+}
+
+// Rows
+
+function build() {
+  const list = $("list");
+  S.strings.forEach((s, i) => {
+    const row = el("div", { class: "row", "data-i": i },
+      el("span", { class: "n" }, String(i + 1)),
+      el("span", { class: "str" }, s.string),
+      el("div", { class: "btns" },
+        S.kinds.map((k, j) => el("button", { class: "kind", "data-kind": k, style: `--kc:${color(k)}`,
+          "aria-pressed": "false", title: `${human(k)} (${j + 1})` }, el("kbd", {}, String(j + 1)), " ", human(k))),
+        el("button", { class: "kind unsure", "data-unsure": "1", "aria-pressed": "false", title: "Unsure (u)" }, "unsure")));
+    rows.push(row); list.append(row); renderRow(i);
+  });
+}
+function renderRow(i) {
+  const s = S.strings[i], row = rows[i];
+  row.classList.toggle("labeled", !!s.kind);
+  if (s.kind) row.style.setProperty("--kc", color(s.kind)); else row.style.removeProperty("--kc");
+  for (const b of row.querySelectorAll("[data-kind]")) {
+    const on = b.dataset.kind === s.kind;
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+  }
+  const u = row.querySelector("[data-unsure]");
+  u.classList.toggle("on", s.unsure); u.setAttribute("aria-pressed", String(s.unsure));
+}
+function renderProgress() {
+  const total = S.strings.length, labeled = S.strings.filter((s) => s.kind).length;
+  const unsure = S.strings.filter((s) => s.unsure).length;
+  $("progress").textContent = `${labeled} of ${total} labeled · ${unsure} unsure`;
+  const counts = S.kinds.map((k) => [k, S.strings.filter((s) => s.kind === k).length]);
+  $("bar").replaceChildren(...counts.map(([k, n]) => el("span", { style: `width:${(100 * n) / total}%;background:${color(k)}`, title: `${human(k)}: ${n}` })));
+  $("counts").replaceChildren(...counts.map(([k, n]) => el("span", {}, el("span", { class: "swatch", style: `background:${color(k)}` }), `${human(k)} ${n}`)));
+}
+
+// Saving: every change writes the whole file, one request at a time, in order.
+
+function save(i) {
+  const s = S.strings[i], body = { string: s.string, kind: s.kind, unsure: s.unsure };
+  pending++; $("saved").textContent = "Saving…";
+  saving = saving.then(() => api("/api/kind", body))
+    .then(() => { rows[i].classList.remove("unsaved"); })
+    .catch((e) => { rows[i].classList.add("unsaved"); banner(`Not saved: ${e.message}`); })
+    .finally(() => { pending--; if (!pending) $("saved").textContent = document.querySelector(".banner") ? "" : "Saved"; });
+}
+function setKind(i, kind) {
+  if (S.strings[i].kind === kind) return;
+  S.strings[i].kind = kind; renderRow(i); renderProgress(); save(i);
+}
+function toggleUnsure(i) {
+  S.strings[i].unsure = !S.strings[i].unsure; renderRow(i); renderProgress(); save(i);
+}
+window.addEventListener("beforeunload", (ev) => { if (pending) { ev.preventDefault(); ev.returnValue = ""; } });
+
+// Moving and filtering. A filter is applied when chosen, so a row labeled under "Unlabeled"
+// stays in view until the filter is chosen again.
+
+function setCurrent(i, scroll) {
+  rows[cur]?.classList.remove("current");
+  cur = i; rows[cur].classList.add("current");
+  if (scroll) rows[cur].scrollIntoView({ block: "nearest" });
+}
+function move(step) {
+  if (!visible.length) return;
+  const at = visible.indexOf(cur);
+  const next = at < 0 ? 0 : Math.min(Math.max(at + step, 0), visible.length - 1);
+  setCurrent(visible[next], true);
+}
+function nextUnlabeled() {
+  const at = Math.max(visible.indexOf(cur), 0);
+  for (let d = 1; d <= visible.length; d++) {
+    const i = visible[(at + d) % visible.length];
+    if (!S.strings[i].kind) { setCurrent(i, true); return; }
+  }
+}
+function applyFilter(f) {
+  filter = f;
+  const keep = (s) => f === "all" || (f === "unlabeled" ? !s.kind : s.unsure);
+  visible = S.strings.map((s, i) => i).filter((i) => keep(S.strings[i]));
+  const shown = new Set(visible);
+  rows.forEach((r, i) => { r.hidden = !shown.has(i); });
+  for (const b of document.querySelectorAll("[data-filter]")) b.classList.toggle("on", b.dataset.filter === f);
+  $("shown").textContent = f === "all" ? `${visible.length} strings, in a fixed shuffled order`
+    : `${visible.length} ${f} strings; choose the filter again to refresh it`;
+  if (visible.length && !shown.has(cur)) setCurrent(visible[0], true);
+}
+function toggleRules() {
+  const open = document.body.classList.toggle("rules-open");
+  $("rules-toggle").setAttribute("aria-expanded", String(open));
+}
+function toggleHelp() {
+  const old = document.querySelector(".help");
+  if (old) { old.remove(); return; }
+  const keys = [
+    ...S.kinds.map((k, j) => [String(j + 1), `${human(k)}, then the next string`]),
+    ["0", "clear the kind"], ["u", "unsure, on or off"], ["j  ↓", "next string"], ["k  ↑", "previous string"],
+    ["n", "next unlabeled string"], ["f", "next filter: all, unlabeled, unsure"],
+    ["r", "rules, on a narrow screen"], ["?", "this list"], ["Esc", "close"]];
+  const box = el("div", { class: "help", onclick: (ev) => { if (ev.target === box) box.remove(); } },
+    el("div", {}, el("h1", {}, "Keys"), el("table", {}, keys.map(([k, v]) => el("tr", {}, el("td", {}, el("kbd", {}, k)), el("td", {}, v)))),
+      el("p", { class: "muted" }, "Clicking a kind that is already set clears it. Every change is saved to the kind file at once.")));
+  document.body.append(box);
+}
+
+$("list").addEventListener("click", (ev) => {
+  const row = ev.target.closest(".row"); if (!row) return;
+  const i = Number(row.dataset.i), button = ev.target.closest("button");
+  setCurrent(i, false);
+  if (button?.dataset.kind) setKind(i, button.dataset.kind === S.strings[i].kind ? "" : button.dataset.kind);
+  else if (button?.dataset.unsure) toggleUnsure(i);
+});
+for (const b of document.querySelectorAll("[data-filter]")) b.addEventListener("click", () => applyFilter(b.dataset.filter));
+$("rules-toggle").addEventListener("click", toggleRules);
+$("help-button").addEventListener("click", toggleHelp);
+
+document.addEventListener("keydown", (ev) => {
+  if (!S || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = ev.key;
+  if (k === "Escape") { document.querySelector(".help")?.remove(); document.body.classList.remove("rules-open"); return; }
+  // A key changes only the highlighted row, and only while the filter shows it.
+  const inView = visible.includes(cur);
+  if (/^[1-9]$/.test(k) && Number(k) <= S.kinds.length) { if (inView) { setKind(cur, S.kinds[Number(k) - 1]); move(1); } }
+  else if (k === "0" || k === "Backspace" || k === "Delete") { if (inView) setKind(cur, ""); }
+  else if (k === "u") { if (inView) toggleUnsure(cur); }
+  else if (k === "j" || k === "ArrowDown") move(1);
+  else if (k === "k" || k === "ArrowUp") move(-1);
+  else if (k === "n") nextUnlabeled();
+  else if (k === "f") applyFilter(FILTERS[(FILTERS.indexOf(filter) + 1) % FILTERS.length]);
+  else if (k === "r") toggleRules();
+  else if (k === "?") toggleHelp();
+  else return;
+  ev.preventDefault();
+});
+
+function measure() { document.documentElement.style.setProperty("--top-h", `${$("top").offsetHeight}px`); }
+window.addEventListener("resize", measure);
+
+(async () => {
+  try { S = await api("/api/state"); }
+  catch (e) { $("progress").textContent = ""; banner(`Not loaded: ${e.message}`); return; }
+  document.title = `Outcome kinds · ${S.question}`;
+  $("title").textContent = `Outcome kinds · ${S.question}`;
+  build(); renderRules(); renderProgress(); measure();
+  applyFilter("all");
+  const first = S.strings.findIndex((s) => !s.kind);
+  setCurrent(first < 0 ? 0 : first, true);
+})();
+</script>
+</body>
+</html>

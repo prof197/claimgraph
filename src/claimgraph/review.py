@@ -9,6 +9,7 @@ import contextlib
 import json
 import re
 import webbrowser
+from collections.abc import Callable
 from enum import StrEnum
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -332,7 +333,7 @@ class Response(Record):
     body: bytes = Field(repr=False)
 
 
-def _json(status: HTTPStatus, payload: Record | dict[str, str]) -> Response:
+def json_response(status: HTTPStatus, payload: Record | dict[str, str]) -> Response:
     body = payload.model_dump_json() if isinstance(payload, Record) else json.dumps(payload)
     return Response(status=status, content_type="application/json", body=body.encode())
 
@@ -346,25 +347,29 @@ def handle(
             status=HTTPStatus.OK, content_type="text/html; charset=utf-8", body=page.read_bytes()
         )
     if method == "GET" and path == "/api/state":
-        return _json(HTTPStatus.OK, session.state())
+        return json_response(HTTPStatus.OK, session.state())
     if method == "POST" and (match := re.fullmatch(r"/api/(label|mark)/([0-9]+)", path)):
         # A JSON content type cannot be sent by a plain cross-site form, so another site open
         # in the browser cannot write labels through this server.
         if content_type.split(";")[0].strip() != "application/json":
-            return _json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "send application/json"})
+            return json_response(
+                HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "send application/json"}
+            )
         kind, pmid = match.groups()
         try:
             if kind == "label":
-                return _json(
+                return json_response(
                     HTTPStatus.OK, session.save(pmid, LabelDraft.model_validate_json(body))
                 )
             session.mark(pmid, Mark.model_validate_json(body))
-            return _json(HTTPStatus.OK, {"saved": pmid})
+            return json_response(HTTPStatus.OK, {"saved": pmid})
         except ValidationError as error:
-            return _json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": str(error)})
+            return json_response(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": str(error)})
         except KeyError:
-            return _json(HTTPStatus.NOT_FOUND, {"error": f"PMID {pmid} is not in the gold sample"})
-    return _json(HTTPStatus.NOT_FOUND, {"error": f"no route for {method} {path}"})
+            return json_response(
+                HTTPStatus.NOT_FOUND, {"error": f"PMID {pmid} is not in the gold sample"}
+            )
+    return json_response(HTTPStatus.NOT_FOUND, {"error": f"no route for {method} {path}"})
 
 
 def write_page(page_dir: Path) -> Path:
@@ -375,7 +380,11 @@ def write_page(page_dir: Path) -> Path:
     return page
 
 
-def serve(session: ReviewSession, page: Path, port: int, open_browser: bool) -> None:
+# A request as the server hands it on: method, path, body and content type.
+Answer = Callable[[str, str, bytes, str], Response]
+
+
+def serve(answer: Answer, port: int, open_browser: bool) -> None:
     allowed_hosts: set[str] = set()
 
     class Handler(BaseHTTPRequestHandler):
@@ -388,7 +397,7 @@ def serve(session: ReviewSession, page: Path, port: int, open_browser: bool) -> 
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b""
             content_type = self.headers.get("Content-Type", "")
-            response = handle(session, page, method, self.path, body, content_type)
+            response = answer(method, self.path, body, content_type)
             self.send_response(response.status)
             self.send_header("Content-Type", response.content_type)
             self.send_header("Content-Length", str(len(response.body)))

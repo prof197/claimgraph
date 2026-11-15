@@ -336,12 +336,16 @@ it unsure. The mapping review applies the same rules.
 
 ```
 uv run claimgraph gold outcome-kinds template vitamin-d-depression  # every string, no kinds
+uv run claimgraph gold outcome-kinds review vitamin-d-depression    # label on a local page
 uv run claimgraph gold outcome-kinds check vitamin-d-depression     # validate the kinds
 uv run claimgraph gold outcome-kinds compare vitamin-d-depression   # against entered pairs
 ```
 
-The template lists every string of the recorded proposal once, sorted. `compare` lists the pair
-verdicts entered by hand in `outcome_pairs.toml` that the kinds do not give.
+The template lists every string of the recorded proposal once, sorted. The page from `review`,
+on 127.0.0.1, shows each string alone in a fixed shuffled order with this section beside it,
+and saves every click to `outcome_kinds.toml`; keys 1 to 5 set a kind and `u` marks a string
+unsure. `compare` lists the pair verdicts entered by hand in `outcome_pairs.toml` that the kinds
+do not give.
 
 ```toml
 [[outcome]]
