@@ -9,6 +9,7 @@ import textwrap
 import tomllib
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
@@ -116,12 +117,20 @@ class AbstractLabel(Record):
         return None if self.sample_size == NOT_REPORTED else self.sample_size
 
 
+class PairVerdict(StrEnum):
+    MERGE = "merge"
+    SEPARATE = "separate"
+    # At least one string is not an outcome in the domain, so the pair is not scored; it is
+    # counted, because each one is a finding extraction should have dropped.
+    OUT_OF_DOMAIN = "out_of_domain"
+
+
 class OutcomePairLabel(Record):
     """Should these two reported outcome strings fall under one normalized outcome?"""
 
     a: NonBlank
     b: NonBlank
-    merge: StrictBool
+    verdict: PairVerdict
     note: str | None = None
 
     @model_validator(mode="after")

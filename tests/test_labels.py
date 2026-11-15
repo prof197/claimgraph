@@ -25,6 +25,7 @@ from claimgraph.labels import (
     AbstractLabel,
     FindingDraft,
     LabelDraft,
+    PairVerdict,
     blank_draft,
     check_abstract_label,
     check_label_file,
@@ -329,22 +330,34 @@ def test_one_sentence_can_back_findings_on_different_outcomes() -> None:
 def test_the_example_outcome_pairs_load() -> None:
     pairs = load_outcome_pairs(EXAMPLES / "outcome_pairs.toml")
 
-    assert [p.merge for p in pairs] == [True, False]
+    assert [p.verdict for p in pairs] == [
+        PairVerdict.MERGE,
+        PairVerdict.SEPARATE,
+        PairVerdict.OUT_OF_DOMAIN,
+    ]
 
 
 def test_an_outcome_pair_needs_two_strings(tmp_path: Path) -> None:
     path = tmp_path / "outcome_pairs.toml"
-    path.write_text('[[pair]]\na = "synthetic score"\nb = "synthetic score"\nmerge = true\n')
+    path.write_text('[[pair]]\na = "synthetic score"\nb = "synthetic score"\nverdict = "merge"\n')
 
     with pytest.raises(ValueError, match="different"):
+        load_outcome_pairs(path)
+
+
+def test_an_outcome_pair_verdict_is_one_of_three(tmp_path: Path) -> None:
+    path = tmp_path / "outcome_pairs.toml"
+    path.write_text('[[pair]]\na = "synthetic a"\nb = "synthetic b"\nverdict = "maybe"\n')
+
+    with pytest.raises(ValueError, match=r"merge.*separate.*out_of_domain"):
         load_outcome_pairs(path)
 
 
 def test_an_outcome_pair_is_labeled_once_in_either_order(tmp_path: Path) -> None:
     path = tmp_path / "outcome_pairs.toml"
     path.write_text(
-        '[[pair]]\na = "synthetic a"\nb = "synthetic b"\nmerge = true\n'
-        '[[pair]]\na = "synthetic b"\nb = "synthetic a"\nmerge = false\n'
+        '[[pair]]\na = "synthetic a"\nb = "synthetic b"\nverdict = "merge"\n'
+        '[[pair]]\na = "synthetic b"\nb = "synthetic a"\nverdict = "separate"\n'
     )
 
     with pytest.raises(ValueError, match="more than once"):
