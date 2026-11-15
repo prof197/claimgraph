@@ -1,18 +1,61 @@
 # Outcome mapping for vitamin-d-depression: each outcome lists the outcome strings findings report
 # that measure it. Findings are compared only within one outcome.
 #
-# Proposed by claude-sonnet-5-5 over 547 strings. Review each outcome: move
-# strings that measure something else, fix the name and higher_is_better, then set
-# reviewed = true. An outcome outside the question's domain can be deleted whole.
+# Reviewed: one outcome per kind in evals/gold/vitamin-d-depression/outcome_kinds.toml, labeled
+# by the rules in evals/gold/LABELING.md, with higher_is_better set by each kind's polarity.
+# Strings labeled out of domain are in the out_of_domain list; their findings are dropped.
+
+out_of_domain = [
+  "adverse mental health (including depressive symptoms)",
+  "anxiety and depression (Aga Khan University Anxiety and Depression Scale)",
+  "change in mood",
+  "depression (GDS-15 ≥5), with anxiety and comorbid anxiety-depression",
+  "depression (Mental Health Inventory-5) at 50 years",
+  "depression and anxiety problems (EQ-5D-5L dimension)",
+  "Depression, Anxiety, and Stress Scale (DASS) scores",
+  "depression-dominant PSA (PSA (depression))",
+  "depressive symptoms (PANSS depressive subscore)",
+  "depressive symptoms (SF-36)",
+  "EuroQol-5 depression and anxiety problems",
+  "HADS (psychological symptoms)",
+  "HADS scores",
+  "Hospital Anxiety and Depression Scale",
+  "Hospital Anxiety and Depression Scale scores",
+  "Hospital Anxiety and Depression Score (HADS)",
+  "HPQ 28 scale \"depression and anxiety\"",
+  "immobility time in tail suspension test (depression)",
+  "improvement in depression and anxiety (EQ-5D, TSL)",
+  "incidence of doctor-diagnosed depression and/or anxiety",
+  "incident antidepressant use",
+  "indicators of mental health (including depression)",
+  "longitudinal change in combined depression and anxiety score (SCL-90-R)",
+  "mental component score (MCS) from the SF-12",
+  "mental health outcomes (General Health Questionnaire, SF-12)",
+  "mental health scores (PHQ-9, PROMIS)",
+  "mood disturbance",
+  "mood symptom severity",
+  "perceived mood (Visual Analogue Scale)",
+  "presence of an active mood disorder (clinician's diagnosis)",
+  "presence of premenstrual symptoms (including depression)",
+  "PSA (depression) incidence",
+  "psychiatric symptomatology (HSCL-56)",
+  "psychological distress (HADS)",
+  "psychopathology (Hospital Anxiety and Depression Scale)",
+  "SCL-90-R depression/anxiety scores >90th percentile",
+  "seasonal mood pattern",
+  "self-reported depression or anxiety (QoL)",
+  "self-reported diagnosis of depression or anxiety",
+  "self-reported history of doctor-diagnosed depression and/or anxiety",
+  "serious psychological distress (K6 score of 13 or more)",
+  "YSR anxious/depressed subscale score",
+]
 
 [[outcomes]]
-name = "depressive symptom severity"
+name = "Depressive symptoms"
 higher_is_better = false
-reviewed = false
+reviewed = true
 members = [
   "17-item Hamilton Depression Rating Scale total score",
-  "anxiety and depression (Aga Khan University Anxiety and Depression Scale)",
-  "baseline depression",
   "BDI",
   "BDI II score",
   "BDI score",
@@ -44,20 +87,18 @@ members = [
   "CES-D scores",
   "CES-D sum scores",
   "CES-Depression Scale scores",
-  "change in mood",
   "change in mood (PHQ-9)",
   "change in mood scores (PHQ-8)",
   "change in total BDI score (Beck Depression Inventory)",
   "Children's Depression Rating Scale (CDRS) scores",
+  "clinical depression (Hospital Anxiety and Depression Scale)",
   "cognitive depressive symptoms (PHQ-9)",
   "continuous depressive symptom score (Burnam scale)",
   "course of depression (symptom scores)",
   "DASS-depression",
   "decline of depressive symptoms (GDS)",
   "decrease in depressive symptoms between age 10.6 and 13.8",
-  "depressed feeling (vitamin D deficiency scale item)",
   "depressed mood",
-  "depression",
   "depression (15D dimension score)",
   "depression (17-item Hamilton Depression Rating Scale)",
   "depression (4-item Geriatric Depression Scale)",
@@ -86,21 +127,14 @@ members = [
   "depression (Hospital Anxiety and Depression Scale)",
   "depression (Hospital Anxiety and Depression scale)",
   "depression (menopausal symptom severity)",
-  "depression (Mental Health Inventory-5) at 50 years",
   "depression (MFQ-S)",
   "depression (modified BDI-II)",
-  "depression (mood status)",
   "depression (mood variables)",
-  "depression (parent report)",
   "depression (PHQ-9)",
   "depression (PHQ-9) total score",
-  "depression (questionnaire-assessed, mild to severe)",
-  "depression (survey)",
   "depression (symptom frequency)",
   "depression (symptom)",
   "depression activity",
-  "depression and anxiety problems (EQ-5D-5L dimension)",
-  "depression group vs control group (depressive symptoms)",
   "depression improvement (Zung Self-Rating Depression Scale)",
   "depression levels (psychometric measurement)",
   "depression outcome scores",
@@ -163,7 +197,6 @@ members = [
   "depression symptoms (questionnaire)",
   "depression symptoms (SCL-90-R average score)",
   "depression traits",
-  "Depression, Anxiety, and Stress Scale (DASS) scores",
   "Depression-Dejection score (Profile of Mood States)",
   "depressive parameters (mood)",
   "depressive severity (K-HDRS total score)",
@@ -180,7 +213,6 @@ members = [
   "depressive symptoms (15-item Geriatric Depression Scale)",
   "depressive symptoms (15-item Geriatric Depression Scale) in wave 2",
   "depressive symptoms (15-item Geriatric Depression Scale) in wave 3",
-  "depressive symptoms (answering yes on a depressive symptoms question)",
   "depressive symptoms (BDI II score)",
   "depressive symptoms (BDI score)",
   "depressive symptoms (BDI)",
@@ -221,23 +253,18 @@ members = [
   "depressive symptoms (Mood and Feelings Questionnaire)",
   "depressive symptoms (Mood and Feelings Questionnaire) at age 10.6",
   "depressive symptoms (Mood and Feelings Questionnaire) at age 13.8",
-  "depressive symptoms (PANSS depressive subscore)",
   "depressive symptoms (Patient Health Questionnaire)",
   "depressive symptoms (PHQ-9 score)",
   "depressive symptoms (PHQ-9 severity and PHQ-9 ≥10)",
   "depressive symptoms (PHQ-9)",
   "depressive symptoms (self-report)",
-  "depressive symptoms (SF-36)",
   "depressive symptoms (short version of the Geriatric Depression Scale)",
   "depressive symptoms (TGDS-5)",
-  "depressive symptoms at year 3 (Burnam scale and antidepressant use)",
   "disease severity (Hamilton Depression Rating Scale)",
   "DISYPS-II parental rating of depressive symptoms",
   "EPDS depressive mood factor score",
   "EPDS score",
   "EPDS score (third trimester)",
-  "EPDS-positive postpartum depressive symptoms",
-  "EuroQol-5 depression and anxiety problems",
   "follow-up depression scores",
   "GDS-30 Dysphoria subfactor",
   "GDS-30 Meaninglessness subfactor",
@@ -249,9 +276,7 @@ members = [
   "geriatric depression scale-15 (GDS-15)",
   "Geriatric Depression Score (GDS)",
   "geriatric depressive scale",
-  "HADS (psychological symptoms)",
   "HADS depression score",
-  "HADS scores",
   "HADS-D score",
   "HADS-depression",
   "HADs-depression score",
@@ -266,27 +291,19 @@ members = [
   "Hamilton Depression Rating Scale depression factor score (items 1, 2, 3, 7)",
   "Hamilton Depression Scale scores",
   "HDRS score after treatment",
-  "Hospital Anxiety and Depression Scale",
-  "Hospital Anxiety and Depression Scale scores",
-  "Hospital Anxiety and Depression Score (HADS)",
-  "HPQ 28 scale \"depression and anxiety\"",
-  "improvement in depression and anxiety (EQ-5D, TSL)",
   "improvement in depression scale scores",
   "increasing trajectory of depression symptoms across the three waves",
   "levels of depression",
-  "longitudinal change in combined depression and anxiety score (SCL-90-R)",
   "mean score of depressive symptoms",
+  "minor depression (PHQ-9)",
   "Montgomery Aasberg Depression Rating Scale",
   "Montgomery-Åsberg Depression Rating Scale (MADRS) score",
   "mood depression (severity and frequency)",
-  "mood disturbance",
-  "mood symptom severity",
   "NPI dysphoria/depression domain score",
   "other objective and subjective ratings of depression",
   "overall BDI-II score",
   "overall depression severity",
   "Patient Health Questionnaire-9 score at six months",
-  "perceived mood (Visual Analogue Scale)",
   "PHQ score",
   "PHQ-9 cognitive/affective subscore",
   "PHQ-9 score",
@@ -309,13 +326,10 @@ members = [
   "postpartum depressive symptoms (EPDS)",
   "PPD score",
   "premenstrual depression symptom severity",
-  "presence of premenstrual symptoms (including depression)",
   "psychological symptoms (depressive symptoms)",
   "ratings of depression",
   "RCADS depressive symptom severity",
   "reduction of depressive symptoms",
-  "SCL-90-R depression/anxiety scores >90th percentile",
-  "self-reported sadness/depression",
   "severity of depression",
   "severity of depression (Beck Depression Inventory)",
   "severity of depression (PHQ-9 categories)",
@@ -323,6 +337,7 @@ members = [
   "severity of depressive symptoms (GDS, HDRS)",
   "severity of depressive symptoms (HAMD score)",
   "severity of depressive symptoms (PHQ-9 score)",
+  "SIGH-SAD sum",
   "somatic depressive symptoms (PHQ-9)",
   "symptoms of depression",
   "total BDI score (Beck Depression Inventory)",
@@ -330,23 +345,21 @@ members = [
   "total BDI-II scores",
   "total Beck Depression Inventory (BDI) score",
   "total PHQ-9 scores",
-  "two dichotomous depression symptoms",
   "WURS depression",
-  "YSR anxious/depressed subscale score",
   "Δ BDI-II score (Beck Depression Inventory-II)",
 ]
 
 [[outcomes]]
-name = "depression diagnosis or incidence"
+name = "Depression cases"
 higher_is_better = false
-reviewed = false
+reviewed = true
 members = [
   "3-year incident overall depression",
   "antenatal depression (EPDS score ≥13)",
   "atypical depression (AD)",
+  "baseline depression",
   "broad depression (BD)",
   "change in depression risk",
-  "clinical depression (Hospital Anxiety and Depression Scale)",
   "clinically relevant depression (PHQ-9 score ≥10)",
   "clinically significant depression (BDI-Ia score ≥20)",
   "clinically significant depressive symptoms (CES-D≥16)",
@@ -361,6 +374,8 @@ members = [
   "current depressive episodes (Diagnostic Interview Schedule)",
   "current major depressive disorder (DSM-IV)",
   "current major depressive episode in the antenatal period (MINI-Plus diagnosis)",
+  "depressed feeling (vitamin D deficiency scale item)",
+  "depression",
   "depression (BDI score ≥ 17)",
   "depression (BDI-II score ≥14)",
   "depression (BDI-II screening)",
@@ -377,7 +392,6 @@ members = [
   "depression (depressive disorder prevalence)",
   "depression (DSM-5 diagnosis)",
   "depression (DSM-III depression scale score >4 or current antidepressant therapy)",
-  "depression (GDS-15 ≥5), with anxiety and comorbid anxiety-depression",
   "depression (HADS ≥8)",
   "depression (HADS-D ≥8)",
   "depression (HAMD cut points)",
@@ -385,6 +399,8 @@ members = [
   "depression (major depressive disorder diagnosed by DSM criteria)",
   "depression (MDD diagnosis) vs. control status",
   "depression (MDD vs healthy controls)",
+  "depression (mood status)",
+  "depression (parent report)",
   "depression (patients treated for depression vs healthy controls)",
   "depression (patients versus controls)",
   "depression (patients vs controls), vitamin D level",
@@ -393,6 +409,8 @@ members = [
   "depression (PHQ-9 score ≥10)",
   "depression (PHQ-9 ≥ 10)",
   "depression (PHQ-9 ≥10)",
+  "depression (questionnaire-assessed, mild to severe)",
+  "depression (survey)",
   "depression (untreated depression vs control, by vitamin D level)",
   "depression (vs no depression), treated depression group",
   "depression (vs no depression), untreated depression group",
@@ -405,6 +423,7 @@ members = [
   "depression diagnosis (DSM-IV) at 1 month after stroke",
   "depression diagnosis (MDD vs controls)",
   "depression group (vs control) vitamin D levels",
+  "depression group vs control group (depressive symptoms)",
   "depression prevalence",
   "depression risk",
   "depression risk (HADS-D cut-off of 7)",
@@ -413,13 +432,13 @@ members = [
   "depression symptoms (CDI score of 19 or more)",
   "depression symptoms (HAMD-17 >7)",
   "depression symptoms (PHQ-9 score ≥5)",
-  "depression-dominant PSA (PSA (depression))",
   "depression/mental disorder status (patients versus healthy individuals)",
   "depressive disorder (vs healthy controls)",
   "depressive disorder at 2-year follow-up",
   "depressive episode",
   "depressive episodes",
   "depressive symptom (PHQ-9 score ≥10)",
+  "depressive symptoms (answering yes on a depressive symptoms question)",
   "depressive symptoms (BDI >10)",
   "depressive symptoms (Burnam score ≥0.06)",
   "depressive symptoms (CES-D score >=16)",
@@ -434,6 +453,7 @@ members = [
   "depressive symptoms (PHQ-9 ≥10)",
   "depressive symptoms (PHQ-9≥5)",
   "depressive symptoms (with osteoporosis), case status",
+  "depressive symptoms at year 3 (Burnam scale and antidepressant use)",
   "diagnosis of depression",
   "diagnosis of depression in primary care",
   "difficult-to-treat depression (vs healthy controls)",
@@ -443,9 +463,9 @@ members = [
   "elevated depressive symptoms (depression screening score)",
   "elevated depressive symptoms (EPDS ≥ 10)",
   "elevated depressive symptoms (PHQ-9 score ≥10)",
+  "EPDS-positive postpartum depressive symptoms",
   "high levels of depressive symptoms (CES-D score ≥ 16)",
   "incidence of depression",
-  "incidence of doctor-diagnosed depression and/or anxiety",
   "incidence of major depression within 1 year",
   "incidence of prenatal depression",
   "incident depressed mood (CES-D of 16 or higher)",
@@ -483,7 +503,6 @@ members = [
   "MDD status across controls, at-risk and full-threshold MDD (vitamin D as marker)",
   "MINI diagnosis of major depressive disorder",
   "minor depression (CES-D / Diagnostic Interview Schedule)",
-  "minor depression (PHQ-9)",
   "moderate depression (BDI-Ia score ≥20)",
   "moderate-to-severe depression or major depression (PHQ-9)",
   "new-onset depression",
@@ -515,12 +534,10 @@ members = [
   "postpartum depressive symptoms (Edinburgh Postnatal Depression Scale score of 9 or higher)",
   "postpartum depressive symptoms (EPDS score ≥10)",
   "poststroke depression (HAMD-17 ≥ 7)",
-  "presence of an active mood disorder (clinician's diagnosis)",
   "presence of depressive symptoms (CES-D)",
   "prevalence of depression",
   "prevalent depression",
   "probable lifetime major depression",
-  "PSA (depression) incidence",
   "psychiatric diagnoses (including major depressive disorder)",
   "recurrent depression",
   "recurrent depression (diagnosis, patients vs healthy controls)",
@@ -535,57 +552,20 @@ members = [
   "risk of depression or clinically relevant depressive symptoms",
   "risk of MDD",
   "scoring in the highest PHQ tertile",
+  "seasonal affective disorder (compared by 1,25 (OH)2 vitamin D3 levels)",
+  "seasonal depression",
   "self-reported depression",
-  "self-reported depression or anxiety (QoL)",
-  "self-reported diagnosis of depression or anxiety",
-  "self-reported history of doctor-diagnosed depression and/or anxiety",
+  "self-reported sadness/depression",
   "symptoms of depression (SDS ≥45)",
   "third-trimester depression",
   "treatment-resistant depression (TRD)",
+  "two dichotomous depression symptoms",
 ]
 
 [[outcomes]]
-name = "general mental health or psychological distress"
+name = "Remission"
 higher_is_better = true
-reviewed = false
-members = [
-  "adverse mental health (including depressive symptoms)",
-  "indicators of mental health (including depression)",
-  "mental component score (MCS) from the SF-12",
-  "mental health outcomes (General Health Questionnaire, SF-12)",
-  "mental health scores (PHQ-9, PROMIS)",
-  "psychiatric symptomatology (HSCL-56)",
-  "psychological distress (HADS)",
-  "psychopathology (Hospital Anxiety and Depression Scale)",
-  "serious psychological distress (K6 score of 13 or more)",
-]
-
-[[outcomes]]
-name = "treatment response"
-higher_is_better = true
-reviewed = false
-members = [
-  "effectiveness of treatment (treatment response)",
-  "improvement in depressive symptoms (BDI <11)",
-  "subjective improvement",
-  "treatment response (50% reduction in symptoms)",
-]
-
-[[outcomes]]
-name = "seasonal affective disorder"
-higher_is_better = false
-reviewed = false
-members = [
-  "seasonal affective disorder (compared by 1,25 (OH)2 vitamin D3 levels)",
-  "seasonal depression",
-  "seasonal mood pattern",
-  "SIGH-SAD sum",
-]
-
-[[outcomes]]
-name = "remission"
-higher_is_better = true
-reviewed = false
+reviewed = true
 members = [
   "remission of depression",
   "remission rates",
@@ -593,17 +573,12 @@ members = [
 ]
 
 [[outcomes]]
-name = "animal immobility time"
-higher_is_better = false
-reviewed = false
+name = "Treatment response"
+higher_is_better = true
+reviewed = true
 members = [
-  "immobility time in tail suspension test (depression)",
-]
-
-[[outcomes]]
-name = "antidepressant use"
-higher_is_better = false
-reviewed = false
-members = [
-  "incident antidepressant use",
+  "effectiveness of treatment (treatment response)",
+  "improvement in depressive symptoms (BDI <11)",
+  "subjective improvement",
+  "treatment response (50% reduction in symptoms)",
 ]
