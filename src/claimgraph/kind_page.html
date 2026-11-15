@@ -47,6 +47,7 @@ button { font: inherit; color: inherit; }
 .small { font-size: 12px; }
 .search { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px;
   padding: 2px 8px; font: inherit; font-size: 13px; width: 15em; max-width: 100%; }
+.sort { width: auto; cursor: pointer; }
 .search:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .saved { font-size: 12px; color: var(--muted); min-width: 6em; }
 .app { display: grid; grid-template-columns: minmax(0, 1fr) 440px; align-items: start; }
@@ -114,6 +115,7 @@ code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
     <button class="opt" data-filter="all">All</button>
     <button class="opt" data-filter="unlabeled">Unlabeled</button>
     <button class="opt" data-filter="unsure">Unsure</button>
+    <select class="search sort" id="sort" aria-label="Sort strings"></select>
     <input type="search" class="search" id="search" placeholder="Filter strings ( / )" aria-label="Filter strings" autocomplete="off" spellcheck="false">
     <button class="opt rules-toggle" id="rules-toggle" aria-expanded="false">Rules</button>
     <button class="opt" id="help-button" title="Keys (?)">?</button>
@@ -129,7 +131,7 @@ code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
 // Every kind here is set by a click or a key; nothing is filled in for the labeler, and the page
 // knows nothing of the model's grouping.
 
-let S = null, cur = 0, filter = "all", visible = [];
+let S = null, cur = 0, filter = "all", sort = "shuffled", visible = [], order = [];
 let saving = Promise.resolve(), pending = 0;
 const rows = [];
 const FILTERS = ["all", "unlabeled", "unsure"];
@@ -285,14 +287,41 @@ function applyFilter(f) {
   const q = $("search").value.trim().toLowerCase();
   const keep = (s) => (f === "all" || (f === "unlabeled" ? !s.kind : s.unsure))
     && (!q || s.string.toLowerCase().includes(q));
-  visible = S.strings.map((s, i) => i).filter((i) => keep(S.strings[i]));
+  visible = order.filter((i) => keep(S.strings[i]));
   const shown = new Set(visible);
   rows.forEach((r, i) => { r.hidden = !shown.has(i); });
   for (const b of document.querySelectorAll("[data-filter]")) b.classList.toggle("on", b.dataset.filter === f);
   const match = q ? ` containing "${q}"` : "";
-  $("shown").textContent = f === "all" ? `${visible.length} strings${match}, in a fixed shuffled order`
-    : `${visible.length} ${f} strings${match}; choose the filter again to refresh it`;
+  const sorted = sort === "shuffled" ? (f === "all" ? ", in a fixed shuffled order" : "") : `, ${sortName(sort).toLowerCase()}`;
+  const refresh = f === "all" && sort === "shuffled" ? "" : "; choose again to refresh";
+  $("shown").textContent = `${visible.length} ${f === "all" ? "" : f + " "}strings${match}${sorted}${refresh}`;
   if (visible.length && !shown.has(cur)) setCurrent(visible[0], true);
+}
+// Sorting, like filtering, is applied when chosen, so rows stay put while they are labeled.
+function sortName(by) {
+  if (by === "shuffled") return "Shuffled";
+  if (by === "az") return "A to Z";
+  const name = human(by);
+  return `${name[0].toUpperCase()}${name.slice(1)} first`;
+}
+function applySort(by) {
+  sort = by;
+  $("sort").value = by;
+  const rank = (s) => (s.kind ? S.kinds.indexOf(s.kind) : S.kinds.length);
+  const first = (s) => (by === "unsure" ? !s.unsure : by === "unlabeled" ? !!s.kind : s.kind !== by);
+  const idx = S.strings.map((s, i) => i);
+  if (by === "az") idx.sort((a, b) => S.strings[a].string.localeCompare(S.strings[b].string, undefined, { sensitivity: "base" }) || a - b);
+  else if (by !== "shuffled") {
+    idx.sort((a, b) => {
+      const A = S.strings[a], B = S.strings[b];
+      return (first(A) - first(B)) || (rank(A) - rank(B)) || (a - b);
+    });
+  }
+  order = idx;
+  const list = $("list");
+  for (const i of order) list.append(rows[i]);
+  applyFilter(filter);
+  if (visible.length) { setCurrent(visible[0], false); window.scrollTo(0, 0); }
 }
 function toggleRules() {
   const open = document.body.classList.toggle("rules-open");
@@ -322,12 +351,14 @@ $("list").addEventListener("click", (ev) => {
 });
 for (const b of document.querySelectorAll("[data-filter]")) b.addEventListener("click", () => applyFilter(b.dataset.filter));
 $("search").addEventListener("input", () => applyFilter(filter));
+$("sort").addEventListener("change", (ev) => { applySort(ev.target.value); ev.target.blur(); });
 $("rules-toggle").addEventListener("click", toggleRules);
 $("help-button").addEventListener("click", toggleHelp);
 
 document.addEventListener("keydown", (ev) => {
   if (!S || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   const k = ev.key;
+  if (ev.target.tagName === "SELECT") return;
   // Typing in the filter box never labels; Enter or Esc hands the keys back to the list.
   if (ev.target.id === "search") {
     if (k === "Escape" || k === "Enter") { ev.target.blur(); if (visible.length) setCurrent(visible[0], true); }
@@ -358,6 +389,9 @@ window.addEventListener("resize", measure);
   catch (e) { $("progress").textContent = ""; banner(`Not loaded: ${e.message}`); return; }
   document.title = `Outcome kinds · ${S.question}`;
   $("title").textContent = `Outcome kinds · ${S.question}`;
+  const sorts = ["shuffled", ...S.kinds, "unsure", "unlabeled", "az"];
+  $("sort").replaceChildren(...sorts.map((by) => el("option", { value: by }, `Sort: ${sortName(by)}`)));
+  order = S.strings.map((s, i) => i);
   build(); renderRules(); renderProgress(); measure();
   applyFilter("all");
   const first = S.strings.findIndex((s) => !s.kind);

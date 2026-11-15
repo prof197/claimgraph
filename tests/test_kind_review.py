@@ -168,3 +168,10 @@ def test_the_page_has_a_text_filter_that_typing_never_labels() -> None:
 
     assert 'id="search"' in page
     assert 'if (ev.target.id === "search")' in page
+
+
+def test_the_page_sorts_by_every_kind_unsure_and_unlabeled() -> None:
+    page = kind_review.page().decode()
+
+    assert 'id="sort"' in page
+    assert '["shuffled", ...S.kinds, "unsure", "unlabeled", "az"]' in page
