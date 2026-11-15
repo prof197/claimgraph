@@ -454,6 +454,11 @@ a person reviews the mapping before anything is published.
   output so.
 - Reruns keep reviewed groups and propose only strings the mapping has not seen, so review effort
   does not repeat.
+- **How a rerun adds strings.** The request lists the mapping's outcomes before the new strings,
+  so a string can join one; the instructions and schema stay the first proposal's. The result
+  is appended as tables of its own, never rewriting the reviewer's text. Tables that share a
+  name are one outcome, which is reviewed only when every table of it is, so an outcome that
+  gains strings goes back to review for just those strings.
 - Hard cases: "depressive symptoms", "depression" and "PHQ-9 score" merge; "depression
   incidence" and "depression severity" do not. VITAL-DEP reports both incidence and PHQ-8 scores,
   so one trial exercises the rule ([Okereke et al. 2020][vital-dep]).

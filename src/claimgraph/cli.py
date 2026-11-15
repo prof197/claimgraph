@@ -1,6 +1,5 @@
 import errno
 import os
-import tomllib
 from datetime import date
 from enum import StrEnum
 from importlib.metadata import version
@@ -13,6 +12,7 @@ from pydantic import ValidationError
 from claimgraph import batch, evaluation, extract, gold, labels, normalize, relabel, review
 from claimgraph.config import QuestionConfig, load_config, resolve_question
 from claimgraph.llm import ReplayMiss
+from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
 
@@ -185,15 +185,20 @@ def _normalize(
 ) -> None:
     strings = _corpus_strings(run_dir, model)
     out = mappings_dir / f"{config.id}.toml"
+    existing: list[NormalizedOutcome] = []
     if out.exists():
-        # Reviewed outcomes are kept; nothing proposed replaces a person's edits.
-        typer.echo(f"{out} exists and is not overwritten")
-        return
+        # A rerun proposes only the strings the mapping has not seen, and appends them, so the
+        # reviewer's edits are never rewritten and review effort does not repeat.
+        existing = _load_mapping(out).outcomes
+        strings = normalize.unmapped(normalize.OutcomeMapping(outcomes=existing), strings)
+        if not strings:
+            typer.echo(f"every outcome string is mapped; nothing to propose for {out}")
+            return
     replay_dir = replay_root / config.id / "normalization" / model.value
     prices = load_prices(prices_file)
     if dry_run:
         try:
-            result = normalize.estimate(strings, config, replay_dir, model, prices)
+            result = normalize.estimate(strings, config, replay_dir, model, prices, existing)
         except ValueError as error:
             typer.echo(str(error), err=True)
             raise typer.Exit(1) from error
@@ -207,7 +212,7 @@ def _normalize(
         return
     try:
         client = normalize.model_client(replay_dir, live)
-        proposal = normalize.propose(strings, config, client, model)
+        proposal = normalize.propose(strings, config, client, model, existing)
     except (RuntimeError, ReplayMiss) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
@@ -221,14 +226,36 @@ def _normalize(
     if proposal.outcomes is None:
         typer.echo(f"invalid proposal: {'; '.join(proposal.errors)}", err=True)
         raise typer.Exit(1)
-    header = normalize.mapping_header(config, proposal)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    write_atomic(out, normalize.mapping_toml(proposal.outcomes, header).encode())
-    typer.echo(f"{proposal.strings} outcome strings in {len(proposal.outcomes)} outcomes")
+    if existing:
+        known = {o.name.casefold() for o in existing}
+        joined = sum(len(o.members) for o in proposal.outcomes if o.name.casefold() in known)
+        added = normalize.mapping_toml(proposal.outcomes, normalize.rerun_header(proposal))
+        write_atomic(out, (out.read_text() + "\n" + added).encode())
+        typer.echo(
+            f"{proposal.strings} new outcome strings: {joined} into existing outcomes, "
+            f"{proposal.strings - joined} into new ones"
+        )
+    else:
+        header = normalize.mapping_header(config, proposal)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(out, normalize.mapping_toml(proposal.outcomes, header).encode())
+        typer.echo(f"{proposal.strings} outcome strings in {len(proposal.outcomes)} outcomes")
     for outcome in proposal.outcomes:
         better = "higher is better" if outcome.higher_is_better else "lower is better"
         typer.echo(f"  {len(outcome.members):>4}  {outcome.name} ({better})")
-    typer.echo(f"wrote {out}, unreviewed")
+    typer.echo(f"wrote {out}, unreviewed" if not existing else f"appended to {out}, unreviewed")
+
+
+def _load_mapping(path: Path) -> normalize.OutcomeMapping:
+    try:
+        return normalize.load_mapping(path)
+    except FileNotFoundError as error:
+        typer.echo(f"no mapping at {path}; run --stage normalize first", err=True)
+        raise typer.Exit(1) from error
+    except ValueError as error:
+        # Malformed TOML, a table that fails validation, or tables that disagree.
+        typer.echo(f"{path} is not a valid mapping: {error}", err=True)
+        raise typer.Exit(1) from error
 
 
 def _send_batches(
@@ -295,15 +322,7 @@ def mapping_check(
     """
     config = load_config(resolve_question(question))
     strings = _corpus_strings(runs_dir / config.id, model)
-    path = mappings_dir / f"{config.id}.toml"
-    try:
-        mapping = normalize.load_mapping(path)
-    except FileNotFoundError as error:
-        typer.echo(f"no mapping at {path}; run --stage normalize first", err=True)
-        raise typer.Exit(1) from error
-    except (tomllib.TOMLDecodeError, ValidationError) as error:
-        typer.echo(f"{path} is not a valid mapping: {error}", err=True)
-        raise typer.Exit(1) from error
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
     reviewed = sum(o.reviewed for o in mapping.outcomes)
     missing = normalize.unmapped(mapping, strings)
     typer.echo(

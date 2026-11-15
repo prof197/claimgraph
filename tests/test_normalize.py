@@ -413,19 +413,6 @@ def test_a_live_proposal_writes_an_unreviewed_mapping(
     assert len(list(recordings.glob("*.json"))) == 1
 
 
-def test_an_existing_mapping_is_not_overwritten(tmp_path: Path) -> None:
-    corpus_results(tmp_path)
-    mapping = tmp_path / "mappings" / "vitamin-d-depression.toml"
-    mapping.parent.mkdir()
-    mapping.write_text("# reviewed by hand\n")
-
-    result = run_normalize(tmp_path, "--live")
-
-    assert result.exit_code == 0, result.output
-    assert "not overwritten" in result.output
-    assert mapping.read_text() == "# reviewed by hand\n"
-
-
 def test_normalizing_needs_the_corpus_extraction(tmp_path: Path) -> None:
     result = run_normalize(tmp_path)
 
@@ -533,3 +520,155 @@ def test_mapping_check_reports_a_malformed_mapping(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "is not a valid mapping" in result.output
+
+
+# Proposing only new strings
+
+REVIEWED = [
+    NormalizedOutcome(
+        name="synthetic mood symptoms",
+        members=["synthetic low mood"],
+        higher_is_better=False,
+        reviewed=True,
+    )
+]
+NEW = ["synthetic mood disorder onset", "synthetic mood score"]
+
+
+def test_a_first_proposal_lists_only_the_strings() -> None:
+    params = normalize.request(NEW, VITAMIN_D, ModelChoice.SONNET, existing=[])
+
+    assert params == normalize.request(NEW, VITAMIN_D, ModelChoice.SONNET)
+
+
+def test_a_rerun_shows_the_existing_outcomes_before_the_new_strings() -> None:
+    params = normalize.request(NEW, VITAMIN_D, ModelChoice.SONNET, existing=REVIEWED)
+
+    content = params["messages"][0]["content"]
+    assert "- synthetic mood symptoms (lower is better)" in content
+    assert content.endswith("1. synthetic mood disorder onset\n2. synthetic mood score")
+    # The instructions and schema are the first proposal's.
+    first = normalize.request(NEW, VITAMIN_D, ModelChoice.SONNET)
+    assert params["system"] == first["system"]
+    assert params["output_config"] == first["output_config"]
+
+
+def test_new_strings_can_join_an_existing_outcome_or_a_new_one() -> None:
+    proposal = {
+        "outcomes": [outcome("synthetic onset", "depression diagnosis or incidence")],
+        "assignments": assign((1, "synthetic onset"), (2, "Synthetic mood symptoms")),
+    }
+
+    outcomes = normalize.read_proposal(
+        reply(json.dumps(proposal)), NEW, VITAMIN_D, existing=REVIEWED
+    )
+
+    assert outcomes == [
+        NormalizedOutcome(
+            name="synthetic onset",
+            members=["synthetic mood disorder onset"],
+            higher_is_better=False,
+            reviewed=False,
+        ),
+        # Spelled as the mapping spells it, and unreviewed until its new member is reviewed.
+        NormalizedOutcome(
+            name="synthetic mood symptoms",
+            members=["synthetic mood score"],
+            higher_is_better=False,
+            reviewed=False,
+        ),
+    ]
+
+
+def test_a_new_outcome_may_not_reuse_an_existing_name() -> None:
+    proposal = {
+        "outcomes": [outcome("Synthetic mood symptoms")],
+        "assignments": assign((1, "Synthetic mood symptoms"), (2, "Synthetic mood symptoms")),
+    }
+
+    with pytest.raises(normalize.InvalidProposal, match="already in the mapping"):
+        normalize.read_proposal(reply(json.dumps(proposal)), NEW, VITAMIN_D, existing=REVIEWED)
+
+
+def test_tables_with_one_name_are_one_outcome_reviewed_only_when_all_are() -> None:
+    first = normalize.mapping_toml(REVIEWED, ["Synthetic."])
+    added = NormalizedOutcome(
+        name="Synthetic mood symptoms",
+        members=["synthetic mood score"],
+        higher_is_better=False,
+        reviewed=False,
+    )
+    text = first + "\n" + normalize.mapping_toml([added], ["Added."])
+
+    (merged,) = normalize.read_mapping(text).outcomes
+
+    assert merged.name == "synthetic mood symptoms"
+    assert merged.members == ["synthetic low mood", "synthetic mood score"]
+    assert not merged.reviewed
+
+
+def test_tables_with_one_name_must_agree_on_higher_is_better() -> None:
+    added = REVIEWED[0].model_copy(update={"members": ["x"], "higher_is_better": True})
+    text = normalize.mapping_toml([*REVIEWED, added], [])
+
+    with pytest.raises(ValueError, match="disagree on higher_is_better"):
+        normalize.read_mapping(text)
+
+
+def test_a_rerun_appends_new_strings_and_keeps_the_reviewers_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    reviewed_text = "# A reviewer's note.\n" + normalize.mapping_toml(REVIEWED, ["Synthetic."])
+    path.write_text(reviewed_text)
+    proposal = {
+        "outcomes": [outcome("synthetic onset", "depression diagnosis or incidence")],
+        "assignments": assign((1, "synthetic onset"), (2, "synthetic mood symptoms")),
+    }
+    transport = Scripted(response(json.dumps(proposal)))
+    monkeypatch.setattr(normalize, "anthropic_transport", lambda env: transport)
+
+    result = run_normalize(tmp_path, "--live")
+
+    assert result.exit_code == 0, result.output
+    (sent,) = transport.requests
+    assert sent["messages"][0]["content"].endswith(
+        "1. synthetic mood disorder onset\n2. synthetic mood score"
+    )
+    text = path.read_text()
+    assert text.startswith(reviewed_text)
+    mapping = normalize.load_mapping(path)
+    assert [(o.name, len(o.members), o.reviewed) for o in mapping.outcomes] == [
+        ("synthetic mood symptoms", 2, False),
+        ("synthetic onset", 1, False),
+    ]
+    assert "2 new outcome strings: 1 into existing outcomes, 1 into new ones" in result.output
+
+
+def test_a_rerun_with_every_string_mapped_sends_nothing(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    whole = [REVIEWED[0].model_copy(update={"members": sorted(STRINGS)})]
+    path.write_text(normalize.mapping_toml(whole, ["Synthetic."]))
+    before = path.read_text()
+
+    result = run_normalize(tmp_path, "--live")
+
+    assert result.exit_code == 0, result.output
+    assert "every outcome string is mapped; nothing to propose" in result.output
+    assert path.read_text() == before
+
+
+def test_a_rerun_dry_run_prices_only_the_new_strings(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(normalize.mapping_toml(REVIEWED, ["Synthetic."]))
+
+    result = run_normalize(tmp_path, "--dry-run")
+
+    assert result.exit_code == 0, result.output
+    assert "dry run: 2 outcome strings" in result.output

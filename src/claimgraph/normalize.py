@@ -89,8 +89,22 @@ Return one JSON object that follows the schema.
 """
 
 
-def user_message(strings: Sequence[str]) -> str:
-    return "\n".join(f"{i}. {s}" for i, s in enumerate(strings, start=1))
+def user_message(strings: Sequence[str], existing: Sequence[NormalizedOutcome] = ()) -> str:
+    numbered = "\n".join(f"{i}. {s}" for i, s in enumerate(strings, start=1))
+    if not existing:
+        return numbered
+    # A rerun: the reviewed mapping's outcomes come first, so new names can join them. Said
+    # here, not in the instructions, so a first proposal's request stays the same.
+    listed = "\n".join(
+        f"- {o.name} ({'higher' if o.higher_is_better else 'lower'} is better)" for o in existing
+    )
+    return (
+        "These outcomes are already in the mapping. Assign a name to one of them, by its name "
+        "exactly, when it measures the same thing. Define a new outcome only for a name none of "
+        "them fits, and give it a name none of them has.\n"
+        f"{listed}\n\n"
+        f"Names to assign:\n{numbered}"
+    )
 
 
 def _domains(config: QuestionConfig) -> list[str]:
@@ -123,7 +137,10 @@ def response_schema(config: QuestionConfig) -> dict[str, Any]:
 
 
 def request(
-    strings: Sequence[str], config: QuestionConfig, choice: ModelChoice = DEFAULT_MODEL
+    strings: Sequence[str],
+    config: QuestionConfig,
+    choice: ModelChoice = DEFAULT_MODEL,
+    existing: Sequence[NormalizedOutcome] = (),
 ) -> dict[str, Any]:
     """The one Messages API request for the proposal, on the extraction model's settings."""
     settings = SETTINGS[choice]
@@ -131,7 +148,7 @@ def request(
         "model": settings.model,
         "max_tokens": MAX_TOKENS,
         "system": [{"type": "text", "text": system_prompt(config)}],
-        "messages": [{"role": "user", "content": user_message(strings)}],
+        "messages": [{"role": "user", "content": user_message(strings, existing)}],
         "output_config": {
             "effort": settings.effort,
             "format": {"type": "json_schema", "schema": response_schema(config)},
@@ -166,13 +183,17 @@ class _Proposal(BaseModel):
     assignments: list[_Assignment]
 
 
-def _problems(proposal: _Proposal, count: int, domains: Sequence[str]) -> list[str]:
+def _problems(
+    proposal: _Proposal, count: int, domains: Sequence[str], existing: set[str]
+) -> list[str]:
     problems: list[str] = []
     names: set[str] = set()
     for i, outcome in enumerate(proposal.outcomes):
         name = outcome.name.casefold()
         if not name:
             problems.append(f"outcomes.{i}.name is blank")
+        elif name in existing:
+            problems.append(f"outcome name {name!r} is already in the mapping")
         elif name in names:
             problems.append(f"outcome name {name!r} is used twice")
         names.add(name)
@@ -181,7 +202,7 @@ def _problems(proposal: _Proposal, count: int, domains: Sequence[str]) -> list[s
     seen: dict[int, int] = {}
     for a in proposal.assignments:
         seen[a.number] = seen.get(a.number, 0) + 1
-        if a.outcome.casefold() not in names:
+        if a.outcome.casefold() not in names | existing:
             problems.append(f"string {a.number} is assigned to {a.outcome!r}, not an outcome")
     problems += [f"string {n} is not on the list" for n in sorted(seen) if not 1 <= n <= count]
     problems += [f"string {n} is assigned more than once" for n in sorted(seen) if seen[n] > 1]
@@ -190,9 +211,16 @@ def _problems(proposal: _Proposal, count: int, domains: Sequence[str]) -> list[s
 
 
 def read_proposal(
-    reply: Reply, strings: Sequence[str], config: QuestionConfig
+    reply: Reply,
+    strings: Sequence[str],
+    config: QuestionConfig,
+    existing: Sequence[NormalizedOutcome] = (),
 ) -> list[NormalizedOutcome]:
-    """The proposed outcomes, unreviewed, largest first; every string must be in exactly one."""
+    """The proposed outcomes, unreviewed, largest first; every string must be in exactly one.
+
+    On a rerun, strings that join an existing outcome come back as an outcome of that name
+    holding only them, unreviewed, for the mapping file to add as a table of its own.
+    """
     if reply.stop_reason in ("refusal", "max_tokens"):
         raise InvalidProposal(f"stopped: {reply.stop_reason}")
     try:
@@ -201,22 +229,25 @@ def read_proposal(
         if any(e["type"] == "json_invalid" for e in error.errors()):
             raise InvalidProposal("the output is not JSON") from error
         raise InvalidProposal(str(error)) from error
-    problems = _problems(proposal, len(strings), _domains(config))
+    known = {o.name.casefold() for o in existing}
+    problems = _problems(proposal, len(strings), _domains(config), known)
     if problems:
         raise InvalidProposal("; ".join(problems))
-    members: dict[str, list[str]] = {o.name.casefold(): [] for o in proposal.outcomes}
+    targets = [(o.name, o.higher_is_better) for o in proposal.outcomes]
+    targets += [(o.name, o.higher_is_better) for o in existing]
+    members: dict[str, list[str]] = {name.casefold(): [] for name, _ in targets}
     for a in proposal.assignments:
         members[a.outcome.casefold()].append(strings[a.number - 1])
     outcomes = [
         NormalizedOutcome(
-            name=o.name,
-            members=sorted(members[o.name.casefold()], key=str.casefold),
-            higher_is_better=o.higher_is_better,
+            name=name,
+            members=sorted(members[name.casefold()], key=str.casefold),
+            higher_is_better=higher_is_better,
             reviewed=False,
         )
         # An outcome nothing is assigned to holds no findings.
-        for o in proposal.outcomes
-        if members[o.name.casefold()]
+        for name, higher_is_better in targets
+        if members[name.casefold()]
     ]
     return sorted(outcomes, key=lambda o: -len(o.members))
 
@@ -251,9 +282,10 @@ def propose(
     config: QuestionConfig,
     client: ModelClient,
     choice: ModelChoice = DEFAULT_MODEL,
+    existing: Sequence[NormalizedOutcome] = (),
 ) -> Proposal:
-    """The proposal over every string. Invalid output gets one retry naming what was wrong."""
-    params = request(strings, config, choice)
+    """The proposal over the strings given. Invalid output gets one retry naming what was wrong."""
+    params = request(strings, config, choice, existing)
     errors: list[str] = []
     usage: list[Usage] = []
     outcomes: list[NormalizedOutcome] | None = None
@@ -261,7 +293,7 @@ def propose(
         reply = client.create(params)
         usage.append(reply.usage)
         try:
-            outcomes = read_proposal(reply, strings, config)
+            outcomes = read_proposal(reply, strings, config, existing)
             break
         except InvalidProposal as error:
             errors.append(str(error))
@@ -302,8 +334,9 @@ def estimate(
     replay_dir: Path,
     choice: ModelChoice,
     prices: Prices,
+    existing: Sequence[NormalizedOutcome] = (),
 ) -> ProposalEstimate:
-    params = request(strings, config, choice)
+    params = request(strings, config, choice, existing)
     model = SETTINGS[choice].model
     tokens = _tokens(params)
     recorded = (replay_dir / f"{request_key(params)}.json").exists()
@@ -365,8 +398,32 @@ def mapping_toml(outcomes: Sequence[NormalizedOutcome], header: Sequence[str]) -
     return "\n".join(lines) + "\n"
 
 
+class _MappingFile(Record):
+    outcomes: list[NormalizedOutcome]
+
+
 def read_mapping(text: str) -> OutcomeMapping:
-    return OutcomeMapping.model_validate(tomllib.loads(text))
+    """The mapping, with tables that share a name read as one outcome.
+
+    A rerun appends new strings as tables of their own, so the reviewer's text is never
+    rewritten; an outcome is reviewed only when every table of it is.
+    """
+    merged: dict[str, NormalizedOutcome] = {}
+    for table in _MappingFile.model_validate(tomllib.loads(text)).outcomes:
+        key = table.name.casefold()
+        first = merged.get(key)
+        if first is None:
+            merged[key] = table
+            continue
+        if first.higher_is_better != table.higher_is_better:
+            raise ValueError(f"the tables of outcome {first.name!r} disagree on higher_is_better")
+        merged[key] = NormalizedOutcome(
+            name=first.name,
+            members=[*first.members, *table.members],
+            higher_is_better=first.higher_is_better,
+            reviewed=first.reviewed and table.reviewed,
+        )
+    return OutcomeMapping(outcomes=list(merged.values()))
 
 
 def load_mapping(path: Path) -> OutcomeMapping:
@@ -402,6 +459,14 @@ def unused_members(mapping: OutcomeMapping, strings: Iterable[str]) -> list[str]
     """Members no finding reports: harmless, and kept, since a later run may report them."""
     reported = set(strings)
     return sorted(m for o in mapping.outcomes for m in o.members if m not in reported)
+
+
+def rerun_header(proposal: Proposal) -> list[str]:
+    return [
+        f"Added by {proposal.model} for {proposal.strings} strings the mapping had not seen. A",
+        "table that shares an outcome's name adds to that outcome; review it, then merge it or",
+        "set reviewed = true.",
+    ]
 
 
 def mapping_header(config: QuestionConfig, proposal: Proposal) -> list[str]:
