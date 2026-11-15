@@ -672,3 +672,69 @@ def test_a_rerun_dry_run_prices_only_the_new_strings(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "dry run: 2 outcome strings" in result.output
+
+
+# Strings the review drops as out of domain
+
+
+DROPPED = normalize.OutcomeMapping(
+    outcomes=[
+        NormalizedOutcome(
+            name="synthetic mood symptoms",
+            members=["synthetic low mood", "synthetic mood score"],
+            higher_is_better=False,
+            reviewed=True,
+        )
+    ],
+    out_of_domain=["synthetic mood disorder onset"],
+)
+
+
+def test_the_out_of_domain_list_reads_back_as_written() -> None:
+    text = normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain)
+
+    assert normalize.read_mapping(text) == DROPPED
+    # TOML keys after a table belong to it, so the list comes before the first table.
+    assert text.index("out_of_domain = [") < text.index("[[outcomes]]")
+
+
+def test_a_string_dropped_as_out_of_domain_counts_as_mapped() -> None:
+    assert normalize.unmapped(DROPPED, STRINGS) == []
+    assert normalize.check_mapping(DROPPED, STRINGS) == []
+
+
+def test_a_string_cannot_be_both_an_outcome_member_and_out_of_domain() -> None:
+    with pytest.raises(ValueError, match="both in an outcome and out of domain"):
+        normalize.OutcomeMapping(outcomes=DROPPED.outcomes, out_of_domain=["synthetic low mood"])
+
+
+def test_findings_on_out_of_domain_strings_are_counted_as_dropped() -> None:
+    results = [result(*STRINGS[:2]), result(STRINGS[2], STRINGS[2], pmid="999000002")]
+
+    # Two findings report the dropped string; the other two are kept.
+    assert normalize.dropped_findings(results, DROPPED) == 2
+
+
+def test_mapping_check_reports_the_findings_it_drops(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain))
+
+    result = check_cli(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    assert "1 outcomes, 1 reviewed; 3 strings, 0 unmapped" in result.output
+    assert "1 strings out of domain, dropping 1 findings" in result.output
+
+
+def test_a_rerun_does_not_propose_out_of_domain_strings_again(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain))
+
+    result = run_normalize(tmp_path, "--live")
+
+    assert result.exit_code == 0, result.output
+    assert "every outcome string is mapped; nothing to propose" in result.output

@@ -458,6 +458,10 @@ a person reviews the mapping before anything is published.
   findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
   "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The
   hard case below puts it with diagnosis or incidence, and the reviewer sees the split.
+- **Dropped strings.** The review moves strings that measure nothing in the domain to an
+  `out_of_domain` list at the top of the mapping file. They count as mapped, so `mapping check`
+  passes and a rerun never proposes them again; later stages leave their findings out and count
+  them, as the extract stage counts findings outside the domain.
 - The hosted build refuses an unreviewed mapping. The CLI demo may run unreviewed and labels its
   output so.
 - Reruns keep reviewed groups and propose only strings the mapping has not seen, so review effort
@@ -930,7 +934,7 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   `--dev` extracts the dev sample, and `--model` picks the extraction model.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
   unmapped. A member no finding reports does not fail it: the name is kept, since a later run
-  may report it again.
+  may report it again. It counts the findings the `out_of_domain` list drops.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
 - `claimgraph gold outcome-pairs sample QUESTION` draws the outcome pairs from the recorded

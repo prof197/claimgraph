@@ -174,16 +174,19 @@ def _extract(
     _report_missing(outcome)
 
 
-def _corpus_strings(run_dir: Path, model: extract.ModelChoice) -> list[str]:
-    """The outcome strings of the corpus extraction's findings."""
+def _corpus_results(run_dir: Path, model: extract.ModelChoice) -> list[extract.ExtractionResult]:
     source = run_dir / "extract" / f"corpus-{model.value}.jsonl"
     try:
         lines = source.read_text().splitlines()
-        results = [extract.ExtractionResult.model_validate_json(line) for line in lines]
+        return [extract.ExtractionResult.model_validate_json(line) for line in lines]
     except (FileNotFoundError, ValidationError) as error:
         typer.echo(f"no corpus extraction in {source}; run --stage extract first", err=True)
         raise typer.Exit(1) from error
-    return normalize.outcome_strings(results)
+
+
+def _corpus_strings(run_dir: Path, model: extract.ModelChoice) -> list[str]:
+    """The outcome strings of the corpus extraction's findings."""
+    return normalize.outcome_strings(_corpus_results(run_dir, model))
 
 
 def _normalize(
@@ -202,8 +205,9 @@ def _normalize(
     if out.exists():
         # A rerun proposes only the strings the mapping has not seen, and appends them, so the
         # reviewer's edits are never rewritten and review effort does not repeat.
-        existing = _load_mapping(out).outcomes
-        strings = normalize.unmapped(normalize.OutcomeMapping(outcomes=existing), strings)
+        mapping = _load_mapping(out)
+        existing = mapping.outcomes
+        strings = normalize.unmapped(mapping, strings)
         if not strings:
             typer.echo(f"every outcome string is mapped; nothing to propose for {out}")
             return
@@ -334,7 +338,8 @@ def mapping_check(
     Exits with status 1 if not, naming what is left.
     """
     config = load_config(resolve_question(question))
-    strings = _corpus_strings(runs_dir / config.id, model)
+    results = _corpus_results(runs_dir / config.id, model)
+    strings = normalize.outcome_strings(results)
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
     reviewed = sum(o.reviewed for o in mapping.outcomes)
     missing = normalize.unmapped(mapping, strings)
@@ -342,6 +347,11 @@ def mapping_check(
         f"{len(mapping.outcomes)} outcomes, {reviewed} reviewed; "
         f"{len(strings)} strings, {len(missing)} unmapped"
     )
+    if mapping.out_of_domain:
+        typer.echo(
+            f"{len(mapping.out_of_domain)} strings out of domain, dropping "
+            f"{normalize.dropped_findings(results, mapping)} findings"
+        )
     unused = normalize.unused_members(mapping, strings)
     if unused:
         typer.echo(f"{len(unused)} members no finding reports, kept")

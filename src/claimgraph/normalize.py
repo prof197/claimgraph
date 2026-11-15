@@ -28,7 +28,7 @@ from claimgraph.llm import (
     request_key,
     retry_request,
 )
-from claimgraph.models import NormalizedOutcome, Record
+from claimgraph.models import NonBlank, NormalizedOutcome, Record
 from claimgraph.prices import Prices, model_prices
 
 # Room for one assignment per string, about 24 tokens each, for over 600 strings. The SDK
@@ -373,6 +373,9 @@ def estimate(
 
 class OutcomeMapping(Record):
     outcomes: list[NormalizedOutcome]
+    # Strings the review found measure nothing in the domain. They count as mapped, and later
+    # stages drop their findings and count them, so a rerun never proposes them again.
+    out_of_domain: list[NonBlank] = Field(default_factory=list[str])
 
     @model_validator(mode="after")
     def _each_string_in_one_outcome(self) -> Self:
@@ -382,6 +385,13 @@ class OutcomeMapping(Record):
                 if member in seen:
                     raise ValueError(f"{member!r} is in more than one outcome")
                 seen.add(member)
+        dropped: set[str] = set()
+        for string in self.out_of_domain:
+            if string in seen:
+                raise ValueError(f"{string!r} is both in an outcome and out of domain")
+            if string in dropped:
+                raise ValueError(f"{string!r} is listed out of domain twice")
+            dropped.add(string)
         return self
 
 
@@ -390,9 +400,22 @@ def _toml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def mapping_toml(outcomes: Sequence[NormalizedOutcome], header: Sequence[str]) -> str:
-    """The mapping file's text: a header comment, then one table per outcome, edited by hand."""
+def mapping_toml(
+    outcomes: Sequence[NormalizedOutcome], header: Sequence[str], out_of_domain: Sequence[str] = ()
+) -> str:
+    """The mapping file's text: a header comment, then one table per outcome, edited by hand.
+
+    The strings dropped as out of domain come first, since a TOML key after a table belongs to
+    that table.
+    """
     lines = [f"# {line}" if line else "#" for line in header]
+    if out_of_domain:
+        lines += [
+            "",
+            "out_of_domain = [",
+            *(f"  {_toml_string(s)}," for s in sorted(out_of_domain, key=str.casefold)),
+            "]",
+        ]
     for outcome in outcomes:
         lines += [
             "",
@@ -409,6 +432,7 @@ def mapping_toml(outcomes: Sequence[NormalizedOutcome], header: Sequence[str]) -
 
 class _MappingFile(Record):
     outcomes: list[NormalizedOutcome]
+    out_of_domain: list[NonBlank] = Field(default_factory=list[str])
 
 
 def read_mapping(text: str) -> OutcomeMapping:
@@ -418,7 +442,8 @@ def read_mapping(text: str) -> OutcomeMapping:
     rewritten; an outcome is reviewed only when every table of it is.
     """
     merged: dict[str, NormalizedOutcome] = {}
-    for table in _MappingFile.model_validate(tomllib.loads(text)).outcomes:
+    parsed = _MappingFile.model_validate(tomllib.loads(text))
+    for table in parsed.outcomes:
         key = table.name.casefold()
         first = merged.get(key)
         if first is None:
@@ -432,7 +457,7 @@ def read_mapping(text: str) -> OutcomeMapping:
             higher_is_better=first.higher_is_better,
             reviewed=first.reviewed and table.reviewed,
         )
-    return OutcomeMapping(outcomes=list(merged.values()))
+    return OutcomeMapping(outcomes=list(merged.values()), out_of_domain=parsed.out_of_domain)
 
 
 def load_mapping(path: Path) -> OutcomeMapping:
@@ -460,8 +485,19 @@ def check_mapping(mapping: OutcomeMapping, strings: Sequence[str]) -> list[str]:
 
 
 def unmapped(mapping: OutcomeMapping, strings: Iterable[str]) -> list[str]:
-    members = {m for o in mapping.outcomes for m in o.members}
+    members = {m for o in mapping.outcomes for m in o.members} | set(mapping.out_of_domain)
     return sorted(s for s in set(strings) if s not in members)
+
+
+def dropped_findings(results: Iterable[ExtractionResult], mapping: OutcomeMapping) -> int:
+    """Findings on strings the review dropped as out of domain, which later stages leave out."""
+    dropped = set(mapping.out_of_domain)
+    return sum(
+        f.outcome_reported in dropped
+        for r in results
+        if r.study is not None
+        for f in r.study.findings
+    )
 
 
 def unused_members(mapping: OutcomeMapping, strings: Iterable[str]) -> list[str]:
@@ -485,5 +521,6 @@ def mapping_header(config: QuestionConfig, proposal: Proposal) -> list[str]:
         "",
         f"Proposed by {proposal.model} over {proposal.strings} strings. Review each outcome: move",
         "strings that measure something else, fix the name and higher_is_better, then set",
-        "reviewed = true. An outcome outside the question's domain can be deleted whole.",
+        "reviewed = true. Strings outside the question's domain go to the out_of_domain list,",
+        "before the first outcome, so their findings are dropped and counted.",
     ]
