@@ -47,17 +47,32 @@ def reply(text: str, stop_reason: str = "end_turn") -> Reply:
     )
 
 
-def group(name: str, members: list[int], higher_is_better: bool = False) -> dict[str, Any]:
-    return {"name": name, "higher_is_better": higher_is_better, "members": members}
+def outcome(name: str, domain: str = "depressive symptoms", better: bool = False) -> dict[str, Any]:
+    return {"name": name, "domain": domain, "higher_is_better": better}
+
+
+def assign(*pairs: tuple[int, str]) -> list[dict[str, Any]]:
+    return [{"number": n, "outcome": o} for n, o in pairs]
 
 
 # STRINGS sorted: 1 synthetic low mood, 2 synthetic mood disorder onset, 3 synthetic mood score.
 VALID = {
     "outcomes": [
-        group("synthetic mood symptoms", [1, 3]),
-        group("synthetic mood disorder onset", [2]),
-    ]
+        outcome("synthetic mood symptoms"),
+        outcome("synthetic mood disorder onset", "depression diagnosis or incidence"),
+    ],
+    "assignments": assign(
+        (1, "synthetic mood symptoms"),
+        (2, "synthetic mood disorder onset"),
+        (3, "synthetic mood symptoms"),
+    ),
 }
+
+
+def read(proposal: dict[str, Any], stop_reason: str = "end_turn") -> list[NormalizedOutcome]:
+    return normalize.read_proposal(
+        reply(json.dumps(proposal), stop_reason), sorted(STRINGS), VITAMIN_D
+    )
 
 
 def propose(tmp_path: Path, *responses: dict[str, Any]) -> tuple[normalize.Proposal, Scripted]:
@@ -96,7 +111,14 @@ def test_the_request_numbers_every_string_and_pins_the_model_settings() -> None:
         "2. synthetic mood disorder onset",
         "3. synthetic mood score",
     ]
-    assert params["output_config"]["format"]["schema"] == normalize.RESPONSE_SCHEMA
+    assert params["output_config"]["format"]["schema"] == normalize.response_schema(VITAMIN_D)
+
+
+def test_each_outcome_names_one_domain_entry_or_none() -> None:
+    schema = normalize.response_schema(VITAMIN_D)
+
+    domain = schema["properties"]["outcomes"]["items"]["properties"]["domain"]
+    assert domain["enum"] == [*VITAMIN_D.outcome_domain, "outside the domain"]
 
 
 def test_the_prompt_is_filled_from_the_config() -> None:
@@ -116,9 +138,7 @@ def test_the_max_tokens_stay_under_the_non_streaming_limit() -> None:
 
 
 def test_a_valid_proposal_becomes_unreviewed_outcomes_named_by_their_strings() -> None:
-    outcomes = normalize.read_proposal(reply(json.dumps(VALID)), sorted(STRINGS))
-
-    assert outcomes == [
+    assert read(VALID) == [
         NormalizedOutcome(
             name="synthetic mood symptoms",
             members=["synthetic low mood", "synthetic mood score"],
@@ -134,34 +154,54 @@ def test_a_valid_proposal_becomes_unreviewed_outcomes_named_by_their_strings() -
     ]
 
 
-def test_the_largest_outcome_comes_first() -> None:
-    proposal = {"outcomes": [group("synthetic onset", [2]), group("synthetic symptoms", [1, 3])]}
+def test_the_largest_outcome_comes_first_and_an_empty_one_is_left_out() -> None:
+    proposal = {
+        "outcomes": [outcome("onset"), outcome("unused"), outcome("symptoms")],
+        "assignments": assign((1, "symptoms"), (2, "Onset"), (3, "symptoms")),
+    }
 
-    outcomes = normalize.read_proposal(reply(json.dumps(proposal)), sorted(STRINGS))
+    assert [o.name for o in read(proposal)] == ["symptoms", "onset"]
 
-    assert [o.name for o in outcomes] == ["synthetic symptoms", "synthetic onset"]
+
+ALL = ((1, "a"), (2, "a"), (3, "a"))
 
 
 @pytest.mark.parametrize(
     ("proposal", "problem"),
     [
-        ({"outcomes": [group("a", [1, 3])]}, "string 2 is in no outcome"),
         (
-            {"outcomes": [group("a", [1, 2, 3]), group("b", [2])]},
-            "string 2 is in more than one outcome",
+            {"outcomes": [outcome("a")], "assignments": assign((1, "a"), (3, "a"))},
+            "string 2 is not assigned",
         ),
-        ({"outcomes": [group("a", [1, 2, 3, 4])]}, "string 4 is not on the list"),
         (
-            {"outcomes": [group("Synthetic A", [1, 2]), group("synthetic a", [3])]},
+            {"outcomes": [outcome("a")], "assignments": assign(*ALL, (2, "a"))},
+            "string 2 is assigned more than once",
+        ),
+        (
+            {"outcomes": [outcome("a")], "assignments": assign(*ALL, (4, "a"))},
+            "string 4 is not on the list",
+        ),
+        (
+            {"outcomes": [outcome("a")], "assignments": assign((1, "a"), (2, "b"), (3, "a"))},
+            "string 2 is assigned to 'b', not an outcome",
+        ),
+        (
+            {
+                "outcomes": [outcome("Synthetic A"), outcome("synthetic a")],
+                "assignments": assign(*ALL),
+            },
             "outcome name 'synthetic a' is used twice",
         ),
-        ({"outcomes": [group("a", [1, 1, 2, 3])]}, "string 1 is in more than one outcome"),
-        ({"outcomes": [group(" ", [1, 2, 3])]}, "outcomes.0.name"),
+        ({"outcomes": [outcome(" ")], "assignments": []}, "outcomes.0.name is blank"),
+        (
+            {"outcomes": [outcome("a", "synthetic mood")], "assignments": assign(*ALL)},
+            "outcome 'a' has the domain 'synthetic mood'",
+        ),
     ],
 )
 def test_an_invalid_proposal_names_each_problem(proposal: dict[str, Any], problem: str) -> None:
     with pytest.raises(normalize.InvalidProposal, match=problem):
-        normalize.read_proposal(reply(json.dumps(proposal)), sorted(STRINGS))
+        read(proposal)
 
 
 @pytest.mark.parametrize(
@@ -174,7 +214,7 @@ def test_an_invalid_proposal_names_each_problem(proposal: dict[str, Any], proble
 )
 def test_output_that_cannot_be_read_is_invalid(text: str, stop_reason: str, problem: str) -> None:
     with pytest.raises(normalize.InvalidProposal, match=problem):
-        normalize.read_proposal(reply(text, stop_reason), sorted(STRINGS))
+        normalize.read_proposal(reply(text, stop_reason), sorted(STRINGS), VITAMIN_D)
 
 
 # The call
@@ -191,17 +231,17 @@ def test_a_valid_first_response_needs_no_retry(tmp_path: Path) -> None:
 
 
 def test_an_invalid_proposal_gets_one_retry_that_names_the_problem(tmp_path: Path) -> None:
-    missing = {"outcomes": [group("a", [1, 3])]}
+    missing = {"outcomes": [outcome("a")], "assignments": assign((1, "a"), (3, "a"))}
     proposal, transport = propose(
         tmp_path, response(json.dumps(missing)), response(json.dumps(VALID))
     )
 
     assert proposal.outcomes is not None
-    assert proposal.errors == ["string 2 is in no outcome"]
+    assert proposal.errors == ["string 2 is not assigned"]
     first, retry = transport.requests
     assert retry["messages"][0] == first["messages"][0]
     assert retry["messages"][1] == {"role": "assistant", "content": json.dumps(missing)}
-    assert "string 2 is in no outcome" in retry["messages"][2]["content"]
+    assert "string 2 is not assigned" in retry["messages"][2]["content"]
 
 
 def test_a_proposal_invalid_twice_has_no_outcomes(tmp_path: Path) -> None:

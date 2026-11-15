@@ -17,7 +17,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from claimgraph.batch import CHARS_PER_TOKEN, RETRY_NOTE_TOKENS
-from claimgraph.config import QuestionConfig
+from claimgraph.config import OUTSIDE_DOMAIN, QuestionConfig
 from claimgraph.extract import DEFAULT_MODEL, SETTINGS, ExtractionResult, ModelChoice
 from claimgraph.llm import (
     Mode,
@@ -31,12 +31,12 @@ from claimgraph.llm import (
 from claimgraph.models import NormalizedOutcome, Record
 from claimgraph.prices import Prices, model_prices
 
-# Room for every string's number and the outcome names, well past what a few thousand strings
-# need. The SDK refuses a non-streamed request whose max_tokens could run past ten minutes.
+# Room for one assignment per string, about 12 tokens each, for over a thousand strings. The
+# SDK refuses a non-streamed request whose max_tokens could run past ten minutes.
 MAX_TOKENS = 16_000
 
-# Typical output per string: its number and a separator, with the names spread over them.
-TYPICAL_TOKENS_PER_STRING = 4
+# Typical output per string: its assignment, a number and an outcome name.
+TYPICAL_TOKENS_PER_STRING = 12
 
 
 def outcome_strings(results: Iterable[ExtractionResult]) -> list[str]:
@@ -58,12 +58,19 @@ outcome can be compared with each other.
 Question: {config.title}
 The outcome domain, the outcomes the question is about: {domain}.
 
-The user message lists outcome names, one per line, each with a number. Put every number in \
-exactly one outcome. For each outcome give:
-- name: a short name for what it measures, in plain words;
+The user message lists outcome names, one per line, each with a number. First define the \
+outcomes, then assign every name to one of them.
+
+outcomes: each outcome once, with
+- name: a short name for what it measures, in plain words, given to no other outcome;
+- domain: the one entry of the outcome domain it measures, or "{OUTSIDE_DOMAIN}";
 - higher_is_better: true when a higher value, or more of the outcome, is good for the people \
-studied, as with remission; false when it is bad, as with symptoms of a disorder;
-- members: the numbers of the names it holds.
+studied, as with remission; false when it is bad, as with symptoms of a disorder.
+
+assignments: one entry for every name on the list, in the list's order, from the first number \
+to the last with none skipped, each with
+- number: the name's number;
+- outcome: the name of the outcome it belongs to, exactly as defined.
 
 Group by what is measured, not by how. Names for the same construct go together whatever \
 instrument, scale, cut-off, timing or population they name: those differences are weighed \
@@ -71,11 +78,11 @@ later, within one outcome. A general term and a score on a named scale for the s
 go together.
 
 Keep apart outcomes that answer different questions. Whether a condition occurs (its diagnosis, \
-incidence or case status) is one outcome and how severe its symptoms are is another. No outcome \
-spans two entries of the outcome domain.
+incidence or case status) is one outcome and how severe its symptoms are is another. Each \
+outcome measures one entry of the outcome domain, so names on two entries go to two outcomes.
 
-A name that measures nothing in the outcome domain gets an outcome of its own, named for what \
-it measures, so a reviewer can see it and remove it.
+A name that measures nothing in the outcome domain goes to an outcome of its own, named for \
+what it measures, with the domain "{OUTSIDE_DOMAIN}", so a reviewer can see it and remove it.
 
 Return one JSON object that follows the schema.
 """
@@ -85,26 +92,33 @@ def user_message(strings: Sequence[str]) -> str:
     return "\n".join(f"{i}. {s}" for i, s in enumerate(strings, start=1))
 
 
-RESPONSE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "outcomes": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "higher_is_better": {"type": "boolean"},
-                    "members": {"type": "array", "items": {"type": "integer"}},
-                },
-                "required": ["name", "higher_is_better", "members"],
-                "additionalProperties": False,
-            },
+def _domains(config: QuestionConfig) -> list[str]:
+    return [*config.outcome_domain, OUTSIDE_DOMAIN]
+
+
+def response_schema(config: QuestionConfig) -> dict[str, Any]:
+    def obj(properties: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": list(properties),
+            "additionalProperties": False,
         }
-    },
-    "required": ["outcomes"],
-    "additionalProperties": False,
-}
+
+    outcome = obj(
+        {
+            "name": {"type": "string"},
+            "domain": {"type": "string", "enum": _domains(config)},
+            "higher_is_better": {"type": "boolean"},
+        }
+    )
+    assignment = obj({"number": {"type": "integer"}, "outcome": {"type": "string"}})
+    return obj(
+        {
+            "outcomes": {"type": "array", "items": outcome},
+            "assignments": {"type": "array", "items": assignment},
+        }
+    )
 
 
 def request(
@@ -119,7 +133,7 @@ def request(
         "messages": [{"role": "user", "content": user_message(strings)}],
         "output_config": {
             "effort": settings.effort,
-            "format": {"type": "json_schema", "schema": RESPONSE_SCHEMA},
+            "format": {"type": "json_schema", "schema": response_schema(config)},
         },
         "thinking": settings.thinking,
     }
@@ -135,36 +149,48 @@ class InvalidProposal(ValueError):
 class _Outcome(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     name: str
+    domain: str
     higher_is_better: bool
-    members: list[int]
+
+
+class _Assignment(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    number: int
+    outcome: str
 
 
 class _Proposal(BaseModel):
     model_config = ConfigDict(extra="forbid")
     outcomes: list[_Outcome]
+    assignments: list[_Assignment]
 
 
-def _problems(proposal: _Proposal, count: int) -> list[str]:
+def _problems(proposal: _Proposal, count: int, domains: Sequence[str]) -> list[str]:
     problems: list[str] = []
-    seen: dict[int, int] = {}
-    for outcome in proposal.outcomes:
-        for number in outcome.members:
-            seen[number] = seen.get(number, 0) + 1
-    problems += [f"string {n} is not on the list" for n in sorted(seen) if not 1 <= n <= count]
-    problems += [f"string {n} is in more than one outcome" for n in sorted(seen) if seen[n] > 1]
-    problems += [f"string {n} is in no outcome" for n in range(1, count + 1) if n not in seen]
     names: set[str] = set()
-    for outcome in proposal.outcomes:
+    for i, outcome in enumerate(proposal.outcomes):
         name = outcome.name.casefold()
         if not name:
-            problems.append(f"outcomes.{proposal.outcomes.index(outcome)}.name is blank")
+            problems.append(f"outcomes.{i}.name is blank")
         elif name in names:
             problems.append(f"outcome name {name!r} is used twice")
         names.add(name)
+        if outcome.domain not in domains:
+            problems.append(f"outcome {outcome.name!r} has the domain {outcome.domain!r}")
+    seen: dict[int, int] = {}
+    for a in proposal.assignments:
+        seen[a.number] = seen.get(a.number, 0) + 1
+        if a.outcome.casefold() not in names:
+            problems.append(f"string {a.number} is assigned to {a.outcome!r}, not an outcome")
+    problems += [f"string {n} is not on the list" for n in sorted(seen) if not 1 <= n <= count]
+    problems += [f"string {n} is assigned more than once" for n in sorted(seen) if seen[n] > 1]
+    problems += [f"string {n} is not assigned" for n in range(1, count + 1) if n not in seen]
     return problems
 
 
-def read_proposal(reply: Reply, strings: Sequence[str]) -> list[NormalizedOutcome]:
+def read_proposal(
+    reply: Reply, strings: Sequence[str], config: QuestionConfig
+) -> list[NormalizedOutcome]:
     """The proposed outcomes, unreviewed, largest first; every string must be in exactly one."""
     if reply.stop_reason in ("refusal", "max_tokens"):
         raise InvalidProposal(f"stopped: {reply.stop_reason}")
@@ -174,17 +200,22 @@ def read_proposal(reply: Reply, strings: Sequence[str]) -> list[NormalizedOutcom
         if any(e["type"] == "json_invalid" for e in error.errors()):
             raise InvalidProposal("the output is not JSON") from error
         raise InvalidProposal(str(error)) from error
-    problems = _problems(proposal, len(strings))
+    problems = _problems(proposal, len(strings), _domains(config))
     if problems:
         raise InvalidProposal("; ".join(problems))
+    members: dict[str, list[str]] = {o.name.casefold(): [] for o in proposal.outcomes}
+    for a in proposal.assignments:
+        members[a.outcome.casefold()].append(strings[a.number - 1])
     outcomes = [
         NormalizedOutcome(
             name=o.name,
-            members=sorted((strings[n - 1] for n in o.members), key=str.casefold),
+            members=sorted(members[o.name.casefold()], key=str.casefold),
             higher_is_better=o.higher_is_better,
             reviewed=False,
         )
+        # An outcome nothing is assigned to holds no findings.
         for o in proposal.outcomes
+        if members[o.name.casefold()]
     ]
     return sorted(outcomes, key=lambda o: -len(o.members))
 
@@ -203,7 +234,7 @@ class Proposal(Record):
 def _invalid_note(error: str) -> str:
     return (
         f"That output was invalid: {error}. Return the complete JSON object again, corrected, "
-        "with every number in exactly one outcome."
+        "with every number assigned once, in order."
     )
 
 
@@ -229,7 +260,7 @@ def propose(
         reply = client.create(params)
         usage.append(reply.usage)
         try:
-            outcomes = read_proposal(reply, strings)
+            outcomes = read_proposal(reply, strings, config)
             break
         except InvalidProposal as error:
             errors.append(str(error))

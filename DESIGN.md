@@ -425,16 +425,24 @@ a person reviews the mapping before anything is published.
   The result is written to `mappings/<id>.toml` with `reviewed = false`. The file is TOML,
   committed and edited by hand.
 - **The proposal call.** `run --stage normalize` sends the sorted strings, numbered, in one
-  direct request on the extraction model's settings, and the model answers with numbers, not
-  strings, so it cannot misspell a member. Code checks that every number is in exactly one
-  outcome and that no name repeats; a failure gets one retry naming it, like extraction's. The
-  recording is committed under `replay/<id>/normalization/`, so the eval replays the proposal
-  it scores. An existing mapping file is never overwritten.
+  direct request on the extraction model's settings. The model defines the outcomes, each with
+  the one domain entry it measures, then assigns every string by number, in list order. Numbers,
+  not strings, so it cannot misspell a member. Code checks that every number is assigned once,
+  to a defined outcome, and that no name repeats; a failure gets one retry naming it, like
+  extraction's. The recording is committed under `replay/<id>/normalization/`, so the eval
+  replays the proposal it scores. An existing mapping file is never overwritten.
+- **Assign in order, not partition.** The first version asked for each outcome's member
+  numbers. On the 547 vitamin D strings both attempts failed the check: 9 strings in two
+  outcomes and 1 in none, then 1 in none after the retry. It also merged remission with
+  response, two domain entries. Walking the list in order and naming one outcome per string
+  keeps the bookkeeping local, and a domain entry per outcome lets the schema keep entries
+  apart.
 - **What the prompt groups by.** Strings group by what is measured, not how: the instrument,
   scale, cut-off, timing and population a string names stay inside one outcome, where the
   classifier weighs them as an outcome-measure reason. Whether a condition occurs and how severe
   its symptoms are stay apart, and no outcome spans two entries of the outcome domain. A string
-  that measures nothing in the domain gets an outcome of its own, so the reviewer sees it.
+  that measures nothing in the domain goes to an outcome marked outside the domain, so the
+  reviewer sees it.
 - **One string, two domain entries.** A mapping keys on the string alone, so a string that
   findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
   "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The
