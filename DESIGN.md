@@ -401,6 +401,11 @@ title alone.
   affective disorder. Extraction returns only findings in that domain. Findings on other
   outcomes are counted as out of scope in the extract stage's manifest and not stored, so a
   broad search adds recall without filling the map with unrelated outcomes.
+- **Scope is not grouping.** The domain list decides what is in scope; normalization groups by
+  what was measured. Seasonal affective disorder is a domain entry so extraction keeps its
+  findings, but for normalization it is a population: a severity score in people with it merges
+  with depressive symptoms, and a diagnosis or incidence of it with diagnosis or incidence. Who
+  was studied is weighed as a population reason when findings disagree.
 - **Extract manifest.** Each extraction run writes an entry, such as `dev-sonnet`, to
   `extract/manifest.json` in the run directory: abstracts extracted and missing, output invalid
   after the retry, findings kept, dropped as outside the domain and dropped as within one group
@@ -446,6 +451,9 @@ a person reviews the mapping before anything is published.
   its symptoms are stay apart, and no outcome spans two entries of the outcome domain. A string
   that measures nothing in the domain goes to an outcome marked outside the domain, so the
   reviewer sees it.
+  The prompt also keeps every outcome within one domain entry, so it keeps seasonal affective
+  disorder apart, while the labels and the mapping review group its strings by what they
+  measure. The recorded proposal is scored as it is, so the eval counts those splits as misses.
 - **One string, two domain entries.** A mapping keys on the string alone, so a string that
   findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
   "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The

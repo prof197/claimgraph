@@ -301,10 +301,16 @@ eval must include: "depressive symptoms", "depression" and "PHQ-9 score" merge; 
 incidence" and "depression severity" do not. "depression" alone is severity. One trial can report
 both an incidence and a symptom score, so one paper can exercise the rule.
 
-**The other entries in the domain.** Remission, response and seasonal affective disorder are
-entries of their own in the question's outcome domain, so each is `separate` from severity, from
-case status and from the others. Remission or response defined by a cut-off, such as "HAMD ≤7",
-stays remission or response.
+**Remission and response.** Each is a measure of its own, `separate` from severity, from case
+status and from the other. Remission or response defined by a cut-off, such as "HAMD ≤7", stays
+remission or response.
+
+**What was measured, not who was studied.** Seasonal affective disorder names a population, so
+it does not split an outcome: a severity score in people with seasonal affective disorder, such
+as "SIGH-SAD sum", merges with severity, and a diagnosis or incidence of it merges with case
+status. The same holds for any population a string names, such as postpartum or post-stroke
+depression. A difference in who was studied is weighed later, as a population reason for a
+contradiction.
 
 **Out of domain.** Choose `out_of_domain` when either string is not a depression outcome,
 whatever the other is: a measure combining depression with other outcomes (psychological
