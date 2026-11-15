@@ -953,7 +953,8 @@ claimgraph/
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
     verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
-    kind_review.py  normalization_eval.py  compare.py  arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
+    kind_review.py  normalization_eval.py  compare.py  arms.py  summary.py  graph.py  llm.py
+    prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
