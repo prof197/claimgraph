@@ -31,12 +31,13 @@ from claimgraph.llm import (
 from claimgraph.models import NormalizedOutcome, Record
 from claimgraph.prices import Prices, model_prices
 
-# Room for one assignment per string, about 12 tokens each, for over a thousand strings. The
-# SDK refuses a non-streamed request whose max_tokens could run past ten minutes.
+# Room for one assignment per string, about 24 tokens each, for over 600 strings. The SDK
+# refuses a non-streamed request whose max_tokens could run past ten minutes.
 MAX_TOKENS = 16_000
 
-# Typical output per string: its assignment, a number and an outcome name.
-TYPICAL_TOKENS_PER_STRING = 12
+# Typical output per string: its assignment, a number and an outcome name. Measured on the
+# vitamin D proposal: 12,900 output tokens for 547 strings.
+TYPICAL_TOKENS_PER_STRING = 24
 
 
 def outcome_strings(results: Iterable[ExtractionResult]) -> list[str]:

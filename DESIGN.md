@@ -922,8 +922,10 @@ These are expectations, to be replaced with measurements.
 - **Pairs** grow with the product of direction counts within an outcome. At 10× abstracts the
   small arm still fits the budget and the larger arms may not, and the dry run says so before
   spending.
-- **Normalization** is one call. Past a few thousand unique strings it needs chunked proposals
-  and a merge pass.
+- **Normalization** is one call. At about 24 output tokens a string, its 16,000-token limit
+  holds about 650 strings, not a few thousand: past that it needs chunked proposals and a merge
+  pass. A rerun proposes only strings the mapping has not seen, so the limit binds on a new
+  question, not on a growing one.
 - **The graph** stops reading as a picture once a hub holds several hundred findings. The list
   view carries those outcomes.
 - **Review effort** scales with new outcome strings, not with runs, because the mapping is
