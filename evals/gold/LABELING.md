@@ -327,6 +327,10 @@ carries: "remission (HAMD ≤7)" is remission and "≥50% reduction in HAMD" is 
 cut-off with no such word is case status, even beside a score word: "depressive symptoms
 (CES-D ≥16)".
 
+A string that reports both a score and a cut-off for the same depression measure takes the kind
+of the measure named first: "PHQ-9 severity and PHQ-9 ≥10" is a score. It stays in the domain,
+because the rule against bundling is about mixing conditions, not kinds.
+
 The kind never depends on scale, version, rater, timing or population. Postpartum, seasonal,
 adolescents and older adults name who was studied: a seasonal affective disorder score is a
 score, and its diagnosis or incidence is case status. Who was studied is weighed later, as a
