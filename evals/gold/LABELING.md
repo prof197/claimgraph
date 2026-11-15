@@ -303,8 +303,8 @@ string is a finding extraction should have dropped.
 
 An average number. The words "score", "severity", "symptoms", "mood", "change" and
 "reduction"; or a condition plus a rating scale with no cut-off and no status word, as in
-"depression (BDI)". "depression" alone is a score. The hard cases: "depressive symptoms",
-"depression" and "PHQ-9 score" are all scores, and "incident depression" is case status.
+"depression (BDI)". The hard cases: "depressive symptoms", "PHQ-9 score" and "depression
+severity" are scores.
 
 ### Case status
 
@@ -313,6 +313,12 @@ Yes or no: being or becoming depressed. A cut-off with ≥, as in "CES-D ≥16".
 depression", "incident", "new-onset", "prevalence", "history of", "past", "risk", "odds",
 "case" and "recurrence". Diagnostic criteria or interviews: DSM, ICD, MINI, SCID, CIDI. Health
 records.
+
+A bare condition, with no instrument, cut-off or status word, is case status: "depression",
+"postpartum depression", "depression (survey)", "depression (patients versus controls)". Nearly
+every finding on such a string that gives a clear statistic reports odds, risk, prevalence or
+group membership. A condition with a rating scale and no cut-off stays a score: "depression
+(BDI)". The hard cases: "depression" and "incident depression" are case status.
 
 ### Remission and response
 

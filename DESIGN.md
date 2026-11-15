@@ -457,7 +457,7 @@ a person reviews the mapping before anything is published.
 - **One string, two domain entries.** A mapping keys on the string alone, so a string that
   findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
   "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The
-  hard case below puts it with symptoms, and the reviewer sees the split.
+  hard case below puts it with diagnosis or incidence, and the reviewer sees the split.
 - The hosted build refuses an unreviewed mapping. The CLI demo may run unreviewed and labels its
   output so.
 - Reruns keep reviewed groups and propose only strings the mapping has not seen, so review effort
@@ -467,9 +467,17 @@ a person reviews the mapping before anything is published.
   is appended as tables of its own, never rewriting the reviewer's text. Tables that share a
   name are one outcome, which is reviewed only when every table of it is, so an outcome that
   gains strings goes back to review for just those strings.
-- Hard cases: "depressive symptoms", "depression" and "PHQ-9 score" merge; "depression
-  incidence" and "depression severity" do not. VITAL-DEP reports both incidence and PHQ-8 scores,
-  so one trial exercises the rule ([Okereke et al. 2020][vital-dep]).
+- Hard cases: "depressive symptoms", "PHQ-9 score" and "depression severity" merge, and so do
+  "depression" and "depression incidence"; incidence and severity do not. VITAL-DEP reports both
+  incidence and PHQ-8 scores, so one trial exercises the rule ([Okereke et al. 2020][vital-dep]).
+- **A bare condition is case status.** A string naming only a condition, with no instrument,
+  cut-off or status word ("depression", "postpartum depression", "depression (patients versus
+  controls)"), is case status; with a rating scale and no cut-off ("depression (BDI)") it stays a
+  score. The rule was set by reading the quotes behind the 35 bare-condition strings in the
+  vitamin D corpus: of the 34 findings with a clear statistic, 33 report odds, risk, prevalence
+  or membership of a depressed group. It is a rule on the string alone, because the model
+  normalizes strings without their quotes. One known ambiguity: "depression (survey)" is case
+  status by the rule, though its only quote reports paired t-tests on scores.
 - The eval scores the model's proposal before review, so it measures the model rather than the
   reviewer.
 
