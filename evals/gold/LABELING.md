@@ -277,9 +277,10 @@ seeing the grouping leans toward it.
 
 A string is `out_of_domain` if it does any of these:
 
-- Bundles depression with other conditions: anxiety, distress, "and/or", comorbid, as in
-  "depression or anxiety". The CBCL and YSR anxious/depressed and withdrawn/depressed subscales
-  bundle conditions too.
+- Bundles depression with other conditions: anxiety, distress, "and/or", or a comorbid
+  condition named beside it, as in "depression or anxiety". The CBCL and YSR anxious/depressed
+  and withdrawn/depressed subscales bundle conditions too. "Comorbid" with no second condition
+  named describes who was studied, so "comorbid depression" is a bare condition.
 - Names a mixed instrument without saying depression: plain HADS, DASS, POMS, BSI, SCL-90,
   PHQ-4, K6 or K10, GHQ, the EQ-5D item, WHO-5.
 - Cites an instrument with no depression-only part, even when the string says depressive
