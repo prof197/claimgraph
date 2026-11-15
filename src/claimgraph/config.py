@@ -96,6 +96,9 @@ class QuestionConfig(Record):
     # The outcomes this question is about. Extraction keeps findings on these and counts the
     # rest as out of scope, so a broad search does not fill the map with unrelated outcomes.
     outcome_domain: Annotated[list[NonBlank], Field(min_length=1)]
+    # Outcome strings the question names as hard cases for normalization. The outcome-pair draw
+    # pairs every one the corpus reports with every other, so the eval always includes them.
+    outcome_hard_cases: list[NonBlank] = Field(default_factory=list[NonBlank])
     # PubMed-syntax clauses joined to the topic query with AND.
     filters: list[NonBlank] = Field(default_factory=list)
     start_date: date | None = None
@@ -116,6 +119,8 @@ class QuestionConfig(Record):
                 raise ValueError("MeSH headings must be unique")
         if len(set(self.outcome_domain)) != len(self.outcome_domain):
             raise ValueError("outcome domain entries must be unique")
+        if len({c.casefold() for c in self.outcome_hard_cases}) != len(self.outcome_hard_cases):
+            raise ValueError("outcome hard cases must be unique")
         if any(entry.casefold() == OUTSIDE_DOMAIN for entry in self.outcome_domain):
             raise ValueError(f"{OUTSIDE_DOMAIN!r} is the way out of the domain, not an entry")
         names = [d.name for d in self.dimensions]

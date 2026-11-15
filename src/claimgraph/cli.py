@@ -9,9 +9,19 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from claimgraph import batch, evaluation, extract, gold, labels, normalize, relabel, review
+from claimgraph import (
+    batch,
+    evaluation,
+    extract,
+    gold,
+    labels,
+    normalize,
+    outcome_pairs,
+    relabel,
+    review,
+)
 from claimgraph.config import QuestionConfig, load_config, resolve_question
-from claimgraph.llm import ReplayMiss
+from claimgraph.llm import ReplayMiss, request_key
 from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
@@ -569,6 +579,57 @@ def gold_review(
             raise
         typer.echo(f"port {port} is in use; pass --port 0 to pick a free one", err=True)
         raise typer.Exit(1) from error
+
+
+pairs_app = typer.Typer(
+    no_args_is_help=True, help="Draw, template and check the outcome-pair labels."
+)
+gold_app.add_typer(pairs_app, name="outcome-pairs")
+
+
+@pairs_app.command("sample")
+def pairs_sample(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    seed: Annotated[int, typer.Option(help="Seed for the draw.")] = outcome_pairs.SEED,
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    replay_dir: Annotated[
+        Path, typer.Option(help="Where the recorded proposal is read from.")
+    ] = Path("replay"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Draw the outcome pairs to label from the recorded proposal; never redraws over a sample.
+
+    The strata come from the proposal as the model made it, not from the reviewed mapping.
+    """
+    config = load_config(resolve_question(question))
+    out = gold_dir / config.id / outcome_pairs.SAMPLE_FILE
+    if out.exists():
+        typer.echo(f"{out} is already drawn; delete it to draw again", err=True)
+        raise typer.Exit(1)
+    strings = _corpus_strings(runs_dir / config.id, model)
+    client = normalize.model_client(replay_dir / config.id / "normalization" / model.value, False)
+    try:
+        proposal = normalize.propose(strings, config, client, model)
+    except ReplayMiss as error:
+        typer.echo(
+            f"no recorded outcome proposal for these strings in {replay_dir}; "
+            "run --stage normalize first",
+            err=True,
+        )
+        raise typer.Exit(1) from error
+    if proposal.outcomes is None:
+        typer.echo(f"the recorded proposal is invalid: {'; '.join(proposal.errors)}", err=True)
+        raise typer.Exit(1)
+    groups = {s: o.name for o in proposal.outcomes for s in o.members}
+    result = outcome_pairs.draw(strings, groups, config.outcome_hard_cases, seed=seed)
+    key = request_key(normalize.request(strings, config, model))
+    drawn = outcome_pairs.sample(config.id, seed, proposal.model, key, len(strings), result)
+    outcome_pairs.write_sample(out, drawn)
+    typer.echo(f"{len(drawn.pairs)} pairs drawn from {len(strings)} outcome strings")
+    for s in outcome_pairs.Stratum:
+        typer.echo(f"  {drawn.drawn[s]:>4} of {drawn.pools[s]:>6}  {s}")
+    typer.echo(f"wrote {out}; open it only after labeling, as it shows the strata")
 
 
 eval_app = typer.Typer(no_args_is_help=True, help="Score the pipeline against the gold labels.")

@@ -124,6 +124,8 @@ def test_load_rejects_id_that_differs_from_file_name(tmp_path: Path) -> None:
         pytest.param({"outcome_domain": []}, id="empty outcome domain"),
         pytest.param({"outcome_domain": [" "]}, id="blank outcome domain entry"),
         pytest.param({"outcome_domain": ["a", "a"]}, id="duplicate outcome domain entries"),
+        pytest.param({"outcome_hard_cases": ["a", "A"]}, id="duplicate hard cases"),
+        pytest.param({"outcome_hard_cases": [" "]}, id="blank hard case"),
         pytest.param({"filters": [""]}, id="blank filter"),
         pytest.param({"start_date": date(2027, 1, 1)}, id="start after end"),
         pytest.param({"exclude_designs": ["anecdote"]}, id="unknown design"),
@@ -236,3 +238,19 @@ def test_rejects_bad_dimensions(dims: list[dict[str, Any]]) -> None:
 )
 def test_question_is_an_id_or_a_config_path(question: str, path: Path) -> None:
     assert resolve_question(question) == path
+
+
+def test_the_named_hard_cases_default_to_none() -> None:
+    assert config().outcome_hard_cases == []
+
+
+def test_the_vitamin_d_question_names_the_ruled_hard_cases() -> None:
+    cfg = load_config(QUESTIONS / "vitamin-d-depression.toml")
+
+    assert cfg.outcome_hard_cases == [
+        "depressive symptoms",
+        "depression",
+        "PHQ-9 score",
+        "incident depression",
+        "depression severity",
+    ]

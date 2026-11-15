@@ -585,7 +585,7 @@ data is labeled by hand, from openly licensed articles only.
 | Eval | Gold data | Size | Metrics | In CI |
 | --- | --- | --- | --- | --- |
 | Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
-| Normalization | Labeled outcome-string pairs, merge or not, including the hard cases | About 200 pairs | Merge precision and recall | Replay |
+| Normalization | Labeled outcome-string pairs, merge, separate or out of domain, including the hard cases | 200 pairs | Merge precision and recall, with the stratum sizes | Replay |
 | Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
 | Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
 | Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
@@ -595,6 +595,19 @@ data is labeled by hand, from openly licensed articles only.
   hand-labeled abstracts, and at about 80% accuracy a field scored once per abstract has a 95%
   interval of roughly ±14 points. Labeling effort goes to the contradiction set instead, where
   the ablation compares arms.
+- **Outcome-pair draw:** the normalization eval scores the proposal before review, so its pairs
+  come from the recorded proposal, not from the mapping the reviewer edits. Every pair of strings
+  falls in one stratum, the first it fits: both are hard cases the question names; a scale with
+  a cut-off against the same scale without; a cut-off against a diagnosis or incidence; a
+  diagnosis or incidence against a score; a general term against a named scale; the proposal
+  grouped them; the proposal split them but they share an acronym or a word found in at most a
+  tenth of the strings; or neither. The draw takes every named pair, 10 of each other hard kind,
+  75 grouped and 75 split-but-related pairs. Split pairs sharing neither are nearly all plain
+  non-merges, so they are counted, not drawn. On vitamin D that is 200 of 149,331 pairs from 547
+  strings: 61,070 grouped, 1,041 split but related and 52,897 split and unrelated. Because the
+  strata come from the proposal, precision and recall on the labeled set are not its rates over
+  all pairs, and the eval reports them with the stratum sizes. Pairs labeled out of domain are
+  left out of both and counted.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.
@@ -889,6 +902,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   may report it again.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
+- `claimgraph gold outcome-pairs sample QUESTION` draws the outcome pairs from the recorded
+  proposal and never redraws over an existing draw.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
@@ -899,14 +914,14 @@ claimgraph/
   pyproject.toml  uv.lock  README.md  DESIGN.md  LICENSE
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
-    verbatim.py  batch.py  evaluation.py  normalize.py  compare.py  arms.py  summary.py
-    graph.py  llm.py  prices.py  cli.py
+    verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  compare.py
+    arms.py  summary.py  graph.py  llm.py  prices.py  cli.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
   evals/       gold/LABELING.md  gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml,
-               sample.json, ATTRIBUTION.md, labels/, outcome_pairs.toml,
-               contradiction_pairs.toml)  run.py  results/
+               sample.json, ATTRIBUTION.md, labels/, outcome_pair_sample.json,
+               outcome_pairs.toml, contradiction_pairs.toml)  run.py  results/
   replay/      recorded model responses used by CI
   site/        React + TypeScript front end
   tests/

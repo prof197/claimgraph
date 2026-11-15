@@ -26,6 +26,8 @@ uv run claimgraph run vitamin-d-depression --stage normalize --dry-run
 uv run --env-file .env claimgraph run vitamin-d-depression --stage normalize --live
                                           # propose the outcome mapping, unreviewed (costs money)
 uv run claimgraph mapping check vitamin-d-depression   # every outcome reviewed, every string mapped
+uv run claimgraph gold outcome-pairs sample vitamin-d-depression
+                                          # draw the outcome pairs from the recorded proposal
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
 uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-recording them
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live
