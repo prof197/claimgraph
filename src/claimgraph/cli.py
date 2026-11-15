@@ -1,5 +1,6 @@
 import errno
 import os
+import tomllib
 from datetime import date
 from enum import StrEnum
 from importlib.metadata import version
@@ -160,6 +161,18 @@ def _extract(
     _report_missing(outcome)
 
 
+def _corpus_strings(run_dir: Path, model: extract.ModelChoice) -> list[str]:
+    """The outcome strings of the corpus extraction's findings."""
+    source = run_dir / "extract" / f"corpus-{model.value}.jsonl"
+    try:
+        lines = source.read_text().splitlines()
+        results = [extract.ExtractionResult.model_validate_json(line) for line in lines]
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no corpus extraction in {source}; run --stage extract first", err=True)
+        raise typer.Exit(1) from error
+    return normalize.outcome_strings(results)
+
+
 def _normalize(
     config: QuestionConfig,
     run_dir: Path,
@@ -170,19 +183,12 @@ def _normalize(
     replay_root: Path,
     mappings_dir: Path,
 ) -> None:
-    source = run_dir / "extract" / f"corpus-{model.value}.jsonl"
-    try:
-        lines = source.read_text().splitlines()
-        results = [extract.ExtractionResult.model_validate_json(line) for line in lines]
-    except (FileNotFoundError, ValidationError) as error:
-        typer.echo(f"no corpus extraction in {source}; run --stage extract first", err=True)
-        raise typer.Exit(1) from error
+    strings = _corpus_strings(run_dir, model)
     out = mappings_dir / f"{config.id}.toml"
     if out.exists():
         # Reviewed outcomes are kept; nothing proposed replaces a person's edits.
         typer.echo(f"{out} exists and is not overwritten")
         return
-    strings = normalize.outcome_strings(results)
     replay_dir = replay_root / config.id / "normalization" / model.value
     prices = load_prices(prices_file)
     if dry_run:
@@ -267,6 +273,50 @@ def _report_missing(outcome: batch.BatchRun) -> None:
             "record them with --live after a dry run",
             err=True,
         )
+        raise typer.Exit(1)
+
+
+mapping_app = typer.Typer(no_args_is_help=True, help="Inspect the outcome mappings.")
+app.add_typer(mapping_app, name="mapping")
+
+
+@mapping_app.command("check")
+def mapping_check(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Check the outcome mapping can be published: every outcome reviewed, every string mapped.
+
+    Exits with status 1 if not, naming what is left.
+    """
+    config = load_config(resolve_question(question))
+    strings = _corpus_strings(runs_dir / config.id, model)
+    path = mappings_dir / f"{config.id}.toml"
+    try:
+        mapping = normalize.load_mapping(path)
+    except FileNotFoundError as error:
+        typer.echo(f"no mapping at {path}; run --stage normalize first", err=True)
+        raise typer.Exit(1) from error
+    except (tomllib.TOMLDecodeError, ValidationError) as error:
+        typer.echo(f"{path} is not a valid mapping: {error}", err=True)
+        raise typer.Exit(1) from error
+    reviewed = sum(o.reviewed for o in mapping.outcomes)
+    missing = normalize.unmapped(mapping, strings)
+    typer.echo(
+        f"{len(mapping.outcomes)} outcomes, {reviewed} reviewed; "
+        f"{len(strings)} strings, {len(missing)} unmapped"
+    )
+    unused = normalize.unused_members(mapping, strings)
+    if unused:
+        typer.echo(f"{len(unused)} members no finding reports, kept")
+    problems = normalize.check_mapping(mapping, strings)
+    for problem in problems:
+        typer.echo(problem, err=True)
+    if problems:
         raise typer.Exit(1)
 
 

@@ -373,6 +373,37 @@ def load_mapping(path: Path) -> OutcomeMapping:
     return read_mapping(path.read_text())
 
 
+def _shown(items: Sequence[str], limit: int = 10) -> str:
+    more = len(items) - limit
+    return ", ".join(items[:limit]) + (f" and {more} more" if more > 0 else "")
+
+
+def check_mapping(mapping: OutcomeMapping, strings: Sequence[str]) -> list[str]:
+    """Why the mapping cannot be published yet: unreviewed outcomes, and strings it lacks."""
+    problems: list[str] = []
+    unreviewed = [o.name for o in mapping.outcomes if not o.reviewed]
+    if unreviewed:
+        problems.append(
+            f"{len(unreviewed)} of {len(mapping.outcomes)} outcomes unreviewed: "
+            f"{_shown(unreviewed)}"
+        )
+    missing = unmapped(mapping, strings)
+    if missing:
+        problems.append(f"{len(missing)} of {len(strings)} strings unmapped: {_shown(missing)}")
+    return problems
+
+
+def unmapped(mapping: OutcomeMapping, strings: Iterable[str]) -> list[str]:
+    members = {m for o in mapping.outcomes for m in o.members}
+    return sorted(s for s in set(strings) if s not in members)
+
+
+def unused_members(mapping: OutcomeMapping, strings: Iterable[str]) -> list[str]:
+    """Members no finding reports: harmless, and kept, since a later run may report them."""
+    reported = set(strings)
+    return sorted(m for o in mapping.outcomes for m in o.members if m not in reported)
+
+
 def mapping_header(config: QuestionConfig, proposal: Proposal) -> list[str]:
     return [
         f"Outcome mapping for {config.id}: each outcome lists the outcome strings findings report",

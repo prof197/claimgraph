@@ -431,3 +431,105 @@ def test_normalizing_needs_the_corpus_extraction(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "run --stage extract first" in result.output
+
+
+# Checking the mapping
+
+
+def mapped(*outcomes: tuple[str, list[str], bool]) -> normalize.OutcomeMapping:
+    return normalize.OutcomeMapping(
+        outcomes=[
+            NormalizedOutcome(name=n, members=m, higher_is_better=False, reviewed=r)
+            for n, m, r in outcomes
+        ]
+    )
+
+
+def test_a_reviewed_mapping_of_every_string_passes() -> None:
+    mapping = mapped(("a", STRINGS[:2], True), ("b", [STRINGS[2]], True))
+
+    assert normalize.check_mapping(mapping, STRINGS) == []
+
+
+def test_the_check_names_unreviewed_outcomes_and_unmapped_strings() -> None:
+    mapping = mapped(("a", STRINGS[:1], True), ("b", [STRINGS[2]], False))
+
+    assert normalize.check_mapping(mapping, STRINGS) == [
+        "1 of 2 outcomes unreviewed: b",
+        "1 of 3 strings unmapped: synthetic low mood",
+    ]
+
+
+def test_a_member_no_finding_reports_does_not_fail_the_check() -> None:
+    # A reviewed name for a string the corpus no longer holds costs nothing and may return.
+    mapping = mapped(("a", [*STRINGS, "synthetic retired name"], True))
+
+    assert normalize.check_mapping(mapping, STRINGS) == []
+    assert normalize.unused_members(mapping, STRINGS) == ["synthetic retired name"]
+
+
+def check_cli(tmp_path: Path) -> Any:
+    from typer.testing import CliRunner
+
+    from claimgraph import cli
+
+    config = str(ROOT / "questions" / "vitamin-d-depression.toml")
+    return CliRunner().invoke(
+        cli.app,
+        [
+            "mapping",
+            "check",
+            config,
+            "--runs-dir",
+            str(tmp_path / "runs"),
+            "--mappings-dir",
+            str(tmp_path / "mappings"),
+        ],
+    )
+
+
+def write_mapping(tmp_path: Path, mapping: normalize.OutcomeMapping) -> None:
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(normalize.mapping_toml(mapping.outcomes, ["Synthetic."]))
+
+
+def test_mapping_check_passes_a_reviewed_complete_mapping(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    write_mapping(tmp_path, mapped(("a", STRINGS, True)))
+
+    result = check_cli(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    assert "1 outcomes, 1 reviewed; 3 strings, 0 unmapped" in result.output
+
+
+def test_mapping_check_fails_an_unreviewed_mapping(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    write_mapping(tmp_path, mapped(("a", STRINGS, False)))
+
+    result = check_cli(tmp_path)
+
+    assert result.exit_code == 1
+    assert "1 of 1 outcomes unreviewed: a" in result.output
+
+
+def test_mapping_check_fails_without_a_mapping(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+
+    result = check_cli(tmp_path)
+
+    assert result.exit_code == 1
+    assert "run --stage normalize first" in result.output
+
+
+def test_mapping_check_reports_a_malformed_mapping(tmp_path: Path) -> None:
+    corpus_results(tmp_path)
+    path = tmp_path / "mappings" / "vitamin-d-depression.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text('[[outcomes]]\nname = "a"\n')
+
+    result = check_cli(tmp_path)
+
+    assert result.exit_code == 1
+    assert "is not a valid mapping" in result.output

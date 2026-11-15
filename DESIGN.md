@@ -880,7 +880,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   path or id; a config, not free text, keeps runs reproducible. `--stage` runs one stage,
   `--dev` extracts the dev sample, and `--model` picks the extraction model.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
-  unmapped.
+  unmapped. A member no finding reports does not fail it: the name is kept, since a later run
+  may report it again.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
