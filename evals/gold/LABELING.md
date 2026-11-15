@@ -284,9 +284,12 @@ A string is `out_of_domain` if it does any of these:
 - Isn't depression: anxiety scales, RSAS or RPAS, PANSS, animal tests such as immobility time,
   antidepressant use, vitamin D itself.
 
-A string that names depression with a mixed instrument means its depression subscale, so
-"HADS depression" is in the domain. A subscale or factor of a depression-only scale, such as
-the GDS dysphoria factor, is a depression score.
+A string that names depression with a mixed instrument means its depression subscale, but only
+if the instrument has one: HADS, DASS, POMS, BSI, SCL-90, or the CBCL or YSR DSM-oriented
+depressive problems scale. So "HADS depression" is in the domain. An instrument with no
+depression-only part, such as the SF-36 or SF-12, is out of domain even when the string says
+depressive symptoms. A subscale or factor of a depression-only scale, such as the GDS
+dysphoria factor, is a depression score.
 
 Pairs with an out-of-domain string are left out of the scores and counted, because each such
 string is a finding extraction should have dropped.
