@@ -161,3 +161,10 @@ def test_the_review_command_needs_a_kind_file(tmp_path: Path) -> None:
 def test_rows_a_filter_hides_are_not_displayed() -> None:
     # Rows are display: flex, which beats the browser's own rule for the hidden attribute.
     assert ".row[hidden] { display: none; }" in kind_review.page().decode()
+
+
+def test_the_page_has_a_text_filter_that_typing_never_labels() -> None:
+    page = kind_review.page().decode()
+
+    assert 'id="search"' in page
+    assert 'if (ev.target.id === "search")' in page

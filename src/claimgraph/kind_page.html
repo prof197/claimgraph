@@ -45,6 +45,9 @@ button { font: inherit; color: inherit; }
 .opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
+.search { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px;
+  padding: 2px 8px; font: inherit; font-size: 13px; width: 15em; max-width: 100%; }
+.search:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .saved { font-size: 12px; color: var(--muted); min-width: 6em; }
 .app { display: grid; grid-template-columns: minmax(0, 1fr) 440px; align-items: start; }
 .list { padding: 8px 16px 40vh; min-width: 0; }
@@ -111,6 +114,7 @@ code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
     <button class="opt" data-filter="all">All</button>
     <button class="opt" data-filter="unlabeled">Unlabeled</button>
     <button class="opt" data-filter="unsure">Unsure</button>
+    <input type="search" class="search" id="search" placeholder="Filter strings ( / )" aria-label="Filter strings" autocomplete="off" spellcheck="false">
     <button class="opt rules-toggle" id="rules-toggle" aria-expanded="false">Rules</button>
     <button class="opt" id="help-button" title="Keys (?)">?</button>
     <span class="saved" id="saved"></span>
@@ -278,13 +282,16 @@ function nextUnlabeled() {
 }
 function applyFilter(f) {
   filter = f;
-  const keep = (s) => f === "all" || (f === "unlabeled" ? !s.kind : s.unsure);
+  const q = $("search").value.trim().toLowerCase();
+  const keep = (s) => (f === "all" || (f === "unlabeled" ? !s.kind : s.unsure))
+    && (!q || s.string.toLowerCase().includes(q));
   visible = S.strings.map((s, i) => i).filter((i) => keep(S.strings[i]));
   const shown = new Set(visible);
   rows.forEach((r, i) => { r.hidden = !shown.has(i); });
   for (const b of document.querySelectorAll("[data-filter]")) b.classList.toggle("on", b.dataset.filter === f);
-  $("shown").textContent = f === "all" ? `${visible.length} strings, in a fixed shuffled order`
-    : `${visible.length} ${f} strings; choose the filter again to refresh it`;
+  const match = q ? ` containing "${q}"` : "";
+  $("shown").textContent = f === "all" ? `${visible.length} strings${match}, in a fixed shuffled order`
+    : `${visible.length} ${f} strings${match}; choose the filter again to refresh it`;
   if (visible.length && !shown.has(cur)) setCurrent(visible[0], true);
 }
 function toggleRules() {
@@ -298,6 +305,7 @@ function toggleHelp() {
     ...S.kinds.map((k, j) => [String(j + 1), `${human(k)}, then the next string`]),
     ["0", "clear the kind"], ["u", "unsure, on or off"], ["j  ↓", "next string"], ["k  ↑", "previous string"],
     ["n", "next unlabeled string"], ["f", "next filter: all, unlabeled, unsure"],
+    ["/", "filter by text; Enter or Esc to go back to the list"],
     ["r", "rules, on a narrow screen"], ["?", "this list"], ["Esc", "close"]];
   const box = el("div", { class: "help", onclick: (ev) => { if (ev.target === box) box.remove(); } },
     el("div", {}, el("h1", {}, "Keys"), el("table", {}, keys.map(([k, v]) => el("tr", {}, el("td", {}, el("kbd", {}, k)), el("td", {}, v)))),
@@ -313,12 +321,19 @@ $("list").addEventListener("click", (ev) => {
   else if (button?.dataset.unsure) toggleUnsure(i);
 });
 for (const b of document.querySelectorAll("[data-filter]")) b.addEventListener("click", () => applyFilter(b.dataset.filter));
+$("search").addEventListener("input", () => applyFilter(filter));
 $("rules-toggle").addEventListener("click", toggleRules);
 $("help-button").addEventListener("click", toggleHelp);
 
 document.addEventListener("keydown", (ev) => {
   if (!S || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   const k = ev.key;
+  // Typing in the filter box never labels; Enter or Esc hands the keys back to the list.
+  if (ev.target.id === "search") {
+    if (k === "Escape" || k === "Enter") { ev.target.blur(); if (visible.length) setCurrent(visible[0], true); }
+    return;
+  }
+  if (k === "/") { $("search").focus(); $("search").select(); ev.preventDefault(); return; }
   if (k === "Escape") { document.querySelector(".help")?.remove(); document.body.classList.remove("rules-open"); return; }
   // A key changes only the highlighted row, and only while the filter shows it.
   const inView = visible.includes(cur);
