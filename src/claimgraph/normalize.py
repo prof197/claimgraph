@@ -285,9 +285,13 @@ def propose(
     client: ModelClient,
     choice: ModelChoice = DEFAULT_MODEL,
     existing: Sequence[NormalizedOutcome] = (),
+    params: Mapping[str, Any] | None = None,
 ) -> Proposal:
-    """The proposal over the strings given. Invalid output gets one retry naming what was wrong."""
-    params = request(strings, config, choice, existing)
+    """The proposal over the strings given. Invalid output gets one retry naming what was wrong.
+
+    A recorded request in params replays an earlier proposal, made under an earlier prompt.
+    """
+    params = dict(params) if params is not None else request(strings, config, choice, existing)
     errors: list[str] = []
     usage: list[Usage] = []
     outcomes: list[NormalizedOutcome] | None = None

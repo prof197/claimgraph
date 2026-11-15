@@ -156,7 +156,7 @@ def test_the_proposal_names_the_outcomes_it_put_outside_the_domain(tmp_path: Pat
 # The command
 
 
-def run_eval(tmp_path: Path) -> Any:
+def run_eval(tmp_path: Path, *args: str) -> Any:
     from typer.testing import CliRunner
 
     from claimgraph import cli
@@ -171,6 +171,7 @@ def run_eval(tmp_path: Path) -> Any:
             str(tmp_path / "gold"),
             "--replay-dir",
             str(tmp_path / "replay"),
+            *args,
         ],
     )
 
@@ -230,7 +231,7 @@ def test_the_command_needs_the_strings_the_pairs_were_drawn_from(tmp_path: Path)
     result = run_eval(tmp_path)
 
     assert result.exit_code == 1
-    assert "not the ones the drawn proposal was made on" in result.output
+    assert "the draw has 3 strings; the file lists 4" in result.output
 
 
 def test_the_vitamin_d_proposal_scores_from_committed_files() -> None:
@@ -241,6 +242,40 @@ def test_the_vitamin_d_proposal_scores_from_committed_files() -> None:
 
     result = CliRunner().invoke(
         cli.app, ["eval", "normalization", str(ROOT / "questions" / "vitamin-d-depression.toml")]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Every pair of in-domain strings" in result.output
+
+
+def test_the_baseline_is_the_recording_the_pairs_were_drawn_from(tmp_path: Path) -> None:
+    out = recorded(tmp_path)
+    outcome_kinds.write(
+        out / outcome_kinds.LABEL_FILE,
+        "vitamin-d-depression",
+        [KindLabel(string=s, kind=Kind.SCORE) for s in STRINGS],
+    )
+
+    result = run_eval(tmp_path, "--baseline")
+
+    # VALID merges two of the three strings, which are all labeled scores.
+    assert result.exit_code == 0, result.output
+    assert "| Every pair of in-domain strings | 3 | 3 | 1 | 1 | 100.0% | 33.3% |" in result.output
+
+
+def test_the_vitamin_d_baseline_scores_from_committed_files() -> None:
+    from typer.testing import CliRunner
+
+    from claimgraph import cli
+
+    result = CliRunner().invoke(
+        cli.app,
+        [
+            "eval",
+            "normalization",
+            str(ROOT / "questions" / "vitamin-d-depression.toml"),
+            "--baseline",
+        ],
     )
 
     assert result.exit_code == 0, result.output

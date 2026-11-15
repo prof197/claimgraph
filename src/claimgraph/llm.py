@@ -144,6 +144,11 @@ def read_request(replay_dir: Path, recorded: Mapping[str, Any]) -> dict[str, Any
     return request
 
 
+def recorded_request(replay_dir: Path, key: str) -> dict[str, Any]:
+    """The full request of the recording with this key; FileNotFoundError if there is none."""
+    return read_request(replay_dir, json.loads((replay_dir / f"{key}.json").read_text()))
+
+
 def retry_request(params: Mapping[str, Any], reply: Reply, note: str) -> dict[str, Any]:
     """The first request again, with the output it got and a note on what to fix."""
     (first, *_) = params["messages"]

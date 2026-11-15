@@ -24,7 +24,7 @@ from claimgraph import (
     review,
 )
 from claimgraph.config import QuestionConfig, load_config, resolve_question
-from claimgraph.llm import ReplayMiss, request_key
+from claimgraph.llm import ReplayMiss, recorded_request, request_key
 from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
@@ -884,30 +884,45 @@ def eval_normalization(
         Path, typer.Option(help="Where the committed model recordings live.")
     ] = Path("replay"),
     model: Model = extract.DEFAULT_MODEL,
+    baseline: Annotated[
+        bool,
+        typer.Option(
+            "--baseline", help="Score the proposal the pairs were drawn from, not the current one."
+        ),
+    ] = False,
 ) -> None:
     """Merge precision and recall of the recorded outcome proposal against the outcome kinds.
 
-    The proposal is replayed from the strings in the kind file, so nothing is sent; exits with
-    status 1 if its recording is missing.
+    The current prompt's proposal is replayed from the strings in the kind file, so nothing is
+    sent; exits with status 1 if its recording is missing. The strata are always the draw's.
     """
     config = load_config(resolve_question(question))
     out_dir = gold_dir / config.id
-    try:
-        found = outcome_kinds.load(out_dir / outcome_kinds.LABEL_FILE)
-        drawn = outcome_pairs.load_sample(out_dir / outcome_pairs.SAMPLE_FILE)
-    except (OSError, ValueError) as error:
-        typer.echo(f"no scores: {error}", err=True)
-        raise typer.Exit(1) from error
-    strings = sorted(label.string for label in found)
-    if request_key(normalize.request(strings, config, model)) != drawn.proposal:
-        typer.echo(
-            "no scores: the kind file's strings are not the ones the drawn proposal was made on",
-            err=True,
-        )
+    report = outcome_kinds.check(out_dir)
+    if report.problems:
+        typer.echo(f"no scores: {'; '.join(report.problems)}", err=True)
         raise typer.Exit(1)
-    client = normalize.model_client(replay_dir / config.id / "normalization" / model.value, False)
+    found = report.labels
+    drawn = outcome_pairs.load_sample(out_dir / outcome_pairs.SAMPLE_FILE)
+    strings = sorted(label.string for label in found)
+    replay = replay_dir / config.id / "normalization" / model.value
+    params = None
+    if baseline:
+        try:
+            params = recorded_request(replay, drawn.proposal)
+        except FileNotFoundError as error:
+            typer.echo(f"no scores: no recorded proposal in {replay_dir}", err=True)
+            raise typer.Exit(1) from error
+        if params["messages"][0]["content"] != normalize.user_message(strings):
+            typer.echo(
+                "no scores: the kind file's strings are not the ones the drawn proposal was "
+                "made on",
+                err=True,
+            )
+            raise typer.Exit(1)
+    client = normalize.model_client(replay, False)
     try:
-        proposal = normalize.propose(strings, config, client, model)
+        proposal = normalize.propose(strings, config, client, model, params=params)
     except ReplayMiss as error:
         typer.echo(f"no scores: no recorded proposal in {replay_dir}", err=True)
         raise typer.Exit(1) from error
