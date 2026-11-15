@@ -5,6 +5,7 @@ fake transport.
 """
 
 import json
+import re
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,8 @@ import pytest
 from test_extract import Scripted, finding, output, response
 from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 
-from claimgraph import normalize
+from claimgraph import normalize, outcome_kinds
+from claimgraph.config import load_config
 from claimgraph.extract import ExtractionResult, ModelChoice, read_extraction
 from claimgraph.llm import Mode, ModelClient, Reply, Usage
 from claimgraph.models import NormalizedOutcome
@@ -738,3 +740,25 @@ def test_a_rerun_does_not_propose_out_of_domain_strings_again(tmp_path: Path) ->
 
     assert result.exit_code == 0, result.output
     assert "every outcome string is mapped; nothing to propose" in result.output
+
+
+def test_the_outcome_rules_give_no_labeled_string_its_kind() -> None:
+    # The rules' examples are invented. A quoted phrase that is a labeled string, or any labeled
+    # string of three words or more, would hand the model that string's kind, the named hard
+    # cases among them. Short labeled strings such as "depression" are also rule and topic
+    # words, so they are checked only where the prompt quotes them.
+    for path in sorted((ROOT / "evals" / "gold").glob("*/outcome_kinds.toml")):
+        config = load_config(ROOT / "questions" / f"{path.parent.name}.toml")
+        prompt = normalize.system_prompt(config).casefold()
+        labeled = {label.string.casefold() for label in outcome_kinds.load(path)}
+        quoted = {q.casefold() for q in re.findall(r'"([^"]+)"', prompt)}
+
+        assert config.outcome_rules, path.parent.name
+        assert quoted & labeled == set(), path.parent.name
+        assert [s for s in labeled if len(s.split()) >= 3 and s in prompt] == [], path.parent.name
+
+
+def test_a_question_without_outcome_rules_groups_by_construct() -> None:
+    config = VITAMIN_D.model_copy(update={"outcome_rules": ""})
+
+    assert "Group by what is measured, not by how." in normalize.system_prompt(config)

@@ -1,0 +1,74 @@
+{
+ "output_config": {
+  "effort": "medium",
+  "format": {
+   "schema": {
+    "additionalProperties": false,
+    "properties": {
+     "assignments": {
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "number": {
+         "type": "integer"
+        },
+        "outcome": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "number",
+        "outcome"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "outcomes": {
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "domain": {
+         "enum": [
+          "depressive symptoms",
+          "depression diagnosis or incidence",
+          "remission",
+          "response",
+          "seasonal affective disorder",
+          "outside the domain"
+         ],
+         "type": "string"
+        },
+        "higher_is_better": {
+         "type": "boolean"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "domain",
+        "higher_is_better"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "outcomes",
+     "assignments"
+    ],
+    "type": "object"
+   },
+   "type": "json_schema"
+  }
+ },
+ "system": [
+  {
+   "text": "You group the outcome names that findings on one question report, so that findings on the same outcome can be compared with each other.\n\nQuestion: Does vitamin D affect depression?\nThe outcome domain, the outcomes the question is about: depressive symptoms; depression diagnosis or incidence; remission; response; seasonal affective disorder.\n\nThe user message lists outcome names, one per line, each with a number. First define the outcomes, then assign every name to one of them.\n\noutcomes: each outcome once, with\n- name: a short name for what it measures, in plain words, given to no other outcome;\n- domain: the one entry of the outcome domain it measures, or \"outside the domain\";\n- higher_is_better: true when a higher value, or more of the outcome, is good for the people studied, as with remission; false when it is bad, as with symptoms of a disorder.\n\nassignments: one entry for every name on the list, in the list's order, from the first number to the last with none skipped, each with\n- number: the name's number;\n- outcome: the name of the outcome it belongs to, exactly as defined.\n\nGroup the names by the rules below. Names of one kind go together whatever instrument, scale, cut-off, timing or population they name: those differences are weighed later, within one outcome. Give each outcome the entry of the outcome domain its kind measures. A name the rules put out of the domain goes to an outcome of its own, named for what it measures, with the domain \"outside the domain\", so a reviewer can see it and remove it. Set higher_is_better by the polarity rule.\n\nRules for grouping, from the labeling guide. Each name has one kind, and each kind is one outcome: score, case status, remission and response. A name of no kind is out of the domain.\n\nOut of domain. A name is out of the domain if it does any of these:\n- Bundles depression with other conditions: anxiety, distress, \"and/or\", or a comorbid condition named beside it, as in \"low mood or anxiety\". The CBCL and YSR anxious/depressed and withdrawn/depressed subscales bundle conditions too. \"Comorbid\" with no second condition named describes who was studied, so the name is a bare condition.\n- Names a mixed instrument without saying depression: plain HADS, DASS, POMS, BSI, SCL-90, PHQ-4, K6 or K10, GHQ, the EQ-5D item, WHO-5.\n- Cites an instrument with no depression-only part, even when the name says depressive symptoms: the SF-36 or SF-12, or the PANSS.\n- Isn't depression: anxiety scales; a standalone single-trait instrument such as RSAS or RPAS; animal tests such as immobility time; antidepressant use alone; vitamin D itself; \"mood\" alone, as in \"daily mood rating\".\nA mixed instrument counts as its depression subscale only if it has one: HADS, DASS, POMS, BSI, SCL-90, the NPI depression/dysphoria domain, or the CBCL or YSR DSM-oriented depressive problems scale. So \"POMS depression subscale\" is in the domain. A subscale or factor of a depression-only scale, such as a GDS factor or the PHQ-9 cognitive/affective items, is a score.\nMixing ways of detecting depression is fine; mixing conditions is not. Antidepressant use alone is out of the domain, but as one criterion of a depression case definition it is case status: \"new depression (PHQ-9 ≥10 or an antidepressant prescription)\". \"Mood\" is a depression word only alongside a depression instrument or word, as in \"MADRS mood item\".\n\nScore: an average number. The words \"score\", \"severity\", \"symptoms\", \"change\", \"improvement\" and \"reduction\", and \"mood\" alongside a depression instrument or word; or a condition plus a rating scale with no cut-off and no status word, as in \"depression (MADRS)\".\n\nCase status: yes or no, being or becoming depressed. A cut-off with ≥, as in \"MADRS ≥20\". The words \"positive\", \"elevated\", \"high\", \"probable\", \"clinically relevant\", \"screening\", \"cut points\", \"diagnosed\", \"episode\", \"incident\", \"onset\", \"prevalence\", \"history of\", \"past\", \"risk\", \"odds\", \"case\", \"binary\" and \"recurrence\", and the terms major depression and MDD. Diagnostic criteria or interviews: DSM, ICD, MINI, SCID, CIDI. Health records.\nA bare condition, with no instrument, cut-off or status word, is case status: \"perimenopausal depression\", \"depression (telephone poll)\", \"depression (patients and healthy volunteers)\". A condition with a rating scale and no cut-off stays a score: \"depression (MADRS)\".\n\nRemission: the words remission and remitted, or treated patients falling ≤ or < a low line, as in \"MADRS ≤10\". A remission cut-off stays remission, never case status. Response: the words response and responders, or a reduction with a percentage threshold, as in \"a fall of 50% or more on the MADRS\". Without a percentage threshold or responders, \"improvement\" and \"reduction\" are score words.\n\nWords beat symbols. A word naming remission, response or case status decides the kind, whatever symbol the name carries: \"remission (MADRS ≤10)\" is remission and \"MADRS fall of at least 50%\" is response. A ≥ cut-off with no such word is case status, even beside a score word: \"depressive symptoms (MADRS ≥20)\".\nA name that reports both a score and a cut-off for the same depression measure takes the kind of the measure named first: \"MADRS total and MADRS ≥20\" is a score. It stays in the domain, because the rule against bundling is about mixing conditions, not kinds.\nThe kind never depends on scale, version, rater, timing or population. Postpartum, seasonal, adolescents and older adults name who was studied: a seasonal affective disorder score is a score, and its diagnosis or incidence is case status.\n\nPolarity: lower is better for score and case status; higher is better for remission and response.\n\nReturn one JSON object that follows the schema.\n",
+   "type": "text"
+  }
+ ]
+}

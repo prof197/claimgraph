@@ -447,13 +447,21 @@ a person reviews the mapping before anything is published.
   apart.
 - **What the prompt groups by.** Strings group by what is measured, not how: the instrument,
   scale, cut-off, timing and population a string names stay inside one outcome, where the
-  classifier weighs them as an outcome-measure reason. Whether a condition occurs and how severe
-  its symptoms are stay apart, and no outcome spans two entries of the outcome domain. A string
-  that measures nothing in the domain goes to an outcome marked outside the domain, so the
-  reviewer sees it.
-  The prompt also keeps every outcome within one domain entry, so it keeps seasonal affective
+  classifier weighs them as an outcome-measure reason. A question's config can carry
+  `outcome_rules`, the labeling guide's outcome rules in its own words, and the prompt then
+  groups by them, one outcome per kind. Without rules it groups by construct: whether a
+  condition occurs and how severe its symptoms are stay apart, and no outcome spans two entries
+  of the outcome domain. Either way, a string that measures nothing in the domain goes to an
+  outcome marked outside the domain, so the reviewer sees it.
+  The prompt keeps each outcome within one domain entry, so it can keep seasonal affective
   disorder apart, while the labels and the mapping review group its strings by what they
   measure. The recorded proposal is scored as it is, so the eval counts those splits as misses.
+- **Rules without labeled examples.** The rules' examples are invented, as the extraction
+  prompt's are, because the guide's own examples include labeled corpus strings, the named hard
+  cases among them, and the eval's hard-case stratum would score a kind the prompt gave away. A
+  test checks that no phrase the prompt quotes is a labeled string and that no labeled string of
+  three words or more appears in it. Short labeled strings such as "depression" are also rule
+  and topic words, so they are checked only where quoted.
 - **One string, two domain entries.** A mapping keys on the string alone, so a string that
   findings place in two domain entries goes to one outcome. In the vitamin D corpus that is
   "depression": 17 findings place it under diagnosis or incidence and 10 under symptoms. The
@@ -638,8 +646,10 @@ data is labeled by hand, from openly licensed articles only.
   mostly splits on scale or timing and merges of a cut-off with a score, and that is why the
   labeling unit changed. Polarity follows the kind too: lower is better for score and case
   status, higher for remission and response, and the mapping review sets it so.
-- **Scoring the proposal:** `claimgraph eval normalization` replays the recorded proposal from
-  the strings in the kind file, so CI needs no run outputs. A string the proposal puts under an
+- **Scoring the proposal:** `claimgraph eval normalization` replays the current prompt's
+  proposal from the strings in the kind file, so CI needs no run outputs; `--baseline` replays
+  the recording the pairs were drawn from, by its key, so the first proposal stays scorable after
+  the prompt changes. The strata are always the draw's. A string the proposal puts under an
   outcome it marks outside the domain merges with nothing, since review deletes that outcome,
   and the eval counts how many strings each side puts out of domain.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
@@ -688,9 +698,11 @@ data is labeled by hand, from openly licensed articles only.
   recordings are committed in `replay/`; dev recordings stay in the run directory with the dev
   abstracts.
 - **Leakage guard:** gold abstracts never appear as prompt examples, and the normalization prompt
-  never sees labeled pairs. Every prompt change is motivated by something seen in the dev set,
-  never by a gold record: a gold error is answered in the prompt only when dev shows the same
-  pattern.
+  never sees labeled strings or pairs. Every extraction prompt change is motivated by something
+  seen in the dev set, never by a gold record: a gold error is answered in the prompt only when
+  dev shows the same pattern. Normalization has no dev set: its outcome rules were written while
+  labeling the same strings the eval scores, and some name instruments seen only there, so a
+  proposal under those rules is scored in sample, and the README says so beside its numbers.
 - **The ablation's question:** does multi-model deliberation beat the best single model at the
   same token budget? Prior work suggests ensembling, not deliberation, drives most of the gain.
   Either result goes in the README, and the table doubles as the guide to `--depth`.

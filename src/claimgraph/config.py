@@ -99,6 +99,9 @@ class QuestionConfig(Record):
     # Outcome strings the question names as hard cases for normalization. The outcome-pair draw
     # pairs every one the corpus reports with every other, so the eval always includes them.
     outcome_hard_cases: list[NonBlank] = Field(default_factory=list[NonBlank])
+    # The rules the normalization prompt groups outcome names by, in the labeling guide's words.
+    # Their examples must not be corpus strings, so the prompt gives no labeled string its kind.
+    outcome_rules: str = ""
     # PubMed-syntax clauses joined to the topic query with AND.
     filters: list[NonBlank] = Field(default_factory=list)
     start_date: date | None = None

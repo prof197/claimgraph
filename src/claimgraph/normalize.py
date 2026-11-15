@@ -73,6 +73,25 @@ to the last with none skipped, each with
 - number: the name's number;
 - outcome: the name of the outcome it belongs to, exactly as defined.
 
+{_grouping(config)}
+Return one JSON object that follows the schema.
+"""
+
+
+def _grouping(config: QuestionConfig) -> str:
+    """How to group: by the question's own rules when it has them, else by construct."""
+    if config.outcome_rules:
+        return f"""\
+Group the names by the rules below. Names of one kind go together whatever instrument, scale, \
+cut-off, timing or population they name: those differences are weighed later, within one \
+outcome. Give each outcome the entry of the outcome domain its kind measures. A name the rules \
+put out of the domain goes to an outcome of its own, named for what it measures, with the \
+domain "{OUTSIDE_DOMAIN}", so a reviewer can see it and remove it. Set higher_is_better by the \
+polarity rule.
+
+{config.outcome_rules.strip()}
+"""
+    return f"""\
 Group by what is measured, not by how. Names for the same construct go together whatever \
 instrument, scale, cut-off, timing or population they name: those differences are weighed \
 later, within one outcome. A general term and a score on a named scale for the same construct \
@@ -84,8 +103,6 @@ outcome measures one entry of the outcome domain, so names on two entries go to 
 
 A name that measures nothing in the outcome domain goes to an outcome of its own, named for \
 what it measures, with the domain "{OUTSIDE_DOMAIN}", so a reviewer can see it and remove it.
-
-Return one JSON object that follows the schema.
 """
 
 
