@@ -277,42 +277,44 @@ seeing the grouping leans toward it.
 
 A string is `out_of_domain` if it does any of these:
 
-- Mixes depression with anything else: anxiety, distress, "and/or", comorbid, or bundled
-  conditions, as in "depression or anxiety".
+- Bundles depression with other conditions: anxiety, distress, "and/or", comorbid, as in
+  "depression or anxiety". The CBCL and YSR anxious/depressed and withdrawn/depressed subscales
+  bundle conditions too.
 - Names a mixed instrument without saying depression: plain HADS, DASS, POMS, BSI, SCL-90,
-  PHQ-4, K6 or K10, GHQ, the EQ-5D item, the SF-12 or SF-36 mental component, WHO-5.
-- Isn't depression: anxiety scales, RSAS or RPAS, PANSS, animal tests such as immobility time,
-  antidepressant use alone, vitamin D itself.
+  PHQ-4, K6 or K10, GHQ, the EQ-5D item, WHO-5.
+- Cites an instrument with no depression-only part, even when the string says depressive
+  symptoms: the SF-36 or SF-12, or the PANSS.
+- Isn't depression: anxiety scales; a standalone single-trait instrument such as RSAS or RPAS;
+  animal tests such as immobility time; antidepressant use alone; vitamin D itself; "mood"
+  alone, as in "mood symptom severity".
 
-A string that names depression with a mixed instrument means its depression subscale, but only
-if the instrument has one: HADS, DASS, POMS, BSI, SCL-90, or the CBCL or YSR DSM-oriented
-depressive problems scale. So "HADS depression" is in the domain. An instrument with no
-depression-only part, such as the SF-36 or SF-12, is out of domain even when the string says
-depressive symptoms. The PANSS has no depression-only subscale, so a string citing it is out of
-domain. A subscale or factor of a depression-only scale, such as the GDS
-dysphoria factor, is a depression score.
+A mixed instrument counts as its depression subscale only if it has one: HADS, DASS, POMS, BSI,
+SCL-90, the NPI depression/dysphoria domain, or the CBCL or YSR DSM-oriented depressive problems
+scale. So "HADS depression" is in the domain. A subscale or factor of a depression-only scale,
+such as a GDS factor or the PHQ-9 cognitive/affective items, is a depression score.
 
 Mixing ways of detecting depression is fine; mixing conditions is not. Antidepressant use alone
 is out of domain, but as one criterion of a depression case definition it is case status:
-"incident depression (CES-D ≥10 or antidepressant use)".
+"incident depression (CES-D ≥10 or antidepressant use)". "Mood" is a depression word only
+alongside a depression instrument or word, as in "PHQ-8 mood score".
 
 Pairs with an out-of-domain string are left out of the scores and counted, because each such
 string is a finding extraction should have dropped.
 
 ### Score
 
-An average number. The words "score", "severity", "symptoms", "mood", "change" and
-"reduction"; or a condition plus a rating scale with no cut-off and no status word, as in
-"depression (BDI)". The hard cases: "depressive symptoms", "PHQ-9 score" and "depression
-severity" are scores.
+An average number. The words "score", "severity", "symptoms", "change", "improvement" and
+"reduction", and "mood" alongside a depression instrument or word; or a condition plus a rating
+scale with no cut-off and no status word, as in "depression (BDI)". The hard cases: "depressive
+symptoms", "PHQ-9 score" and "depression severity" are scores.
 
 ### Case status
 
 Yes or no: being or becoming depressed. A cut-off with ≥, as in "CES-D ≥16". The words
-"positive", "elevated", "high", "probable", "clinically relevant", "diagnosed", "MDD", "major
-depression", "incident", "new-onset", "prevalence", "history of", "past", "risk", "odds",
-"case" and "recurrence". Diagnostic criteria or interviews: DSM, ICD, MINI, SCID, CIDI. Health
-records.
+"positive", "elevated", "high", "probable", "clinically relevant", "screening", "cut points",
+"diagnosed", "MDD", "major depression", "episode", "incident", "onset", "prevalence", "history
+of", "past", "risk", "odds", "case", "binary" and "recurrence". Diagnostic criteria or
+interviews: DSM, ICD, MINI, SCID, CIDI. Health records.
 
 A bare condition, with no instrument, cut-off or status word, is case status: "depression",
 "postpartum depression", "depression (survey)", "depression (patients versus controls)". Nearly
@@ -324,7 +326,8 @@ group membership. A condition with a rating scale and no cut-off stays a score: 
 
 Remission: "remission", "remitted", or treated patients falling ≤ or < a low line, as in
 "HAMD ≤7". A remission cut-off stays remission, never case status. Response: "response",
-"responders", "≥50% reduction".
+"responders", or a reduction with a percentage threshold, as in "≥50% reduction". Without a
+percentage threshold or "responders", "improvement" and "reduction" are score words.
 
 ### Words beat symbols
 
