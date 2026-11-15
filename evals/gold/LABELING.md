@@ -254,74 +254,83 @@ design and sample size, so it would say little about consistency. Its templates 
 records, and nothing from the first pass: not its labels, outcomes, notes or flags. Label them
 by the same rules, without opening the first-pass files.
 
-## Outcome pairs
+## Outcome kinds
 
-```
-uv run claimgraph gold outcome-pairs sample vitamin-d-depression    # draw the pairs
-uv run claimgraph gold outcome-pairs template vitamin-d-depression  # the file to fill in
-uv run claimgraph gold outcome-pairs check vitamin-d-depression     # validate the labels
-```
+Each reported outcome string gets one kind: what it measures. Normalization groups strings by
+what they measure, so two strings belong under one normalized outcome exactly when they share a
+kind. The normalization eval derives every pair's verdict from the kinds: out of domain if
+either string is, merge if both have the same kind, separate otherwise.
 
-Each pair asks whether two reported outcome strings belong under one normalized outcome, so
-that a reader sees them in one tab. The strings come from the extracted findings, and the
-normalization eval scores the model's proposed mapping against these labels.
-
-Label blind. Fill in `outcome_pairs.toml` before opening the mapping in `mappings/` or
+Label blind. Give every string a kind before opening the mapping in `mappings/` or
 `outcome_pair_sample.json`: both show how the model grouped the strings, and a label made after
-seeing the grouping leans toward it. The file to fill in shows only the two strings of each pair,
-in an order that hides how the pair was drawn.
+seeing the grouping leans toward it.
 
-```toml
-[[pair]]
-a = "PHQ-9 score"
-b = "depressive symptoms"
-verdict = "merge"
-```
+| `kind` | What it measures | Better when |
+|---|---|---|
+| `score` | How depressed, as an average number | Lower |
+| `case_status` | Being or becoming depressed, yes or no | Lower |
+| `remission` | Treated patients who got well | Higher |
+| `response` | Treated patients who improved by a set amount | Higher |
+| `out_of_domain` | Not a depression outcome | |
 
-| `verdict` | When |
-|---|---|
-| `merge` | Both strings measure the same construct |
-| `separate` | Both are outcomes in the domain, but different constructs |
-| `out_of_domain` | At least one string is not an outcome in the domain |
+### Out of domain
 
-**Severity and case status.** Most strings measure one of these two constructs, and the two never
-merge.
+A string is `out_of_domain` if it does any of these:
 
-- Severity is a continuous score on a depression scale, or symptoms described without a
-  threshold: "PHQ-9 score", "depressive symptoms", "depression severity". Instrument, timing and
-  population do not split it, so "BDI-II score at 12 weeks" and "postpartum depressive symptoms
-  (EPDS)" merge with "depressive symptoms".
-- Case status is whether a person has depression: a diagnosis, incidence or prevalence, a scale
-  with a cut-off ("CES-D ≥16", "PHQ-9 score of 10 or more"), or wording that implies a cut-off
-  ("clinically relevant depressive symptoms"). These merge with each other, whatever the
-  instrument or cut-off.
+- Mixes depression with anything else: anxiety, distress, "and/or", comorbid, or bundled
+  conditions, as in "depression or anxiety".
+- Names a mixed instrument without saying depression: plain HADS, DASS, POMS, BSI, SCL-90,
+  PHQ-4, K6 or K10, GHQ, the EQ-5D item, the SF-12 or SF-36 mental component, WHO-5.
+- Isn't depression: anxiety scales, RSAS or RPAS, PANSS, animal tests such as immobility time,
+  antidepressant use, vitamin D itself.
 
-So a scale with a cut-off and the same scale's score are `separate`. The hard cases, which the
-eval must include: "depressive symptoms", "depression" and "PHQ-9 score" merge; "depression
-incidence" and "depression severity" do not. "depression" alone is severity. One trial can report
-both an incidence and a symptom score, so one paper can exercise the rule.
+A string that names depression with a mixed instrument means its depression subscale, so
+"HADS depression" is in the domain. A subscale or factor of a depression-only scale, such as
+the GDS dysphoria factor, is a depression score.
 
-**Remission and response.** Each is a measure of its own, `separate` from severity, from case
-status and from the other. Remission or response defined by a cut-off, such as "HAMD ≤7", stays
-remission or response.
+Pairs with an out-of-domain string are left out of the scores and counted, because each such
+string is a finding extraction should have dropped.
 
-**What was measured, not who was studied.** Seasonal affective disorder names a population, so
-it does not split an outcome: a severity score in people with seasonal affective disorder, such
-as "SIGH-SAD sum", merges with severity, and a diagnosis or incidence of it merges with case
-status. The same holds for any population a string names, such as postpartum or post-stroke
-depression. A difference in who was studied is weighed later, as a population reason for a
-contradiction.
+### Score
 
-**Out of domain.** Choose `out_of_domain` when either string is not a depression outcome,
-whatever the other is: a measure combining depression with other outcomes (psychological
-distress, a HADS total, the SF-12 mental component, "depression or anxiety"); a behaviour test in
-animals ("immobility time"); medication use ("antidepressant use"); or vitamin D itself. A
-depression subscale, such as HADS-D, is in the domain. These pairs are left out of the scores and
-counted, because each one is a finding extraction should have dropped.
+An average number. The words "score", "severity", "symptoms", "mood", "change" and
+"reduction"; or a condition plus a rating scale with no cut-off and no status word, as in
+"depression (BDI)". "depression" alone is a score. The hard cases: "depressive symptoms",
+"depression" and "PHQ-9 score" are all scores, and "incident depression" is case status.
 
-Judge each string as written. If one is too vague to place, take the closest reading and say so
-in `note`. Label each pair once, in either order. Polarity, whether higher is better, is set in
-the mapping review, not here. The mapping review applies the same rules.
+### Case status
+
+Yes or no: being or becoming depressed. A cut-off with ≥, as in "CES-D ≥16". The words
+"positive", "elevated", "high", "probable", "clinically relevant", "diagnosed", "MDD", "major
+depression", "incident", "new-onset", "prevalence", "history of", "past", "risk", "odds",
+"case" and "recurrence". Diagnostic criteria or interviews: DSM, ICD, MINI, SCID, CIDI. Health
+records.
+
+### Remission and response
+
+Remission: "remission", "remitted", or treated patients falling ≤ or < a low line, as in
+"HAMD ≤7". A remission cut-off stays remission, never case status. Response: "response",
+"responders", "≥50% reduction".
+
+### Words beat symbols
+
+A word naming remission, response or case status decides the kind, whatever symbol the string
+carries: "remission (HAMD ≤7)" is remission and "≥50% reduction in HAMD" is response. A ≥
+cut-off with no such word is case status, even beside a score word: "depressive symptoms
+(CES-D ≥16)".
+
+The kind never depends on scale, version, rater, timing or population. Postpartum, seasonal,
+adolescents and older adults name who was studied: a seasonal affective disorder score is a
+score, and its diagnosis or incidence is case status. Who was studied is weighed later, as a
+population reason for a contradiction.
+
+### Polarity
+
+Lower is better for score and case status; higher is better for remission and response. The
+mapping review sets each outcome's direction from its kind.
+
+Judge each string as written. If one is too vague to place, take the closest reading and mark
+it unsure. The mapping review applies the same rules.
 
 ## Contradiction pairs
 
