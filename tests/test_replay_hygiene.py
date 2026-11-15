@@ -1,7 +1,9 @@
 """Committed replay files may hold responses for gold abstracts only.
 
 Dev abstracts can carry any licence, so their text and their model responses stay in the
-gitignored run directory. These tests fail if a committed replay file names a PMID outside
+gitignored run directory. The outcome proposal is the one recording made over the whole corpus:
+it holds the outcome names findings report and no abstract text, the same names the committed
+mapping file lists. These tests fail if a committed replay file names a PMID outside
 the gold set, either in a "pmid" field or anywhere as a known dev or screened PMID.
 """
 

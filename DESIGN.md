@@ -430,7 +430,10 @@ a person reviews the mapping before anything is published.
   not strings, so it cannot misspell a member. Code checks that every number is assigned once,
   to a defined outcome, and that no name repeats; a failure gets one retry naming it, like
   extraction's. The recording is committed under `replay/<id>/normalization/`, so the eval
-  replays the proposal it scores. An existing mapping file is never overwritten.
+  replays the proposal it scores; it holds outcome names and no abstract text, the same names
+  the committed mapping lists. An existing mapping file is never overwritten. On the 547
+  vitamin D strings it was valid on the first attempt: 8 outcomes, for $0.15 at standard
+  prices, with 12,900 output tokens.
 - **Assign in order, not partition.** The first version asked for each outcome's member
   numbers. On the 547 vitamin D strings both attempts failed the check: 9 strings in two
   outcomes and 1 in none, then 1 in none after the retry. It also merged remission with

@@ -1,0 +1,74 @@
+{
+ "output_config": {
+  "effort": "medium",
+  "format": {
+   "schema": {
+    "additionalProperties": false,
+    "properties": {
+     "assignments": {
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "number": {
+         "type": "integer"
+        },
+        "outcome": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "number",
+        "outcome"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "outcomes": {
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "domain": {
+         "enum": [
+          "depressive symptoms",
+          "depression diagnosis or incidence",
+          "remission",
+          "response",
+          "seasonal affective disorder",
+          "outside the domain"
+         ],
+         "type": "string"
+        },
+        "higher_is_better": {
+         "type": "boolean"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "domain",
+        "higher_is_better"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "outcomes",
+     "assignments"
+    ],
+    "type": "object"
+   },
+   "type": "json_schema"
+  }
+ },
+ "system": [
+  {
+   "text": "You group the outcome names that findings on one question report, so that findings on the same outcome can be compared with each other.\n\nQuestion: Does vitamin D affect depression?\nThe outcome domain, the outcomes the question is about: depressive symptoms; depression diagnosis or incidence; remission; response; seasonal affective disorder.\n\nThe user message lists outcome names, one per line, each with a number. First define the outcomes, then assign every name to one of them.\n\noutcomes: each outcome once, with\n- name: a short name for what it measures, in plain words, given to no other outcome;\n- domain: the one entry of the outcome domain it measures, or \"outside the domain\";\n- higher_is_better: true when a higher value, or more of the outcome, is good for the people studied, as with remission; false when it is bad, as with symptoms of a disorder.\n\nassignments: one entry for every name on the list, in the list's order, from the first number to the last with none skipped, each with\n- number: the name's number;\n- outcome: the name of the outcome it belongs to, exactly as defined.\n\nGroup by what is measured, not by how. Names for the same construct go together whatever instrument, scale, cut-off, timing or population they name: those differences are weighed later, within one outcome. A general term and a score on a named scale for the same construct go together.\n\nKeep apart outcomes that answer different questions. Whether a condition occurs (its diagnosis, incidence or case status) is one outcome and how severe its symptoms are is another. Each outcome measures one entry of the outcome domain, so names on two entries go to two outcomes.\n\nA name that measures nothing in the outcome domain goes to an outcome of its own, named for what it measures, with the domain \"outside the domain\", so a reviewer can see it and remove it.\n\nReturn one JSON object that follows the schema.\n",
+   "type": "text"
+  }
+ ]
+}
