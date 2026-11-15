@@ -4,6 +4,7 @@ Every outcome string, acronym and proposal here is synthetic.
 """
 
 import json
+import tomllib
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from test_labels import ROOT, VITAMIN_D
 from test_normalize import STRINGS, VALID, corpus_results
 
 from claimgraph import normalize, outcome_pairs
+from claimgraph.labels import PairVerdict, check_outcome_pairs
 from claimgraph.llm import Mode, ModelClient, request_key
 from claimgraph.outcome_pairs import Stratum, features, stratum
 
@@ -258,3 +260,166 @@ def test_the_sample_is_never_redrawn_over_an_existing_one(tmp_path: Path) -> Non
     assert result.exit_code == 1
     assert "already drawn" in result.output
     assert path.read_text() == before
+
+
+# The template and the check
+
+
+def drawn_sample(tmp_path: Path) -> Path:
+    """A question directory holding a synthetic draw."""
+    out = tmp_path / "gold" / "vitamin-d-depression"
+    result = draw()
+    sampled = outcome_pairs.sample("vitamin-d-depression", 1, "synthetic", "0" * 64, 16, result)
+    outcome_pairs.write_sample(out / outcome_pairs.SAMPLE_FILE, sampled)
+    return out
+
+
+def test_the_template_lists_every_drawn_pair_once_with_no_verdict(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    sampled = outcome_pairs.load_sample(out / outcome_pairs.SAMPLE_FILE)
+
+    text = outcome_pairs.label_template(sampled)
+
+    pairs = tomllib.loads(text)["pair"]
+    assert sorted((p["a"], p["b"]) for p in pairs) == sorted((p.a, p.b) for p in sampled.pairs)
+    assert {p["verdict"] for p in pairs} == {""}
+    assert "LABELING.md" in text
+
+
+def test_the_template_hides_how_each_pair_was_drawn(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    sampled = outcome_pairs.load_sample(out / outcome_pairs.SAMPLE_FILE)
+
+    text = outcome_pairs.label_template(sampled)
+
+    assert not any(s.value in text for s in Stratum)
+    listed = [(p["a"], p["b"]) for p in tomllib.loads(text)["pair"]]
+    assert listed != [(p.a, p.b) for p in sampled.pairs]
+
+
+def fill(out: Path, verdicts: list[str]) -> None:
+    path = out / outcome_pairs.LABEL_FILE
+    text = path.read_text()
+    for verdict in verdicts:
+        text = text.replace('verdict = ""', f'verdict = "{verdict}"', 1)
+    path.write_text(text)
+
+
+def template(out: Path) -> int:
+    sampled = outcome_pairs.load_sample(out / outcome_pairs.SAMPLE_FILE)
+    outcome_pairs.write_label_template(out, sampled)
+    return len(sampled.pairs)
+
+
+def test_a_blank_template_is_all_unlabeled(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    count = template(out)
+
+    report = check_outcome_pairs(out)
+
+    assert report.drawn == count
+    assert report.unlabeled == count
+    assert report.problems == [f"{count} of {count} pairs have no verdict yet"]
+
+
+def test_the_check_counts_each_verdict(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    count = template(out)
+    fill(out, ["merge", "separate", "out_of_domain"] + ["merge"] * (count - 3))
+
+    report = check_outcome_pairs(out)
+
+    assert report.problems == []
+    assert report.verdicts == {
+        PairVerdict.MERGE: count - 2,
+        PairVerdict.SEPARATE: 1,
+        PairVerdict.OUT_OF_DOMAIN: 1,
+    }
+
+
+def test_a_verdict_outside_the_three_is_named_by_pair(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    template(out)
+    fill(out, ["maybe"])
+
+    problems = check_outcome_pairs(out).problems
+
+    assert any(p.startswith("pair 1: verdict:") for p in problems)
+
+
+def write_pairs(out: Path, *pairs: tuple[str, str, str]) -> None:
+    (out / outcome_pairs.LABEL_FILE).write_text(
+        "".join(f'[[pair]]\na = "{a}"\nb = "{b}"\nverdict = "{v}"\n' for a, b, v in pairs)
+    )
+
+
+def test_pairs_must_match_the_draw_in_either_order(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    sampled = outcome_pairs.load_sample(out / outcome_pairs.SAMPLE_FILE)
+    first, *rest = sampled.pairs
+    write_pairs(
+        out,
+        (first.b, first.a, "merge"),
+        (first.a, first.b, "separate"),
+        ("synthetic stray a", "synthetic stray b", "merge"),
+    )
+
+    problems = check_outcome_pairs(out).problems
+
+    assert f"pair 2: {first.a} / {first.b} is labeled more than once" in problems
+    assert "pair 3: synthetic stray a / synthetic stray b is not in the draw" in problems
+    assert any(p.startswith(f"{len(rest)} drawn pairs are not in the file:") for p in problems)
+
+
+def test_without_a_draw_the_labels_are_checked_alone(tmp_path: Path) -> None:
+    out = tmp_path / "question"
+    out.mkdir()
+    write_pairs(out, ("synthetic a", "synthetic b", "merge"))
+
+    report = check_outcome_pairs(out)
+
+    assert report.drawn is None
+    assert report.problems == []
+
+
+def test_the_template_command_never_overwrites_labels(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    assert run_pairs(tmp_path, "template").exit_code == 0
+    fill(out, ["merge"])
+    before = (out / outcome_pairs.LABEL_FILE).read_text()
+
+    result = run_pairs(tmp_path, "template")
+
+    assert result.exit_code == 1
+    assert "already exists" in result.output
+    assert (out / outcome_pairs.LABEL_FILE).read_text() == before
+
+
+def test_the_template_command_needs_a_draw(tmp_path: Path) -> None:
+    result = run_pairs(tmp_path, "template")
+
+    assert result.exit_code == 1
+    assert "gold outcome-pairs sample" in result.output
+
+
+def test_the_check_command_reports_progress_and_fails_until_done(tmp_path: Path) -> None:
+    out = drawn_sample(tmp_path)
+    count = template(out)
+    fill(out, ["merge", "out_of_domain"])
+
+    result = run_pairs(tmp_path, "check")
+
+    assert result.exit_code == 1
+    assert f"2 of {count} pairs labeled: 1 merge, 0 separate, 1 out_of_domain" in result.output
+    fill(out, ["separate"] * (count - 2))
+    assert run_pairs(tmp_path, "check").exit_code == 0
+
+
+def test_a_single_bracket_table_is_named_not_walked(tmp_path: Path) -> None:
+    out = tmp_path / "question"
+    out.mkdir()
+    (out / outcome_pairs.LABEL_FILE).write_text(
+        '[pair]\na = "synthetic a"\nb = "synthetic b"\nverdict = "merge"\n'
+    )
+
+    assert check_outcome_pairs(out).problems == ["pairs are written [[pair]], one table each"]

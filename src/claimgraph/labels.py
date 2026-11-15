@@ -11,7 +11,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, Literal, Self, cast
 
 from pydantic import (
     Field,
@@ -24,6 +24,7 @@ from pydantic import (
     model_validator,
 )
 
+from claimgraph import outcome_pairs
 from claimgraph.config import NOT_REPORTED, Dimension, DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, follow
 from claimgraph.gold import GoldAbstract, SampleManifest, Stratum, attribution
@@ -125,12 +126,9 @@ class PairVerdict(StrEnum):
     OUT_OF_DOMAIN = "out_of_domain"
 
 
-class OutcomePairLabel(Record):
-    """Should these two reported outcome strings fall under one normalized outcome?"""
-
+class _PairStrings(Record):
     a: NonBlank
     b: NonBlank
-    verdict: PairVerdict
     note: str | None = None
 
     @model_validator(mode="after")
@@ -138,6 +136,23 @@ class OutcomePairLabel(Record):
         if self.a == self.b:
             raise ValueError("an outcome pair needs two different strings")
         return self
+
+    @property
+    def key(self) -> tuple[str, str]:
+        """The pair in either order."""
+        return (self.a, self.b) if self.a < self.b else (self.b, self.a)
+
+
+class OutcomePairLabel(_PairStrings):
+    """Should these two reported outcome strings fall under one normalized outcome?"""
+
+    verdict: PairVerdict
+
+
+class _OutcomePairDraft(_PairStrings):
+    """A pair from the template, not labeled yet."""
+
+    verdict: Literal[""]
 
 
 class ContradictionLabel(Record):
@@ -192,6 +207,70 @@ def load_outcome_pairs(path: Path) -> list[OutcomePairLabel]:
     pairs = _OutcomePairs.model_validate(_read_toml(path)).pair
     _no_repeats([" / ".join(sorted((p.a, p.b))) for p in pairs])
     return pairs
+
+
+class OutcomePairReport(Record):
+    # The pairs in the question's draw, or None when it has none, so the labels are checked alone.
+    drawn: int | None
+    verdicts: dict[PairVerdict, int]
+    unlabeled: int
+    problems: list[str]
+
+
+def check_outcome_pairs(out_dir: Path) -> OutcomePairReport:
+    """Check the outcome-pair labels against the draw, pair by pair; blank verdicts are counted."""
+    sample_path = out_dir / outcome_pairs.SAMPLE_FILE
+    drawn = (
+        {(p.a, p.b) for p in outcome_pairs.load_sample(sample_path).pairs}
+        if sample_path.exists()
+        else None
+    )
+    verdicts: Counter[PairVerdict] = Counter()
+    unlabeled = 0
+    problems: list[str] = []
+    try:
+        data = _read_toml(out_dir / outcome_pairs.LABEL_FILE)
+    except (FileNotFoundError, tomllib.TOMLDecodeError) as error:
+        data = {}
+        problems.append(str(error))
+    raw: Any = data.get("pair", [])
+    entries = cast(list[Any], raw) if isinstance(raw, list) else []
+    if not isinstance(raw, list):
+        problems.append("pairs are written [[pair]], one table each")
+    if stray := sorted(set(data) - {"pair"}):
+        problems.append(f"unknown tables: {', '.join(stray)}")
+    seen: set[tuple[str, str]] = set()
+    for n, entry in enumerate(entries, start=1):
+        fields = cast(dict[str, Any], entry) if isinstance(entry, dict) else {}
+        blank = fields.get("verdict") == ""
+        try:
+            pair = (_OutcomePairDraft if blank else OutcomePairLabel).model_validate(entry)
+        except ValidationError as error:
+            problems += [f"pair {n}: {m}" for m in _messages(error)]
+            continue
+        if isinstance(pair, OutcomePairLabel):
+            verdicts[pair.verdict] += 1
+        else:
+            unlabeled += 1
+        shown = " / ".join(pair.key)
+        if pair.key in seen:
+            problems.append(f"pair {n}: {shown} is labeled more than once")
+        elif drawn is not None and pair.key not in drawn:
+            problems.append(f"pair {n}: {shown} is not in the draw")
+        seen.add(pair.key)
+    if drawn is not None and (missing := sorted(drawn - seen)):
+        listed = "; ".join(" / ".join(k) for k in missing[:5])
+        more = f" and {len(missing) - 5} more" if len(missing) > 5 else ""
+        problems.append(f"{len(missing)} drawn pairs are not in the file: {listed}{more}")
+    if unlabeled:
+        total = len(drawn) if drawn is not None else len(entries)
+        problems.append(f"{unlabeled} of {total} pairs have no verdict yet")
+    return OutcomePairReport(
+        drawn=None if drawn is None else len(drawn),
+        verdicts={v: verdicts[v] for v in PairVerdict},
+        unlabeled=unlabeled,
+        problems=problems,
+    )
 
 
 def load_contradiction_pairs(path: Path) -> list[ContradictionLabel]:
@@ -299,15 +378,14 @@ def check_labels(out_dir: Path, config: QuestionConfig) -> LabelReport:
             problems[path.name] = found
         else:
             labeled.append(path.stem)
-    for name, loader in (
-        ("outcome_pairs.toml", load_outcome_pairs),
-        ("contradiction_pairs.toml", load_contradiction_pairs),
-    ):
-        if (out_dir / name).exists():
-            try:
-                loader(out_dir / name)
-            except (tomllib.TOMLDecodeError, ValueError) as error:
-                problems[name] = _messages(error)
+    pair_file = out_dir / outcome_pairs.LABEL_FILE
+    if pair_file.exists() and (found := check_outcome_pairs(out_dir).problems):
+        problems[outcome_pairs.LABEL_FILE] = found
+    if (out_dir / "contradiction_pairs.toml").exists():
+        try:
+            load_contradiction_pairs(out_dir / "contradiction_pairs.toml")
+        except (tomllib.TOMLDecodeError, ValueError) as error:
+            problems["contradiction_pairs.toml"] = _messages(error)
     named = {p.stem for p in files}
     return LabelReport(
         labeled=sorted(labeled, key=int),

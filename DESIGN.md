@@ -903,7 +903,9 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 - `claimgraph gold sample QUESTION` draws the gold and dev samples; it stops and lists the
   records that need screening first.
 - `claimgraph gold outcome-pairs sample QUESTION` draws the outcome pairs from the recorded
-  proposal and never redraws over an existing draw.
+  proposal and never redraws over an existing draw. `template` writes the file to label,
+  shuffled and without strata, and `check` validates it against the draw and fails until every
+  pair has a verdict.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`

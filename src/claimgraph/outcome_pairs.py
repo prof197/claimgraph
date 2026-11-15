@@ -7,6 +7,7 @@ cases, pairs the proposal grouped, and pairs it split that look related. Split p
 acronym and no uncommon word are nearly all plain non-merges, so they are counted, not drawn.
 """
 
+import json
 import random
 import re
 from collections import Counter
@@ -29,6 +30,7 @@ QUOTAS_SPLIT_RELATED = 75
 # pair, so it does not count as shared.
 COMMON_SHARE = 0.1
 SAMPLE_FILE = "outcome_pair_sample.json"
+LABEL_FILE = "outcome_pairs.toml"
 
 
 class Stratum(StrEnum):
@@ -260,3 +262,38 @@ def write_sample(path: Path, drawn: PairSample) -> None:
 
 def load_sample(path: Path) -> PairSample:
     return PairSample.model_validate_json(path.read_text())
+
+
+def _toml_string(value: str) -> str:
+    # A JSON string is a TOML basic string: the same quotes, and escapes TOML accepts.
+    return json.dumps(value, ensure_ascii=False)
+
+
+def label_template(drawn: PairSample) -> str:
+    """The file to label, in shuffled order and without strata, so it does not show the grouping."""
+    pairs = list(drawn.pairs)
+    random.Random(drawn.seed).shuffle(pairs)
+    lines = [
+        f"# Outcome-pair labels for {drawn.question}: {len(pairs)} pairs.",
+        '# Set each verdict to "merge", "separate" or "out_of_domain", by the rules in',
+        "# evals/gold/LABELING.md. Label every pair before opening the mapping or",
+        f"# {SAMPLE_FILE}: both show the model's grouping.",
+    ]
+    for pair in pairs:
+        lines += [
+            "",
+            "[[pair]]",
+            f"a = {_toml_string(pair.a)}",
+            f"b = {_toml_string(pair.b)}",
+            'verdict = ""',
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def write_label_template(out_dir: Path, drawn: PairSample) -> Path:
+    """Write the label file; never over one that exists, which may hold labels."""
+    path = out_dir / LABEL_FILE
+    if path.exists():
+        raise FileExistsError(path)
+    write_atomic(path, label_template(drawn).encode())
+    return path

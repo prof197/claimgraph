@@ -256,6 +256,12 @@ by the same rules, without opening the first-pass files.
 
 ## Outcome pairs
 
+```
+uv run claimgraph gold outcome-pairs sample vitamin-d-depression    # draw the pairs
+uv run claimgraph gold outcome-pairs template vitamin-d-depression  # the file to fill in
+uv run claimgraph gold outcome-pairs check vitamin-d-depression     # validate the labels
+```
+
 Each pair asks whether two reported outcome strings belong under one normalized outcome, so
 that a reader sees them in one tab. The strings come from the extracted findings, and the
 normalization eval scores the model's proposed mapping against these labels.

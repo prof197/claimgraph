@@ -632,6 +632,44 @@ def pairs_sample(
     typer.echo(f"wrote {out}; open it only after labeling, as it shows the strata")
 
 
+@pairs_app.command("template")
+def pairs_template(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Write the outcome-pair label file, shuffled and without strata; never overwrites."""
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    source = out_dir / outcome_pairs.SAMPLE_FILE
+    if not source.exists():
+        typer.echo(f"no draw in {source}; run gold outcome-pairs sample first", err=True)
+        raise typer.Exit(1)
+    try:
+        path = outcome_pairs.write_label_template(out_dir, outcome_pairs.load_sample(source))
+    except FileExistsError as error:
+        typer.echo(f"{error} already exists and may hold labels; not overwritten", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"wrote {path}")
+
+
+@pairs_app.command("check")
+def pairs_check(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    gold_dir: GoldDir = Path("evals/gold"),
+) -> None:
+    """Check the outcome-pair labels against the draw; exits 1 until every pair is labeled."""
+    config = load_config(resolve_question(question))
+    report = labels.check_outcome_pairs(gold_dir / config.id)
+    labeled = sum(report.verdicts.values())
+    total = report.drawn if report.drawn is not None else labeled + report.unlabeled
+    counts = ", ".join(f"{n} {v}" for v, n in report.verdicts.items())
+    typer.echo(f"{labeled} of {total} pairs labeled: {counts}")
+    for problem in report.problems:
+        typer.echo(problem, err=True)
+    if report.problems:
+        raise typer.Exit(1)
+
+
 eval_app = typer.Typer(no_args_is_help=True, help="Score the pipeline against the gold labels.")
 app.add_typer(eval_app, name="eval")
 
