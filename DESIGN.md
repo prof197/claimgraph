@@ -629,10 +629,11 @@ data is labeled by hand, from openly licensed articles only.
   the same kind, separate otherwise. So each string gets one kind instead (score, case status,
   remission, response or out of domain), which labels all 149,331 pairs for the effort of 547
   strings. The eval scores merges over every pair of in-domain strings and reports the drawn
-  pairs as a subset, so the hard-case strata still show. The pair verdicts entered before
-  the change are compared once with the ones the kinds give; each disagreement is a slip or a
-  rule the guide has to state. Polarity follows the kind too: lower is better for score and
-  case status, higher for remission and response, and the mapping review sets it so.
+  pairs as a subset, so the hard-case strata still show. Pair-by-pair labeling also proved
+  inconsistent: 29 of the 114 first-pass pair verdicts disagreed with the per-string labels,
+  mostly splits on scale or timing and merges of a cut-off with a score, and that is why the
+  labeling unit changed. Polarity follows the kind too: lower is better for score and case
+  status, higher for remission and response, and the mapping review sets it so.
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.
