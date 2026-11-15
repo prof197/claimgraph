@@ -68,6 +68,8 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
   Re-record them with `gold record --live`, which runs Sonnet 5.5, the extraction model, and
   again with `--model haiku` for the comparison row, only
   after the owner approves a dry-run estimate, and commit the new recordings with the change.
+- The normalization prompt is frozen too: a test pins its request key. Changing the prompt,
+  schema, outcome rules or settings needs the owner's approval, a dry run and a new recording.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
 - Commits: one small, reviewable change each, conventional-commit style, imperative subject of
   72 characters or fewer; the body says what changed and why.

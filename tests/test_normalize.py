@@ -17,7 +17,7 @@ from test_labels import ROOT, VITAMIN_D, synthetic_abstract
 from claimgraph import normalize, outcome_kinds
 from claimgraph.config import load_config
 from claimgraph.extract import ExtractionResult, ModelChoice, read_extraction
-from claimgraph.llm import Mode, ModelClient, Reply, Usage
+from claimgraph.llm import Mode, ModelClient, Reply, Usage, request_key
 from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import load_prices
 
@@ -762,3 +762,18 @@ def test_a_question_without_outcome_rules_groups_by_construct() -> None:
     config = VITAMIN_D.model_copy(update={"outcome_rules": ""})
 
     assert "Group by what is measured, not by how." in normalize.system_prompt(config)
+
+
+# The request key of the recorded re-proposal under the outcome rules.
+FROZEN_KEY = "67f6f870520a4cef91f79da8626ca5886496955b814eb773b56f3d016df67c38"
+
+
+def test_the_normalization_prompt_is_frozen() -> None:
+    # Frozen after the re-proposal under the outcome rules. A change to the prompt, schema,
+    # rules or settings is a deliberate unfreeze: it needs the owner's approval and a new
+    # recording, and then this key changes with it.
+    config = load_config(ROOT / "questions" / "vitamin-d-depression.toml")
+    path = ROOT / "evals" / "gold" / "vitamin-d-depression" / "outcome_kinds.toml"
+    strings = sorted(label.string for label in outcome_kinds.load(path))
+
+    assert request_key(normalize.request(strings, config)) == FROZEN_KEY

@@ -470,6 +470,10 @@ a person reviews the mapping before anything is published.
   `out_of_domain` list at the top of the mapping file. They count as mapped, so `mapping check`
   passes and a rerun never proposes them again; later stages leave their findings out and count
   them, as the extract stage counts findings outside the domain.
+- **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings
+  were frozen after the re-proposal under the rules, as the extraction prompt was after its
+  last gold run. A test pins the request's key, so any change shows; it changes only with the
+  owner's approval and a new recording.
 - The hosted build refuses an unreviewed mapping. The CLI demo may run unreviewed and labels its
   output so.
 - Reruns keep reviewed groups and propose only strings the mapping has not seen, so review effort
@@ -1066,6 +1070,16 @@ These are expectations, to be replaced with measurements.
   genetic-proxy question, a narrative review answered as not on people, a cross-sectional study
   read as a cohort, a case series read as a non-randomized trial, and the secondary analysis
   tagged as a trial.
+- **Normalization errors left at the freeze.** The normalization prompt was frozen after the
+  re-proposal under the outcome rules. It leaves two known failures:
+  - one "mixed or non-depression outcome" takes in strings the labels keep in the domain, such
+    as "depressed mood" and "depressive symptoms (Brief Symptom Inventory-18)";
+  - seasonal affective disorder is still split off, into a case-status and a score outcome of
+    its own, because the prompt points the model at the domain list and seasonal affective
+    disorder is an entry of it.
+
+  The page shows the reviewed mapping, not the proposal, so neither reaches it; the eval scores
+  them.
 - **Double counting:** one trial can publish several papers, and large trials publish many
   secondary analyses. The trial-ID merge handles it.
 - **A real quote that doesn't support the claim:** claim wording is unscored, so the eval does
