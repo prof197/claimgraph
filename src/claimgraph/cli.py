@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from claimgraph import (
     batch,
+    compare,
     evaluation,
     extract,
     gold,
@@ -57,6 +58,7 @@ class Stage(StrEnum):
     RETRIEVE = "retrieve"
     EXTRACT = "extract"
     NORMALIZE = "normalize"
+    COMPARE = "compare"
 
 
 Model = Annotated[extract.ModelChoice, typer.Option(help="The extraction model.")]
@@ -103,7 +105,7 @@ def run(
         Path, typer.Option(help="Where the outcome mappings are written.")
     ] = Path("mappings"),
 ) -> None:
-    """Run the pipeline for one question: retrieve, extract, then propose the outcome mapping.
+    """Run the pipeline for one question: retrieve, extract, propose the outcome mapping, compare.
 
     Model calls replay recorded responses by default and exit with status 1 if any is missing.
     """
@@ -115,6 +117,40 @@ def run(
         _extract(config, run_dir, dev, model, dry_run, live, prices_file, limit)
     if stage in (None, Stage.NORMALIZE):
         _normalize(config, run_dir, model, dry_run, live, prices_file, replay_dir, mappings_dir)
+    # A dry run has extracted and mapped nothing yet to compare.
+    if stage is Stage.COMPARE or (stage is None and not dry_run):
+        _compare(config, run_dir, model, mappings_dir)
+
+
+def _compare(
+    config: QuestionConfig, run_dir: Path, model: extract.ModelChoice, mappings_dir: Path
+) -> None:
+    results = _corpus_results(run_dir, model)
+    try:
+        abstracts = gold.read_abstracts(run_dir / "abstracts.jsonl")
+    except FileNotFoundError as error:
+        typer.echo(f"no abstracts in {run_dir}; run --stage retrieve first", err=True)
+        raise typer.Exit(1) from error
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    try:
+        found = compare.candidates(results, {a.pmid: a.trial_ids for a in abstracts}, mapping)
+    except ValueError as error:
+        typer.echo(f"{error}; run mapping check", err=True)
+        raise typer.Exit(1) from error
+    out = run_dir / "compare" / "candidates.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, (found.model_dump_json(indent=1) + "\n").encode())
+    studies = len({h.study for h in found.headlines})
+    typer.echo(
+        f"{len(found.pairs)} candidate pairs from {studies} studies on {len(found.blocks)} "
+        f"outcomes; {found.out_of_domain} findings dropped as out of domain"
+    )
+    if not all(o.reviewed for o in mapping.outcomes):
+        typer.echo("from an unreviewed mapping, which the hosted build refuses")
+    for block in found.blocks:
+        alone = f", {block.subgroup_only} with only subgroup results" if block.subgroup_only else ""
+        typer.echo(f"{block.pairs:>6} pairs {block.studies:>3} studies  {block.outcome}{alone}")
+    typer.echo(f"wrote {out}")
 
 
 def _retrieve(config: QuestionConfig, run_dir: Path, refresh: bool) -> None:

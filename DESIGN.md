@@ -516,7 +516,13 @@ them, at whatever depth the run asks for.
   It shows in the graph and the node detail but is not counted or paired on that outcome, since
   a subgroup cannot speak for the whole sample. The run manifest counts these cases.
 - Pairs within one trial (same PMID or a shared trial ID) and review findings are skipped.
-- Every run prints and stores the block size per outcome.
+- **One trial, several papers.** A registered study is keyed by the first of its trial IDs in
+  sorted order. Its papers are read in PMID order, so its first-reported finding on an outcome
+  comes from its earliest paper, and its primary finding still comes first.
+- Every run prints and stores the block size per outcome: `run --stage compare` writes the
+  pairs, each study's headline finding and the blocks to `compare/candidates.json`. It reads
+  the mapping's `out_of_domain` list and counts the findings it drops, and says when the
+  mapping is unreviewed.
 
 **Classification.**
 
@@ -1116,6 +1122,21 @@ These are expectations, to be replaced with measurements.
 ## Measured numbers
 
 Block sizes, token use, cost and eval scores land here as they are measured.
+
+**Vitamin D candidate pairs**, from the reviewed mapping: 28,167 pairs among 447 studies with a
+headline finding, 26,817 of them an effect against no effect and 1,350 benefit against harm.
+Four trials merge 15 papers. 49 findings are dropped as out of domain, and 57 study-outcomes
+have only subgroup results.
+
+| Outcome | Studies | Pairs | Only subgroup results |
+| --- | ---: | ---: | ---: |
+| Depressive symptoms | 291 | 20,304 | 35 |
+| Depression cases | 191 | 7,860 | 22 |
+| Treatment response | 3 | 2 | 0 |
+| Remission | 2 | 1 | 0 |
+
+At the estimates under Cost, classifying every pair would cost about $2 on Haiku 5.5 or $37 on
+Sonnet 5.5 at batch prices, before the dry run measures tokens per pair.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
