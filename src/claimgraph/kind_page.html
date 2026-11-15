@@ -69,6 +69,8 @@ button { font: inherit; color: inherit; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 5px 8px;
   border: 1px solid transparent; border-left: 4px solid transparent; border-radius: 8px;
   scroll-margin-top: calc(var(--top-h) + 12px); scroll-margin-bottom: 30vh; cursor: default; }
+/* A row's own display would otherwise override the hidden attribute the filters set. */
+.row[hidden] { display: none; }
 .row.labeled { border-left-color: var(--kc); }
 .row.current { border-color: var(--accent); background: var(--accent-soft); border-left-color: var(--kc, var(--accent)); }
 .row.unsaved { outline: 2px dashed var(--bad); outline-offset: 1px; }

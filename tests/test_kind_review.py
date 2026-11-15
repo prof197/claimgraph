@@ -156,3 +156,8 @@ def test_the_review_command_needs_a_kind_file(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "run gold outcome-kinds template first" in result.output
+
+
+def test_rows_a_filter_hides_are_not_displayed() -> None:
+    # Rows are display: flex, which beats the browser's own rule for the hidden attribute.
+    assert ".row[hidden] { display: none; }" in kind_review.page().decode()
