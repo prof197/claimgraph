@@ -187,6 +187,32 @@ def test_out_of_domain_and_review_findings_are_left_out() -> None:
     assert [(b.outcome, b.studies) for b in found.blocks] == [("synthetic remission", 1)]
 
 
+@pytest.mark.parametrize("design", [Design.CASE_REPORT, Design.ANIMAL, Design.IN_VITRO])
+def test_excluded_designs_are_never_paired(design: Design) -> None:
+    papers = [
+        paper("999000001", ("synthetic remission", Effect.INCREASED)),
+        paper("999000002", ("synthetic remission", Effect.NO_CHANGE), design=design),
+    ]
+    ids = trial_ids("999000001", "999000002")
+
+    found = compare.candidates(papers, ids, MAPPING)
+
+    assert found.pairs == []
+    assert [h.pmid for h in found.headlines] == ["999000001"]
+
+
+def test_a_question_that_keeps_an_excluded_design_pairs_it() -> None:
+    papers = [
+        paper("999000001", ("synthetic remission", Effect.INCREASED)),
+        paper("999000002", ("synthetic remission", Effect.NO_CHANGE), design=Design.CASE_REPORT),
+    ]
+    ids = trial_ids("999000001", "999000002")
+
+    found = compare.candidates(papers, ids, MAPPING, exclude_designs=frozenset())
+
+    assert [(p.study_a, p.study_b) for p in found.pairs] == [("999000001", "999000002")]
+
+
 def test_every_outcome_string_must_be_in_the_mapping() -> None:
     with pytest.raises(ValueError, match="synthetic sleep"):
         compare.candidates(

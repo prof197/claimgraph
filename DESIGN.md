@@ -1123,20 +1123,24 @@ These are expectations, to be replaced with measurements.
 
 Block sizes, token use, cost and eval scores land here as they are measured.
 
-**Vitamin D candidate pairs**, from the reviewed mapping: 28,167 pairs among 447 studies with a
-headline finding, 26,817 of them an effect against no effect and 1,350 benefit against harm.
-Four trials merge 15 papers. 49 findings are dropped as out of domain, and 57 study-outcomes
+**Vitamin D candidate pairs**, from the reviewed mapping: 27,945 pairs among 445 studies with a
+headline finding, 26,601 of them an effect against no effect and 1,344 benefit against harm.
+Four trials merge 15 papers. Reviews and the excluded designs (case reports, animal and in vitro
+studies) never enter a pair. 48 findings are dropped as out of domain, and 57 study-outcomes
 have only subgroup results.
 
 | Outcome | Studies | Pairs | Only subgroup results |
 | --- | ---: | ---: | ---: |
-| Depressive symptoms | 291 | 20,304 | 35 |
+| Depressive symptoms | 289 | 20,082 | 35 |
 | Depression cases | 191 | 7,860 | 22 |
 | Treatment response | 3 | 2 | 0 |
 | Remission | 2 | 1 | 0 |
 
-At the estimates under Cost, classifying every pair would cost about $2 on Haiku 5.5 or $37 on
-Sonnet 5.5 at batch prices, before the dry run measures tokens per pair.
+An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
+grow roughly with the square of the studies on an outcome, and this corpus of 1,901 abstracts is
+nearly four times that size, so most of the gap comes from corpus size. At the estimates under
+Cost, classifying every pair would cost about $2 on Haiku 5.5 or $36 on Sonnet 5.5 at batch
+prices, before the dry run measures tokens per pair.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research

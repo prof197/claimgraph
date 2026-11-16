@@ -133,7 +133,12 @@ def _compare(
         raise typer.Exit(1) from error
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
     try:
-        found = compare.candidates(results, {a.pmid: a.trial_ids for a in abstracts}, mapping)
+        found = compare.candidates(
+            results,
+            {a.pmid: a.trial_ids for a in abstracts},
+            mapping,
+            config.exclude_designs,
+        )
     except ValueError as error:
         typer.echo(f"{error}; run mapping check", err=True)
         raise typer.Exit(1) from error

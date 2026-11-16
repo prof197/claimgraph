@@ -11,7 +11,16 @@ from enum import StrEnum
 from itertools import combinations
 
 from claimgraph.extract import ExtractionResult
-from claimgraph.models import REVIEW_DESIGNS, CandidatePair, Effect, Finding, PairKind, Record
+from claimgraph.models import (
+    DEFAULT_EXCLUDED_DESIGNS,
+    REVIEW_DESIGNS,
+    CandidatePair,
+    Design,
+    Effect,
+    Finding,
+    PairKind,
+    Record,
+)
 from claimgraph.normalize import OutcomeMapping
 
 
@@ -113,8 +122,13 @@ def candidates(
     results: Sequence[ExtractionResult],
     trial_ids: Mapping[str, Sequence[str]],
     mapping: OutcomeMapping,
+    exclude_designs: frozenset[Design] = DEFAULT_EXCLUDED_DESIGNS,
 ) -> Candidates:
-    """Every candidate pair, outcome by outcome. Every outcome string must be in the mapping."""
+    """Every candidate pair, outcome by outcome. Every outcome string must be in the mapping.
+
+    Reviews and the question's excluded designs are left out: they are not counted, so they are
+    not compared either.
+    """
     outcome_of = {m: o for o in mapping.outcomes for m in o.members}
     dropped = set(mapping.out_of_domain)
     keys = study_keys(trial_ids)
@@ -123,7 +137,7 @@ def candidates(
     # Earlier papers first, so a trial's first-reported finding comes from its earliest paper.
     for result in sorted(results, key=lambda r: int(r.pmid)):
         study = result.study
-        if study is None or study.design in REVIEW_DESIGNS:
+        if study is None or study.design in REVIEW_DESIGNS | exclude_designs:
             continue
         for finding in study.findings:
             if finding.outcome_reported in dropped:
