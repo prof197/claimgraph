@@ -142,12 +142,15 @@ def run_batched[I, T](
     attempt: Callable[[I, ModelClient], T],
     replay_dir: Path,
     api: BatchApi | None,
+    max_rounds: int = MAX_ROUNDS,
 ) -> Batched[T]:
     """Every item's result from the recordings, sending batches for what is missing.
 
     `attempt` works one item through a client that replays, raising ReplayMiss on the first
-    request it lacks. With no batch API, this is replay: nothing is sent and unrecorded items
-    are reported. A live run first collects the batches a stopped run left, and records each
+    requests it lacks, several at once when a step sends them in parallel. An item needs one
+    round per step and retry, so `max_rounds` is the deepest chain of requests an item takes.
+    With no batch API, this is replay: nothing is sent and unrecorded items are reported. A
+    live run first collects the batches a stopped run left, and records each
     result whose key is a request it needs, so no request is paid for twice.
     """
     failures: dict[str, str] = {}
@@ -167,15 +170,15 @@ def run_batched[I, T](
             try:
                 results.append(attempt(item, client))
             except ReplayMiss as miss:
-                missing[name(item)] = failures.get(miss.key, "not recorded")
-                if miss.key not in failures:
-                    pending[miss.key] = miss.params
+                failed = [failures[k] for k in miss.requests if k in failures]
+                missing[name(item)] = failed[0] if failed else "not recorded"
+                pending |= {k: p for k, p in miss.requests.items() if k not in failures}
         found = [key for key in pending if key in collected]
         if found:
             for key in found:
                 client.record(pending[key], collected.pop(key))
             continue
-        if not pending or api is None or batches == MAX_ROUNDS:
+        if not pending or api is None or batches == max_rounds:
             return Batched(
                 results=results,
                 missing=missing,
