@@ -83,7 +83,8 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
 - The normalization prompt is frozen too: a test pins its request key. Changing the prompt,
   schema, outcome rules or settings needs the owner's approval, a dry run and a new recording.
 - The site is React and TypeScript (strict) on Vite, with D3 for geometry only. Its dependencies
-  are pinned exactly; npm 10 cannot resolve the tree, so change them with `npx npm@11 install`.
+  are pinned exactly; npm 10 cannot resolve the tree, so change them with `npx npm@11 install`,
+  then run `npm install --package-lock-only` so `npm ci` works on npm 10 and 11.
   Its types come from `schema/export.schema.json`, which comes from `export.py`.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
 - No absolute path is ever committed; the pre-commit hook and CI refuse any file containing a
