@@ -568,7 +568,10 @@ exactly in an optional `council` extra, and only `vendors.py` imports them, duri
   thinking; GPT-6.1 Sol and Gemini 4 Argon cannot turn reasoning off, and their lowest is
   "low". Their hidden reasoning is billed as output and counted in every cost and token figure.
 - **The same question:** each member gets the frozen classification prompt and the same pair,
-  with the schema's references written out for the other vendors. The chair, the rankers and
+  with the schema's references written out for the other vendors. Gemini's batches enforce a
+  schema only in the OpenAPI form of `response_schema`, and ignore a `response_json_schema`,
+  which the dev run showed; they return fields in alphabetical order whatever the ordering
+  asked, which still puts the rationale before the reason and the verdict. The chair, the rankers and
   Self-MoA's synthesizer get that prompt plus a short statement of their role, and the answers
   as anonymous responses in an order fixed by the pair. Ranking follows llm-council: each member
   ranks every answer, and the chair sees each answer's mean position.
