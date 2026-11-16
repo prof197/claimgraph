@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from claimgraph import (
     batch,
     compare,
+    contradictions,
     evaluation,
     extract,
     gold,
@@ -996,3 +997,33 @@ def eval_models(
         text = relabel.replace_block(readme.read_text(), evaluation.MODELS_BLOCK, table)
         readme.write_text(text)
     typer.echo(table, nl=False)
+
+
+export_app = typer.Typer(no_args_is_help=True, help="Build the page's export for a question.")
+app.add_typer(export_app, name="export")
+
+
+def _candidates(run_dir: Path) -> compare.Candidates:
+    source = run_dir / "compare" / "candidates.json"
+    try:
+        return compare.Candidates.model_validate_json(source.read_text())
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no candidate pairs in {source}; run --stage compare first", err=True)
+        raise typer.Exit(1) from error
+
+
+@export_app.command("stub")
+def export_stub(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+) -> None:
+    """Classify a fixed share of the candidate pairs without a model, to build the page against.
+
+    The verdicts are arbitrary and marked as stubs; the hosted build refuses them.
+    """
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    stubbed = contradictions.stub(_candidates(run_dir))
+    out = run_dir / "classify" / contradictions.STUB_FILE
+    contradictions.write(out, stubbed)
+    typer.echo(f"{len(stubbed.classifications)} of {stubbed.candidates} pairs stubbed; wrote {out}")

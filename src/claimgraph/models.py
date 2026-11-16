@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    NonNegativeInt,
     PositiveInt,
     StringConstraints,
     model_validator,
@@ -276,18 +277,43 @@ class CandidatePair(Record):
         return f"{self.outcome}|{self.study_a}|{self.study_b}"
 
 
-class Classification(Record):
+class PairClassification(Record):
+    """What a classifier said about one candidate pair."""
+
     pair_id: NonBlank
     verdict: Verdict
     reason: Reason
     also_differs: list[Reason]
     detail: NonBlank
     rationale: NonBlank
-    arm: Arm
 
     @model_validator(mode="after")
     def _also_differs_adds_new_reasons(self) -> Self:
         check_also_differs(self.reason, self.also_differs)
+        return self
+
+
+class Classification(PairClassification):
+    arm: Arm
+
+
+class ClassifiedPairs(Record):
+    """A run's classified pairs, the file the export reads its contradictions from."""
+
+    # The arm that classified every pair. None marks stub classifications, made without a
+    # model so the page can be built before classification runs; they are never hosted.
+    depth: Arm | None
+    # Candidate pairs in the run, classified or not.
+    candidates: NonNegativeInt
+    classifications: list[PairClassification]
+
+    @model_validator(mode="after")
+    def _one_per_pair(self) -> Self:
+        ids = [c.pair_id for c in self.classifications]
+        if len(set(ids)) != len(ids):
+            raise ValueError("a pair is classified once")
+        if len(ids) > self.candidates:
+            raise ValueError("more pairs classified than there are candidates")
         return self
 
 
