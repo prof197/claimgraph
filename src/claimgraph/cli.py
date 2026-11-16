@@ -13,6 +13,7 @@ from claimgraph import (
     batch,
     classify,
     compare,
+    contradiction_review,
     contradictions,
     evaluation,
     export_build,
@@ -1122,6 +1123,10 @@ contradiction_app = typer.Typer(
     no_args_is_help=True, help="Draw and label the contradiction eval's pairs."
 )
 gold_app.add_typer(contradiction_app, name="contradiction-pairs")
+# The labeling page's commands, beside the draw they label.
+contradiction_app.command("template")(contradiction_review.template_command)
+contradiction_app.command("check")(contradiction_review.check_command)
+contradiction_app.command("review")(contradiction_review.review_command)
 
 
 @contradiction_app.command("sample")
