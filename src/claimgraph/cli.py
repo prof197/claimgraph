@@ -10,6 +10,7 @@ import typer
 from pydantic import ValidationError
 
 from claimgraph import (
+    arms,
     batch,
     classify,
     compare,
@@ -31,6 +32,7 @@ from claimgraph import (
     publish,
     relabel,
     review,
+    vendors,
 )
 from claimgraph.config import QuestionConfig, load_config, resolve_question
 from claimgraph.llm import ReplayMiss, request_key
@@ -1204,6 +1206,14 @@ def classify_command(
     live: Annotated[
         bool, typer.Option(help="Send unrecorded requests through batches (costs money).")
     ] = False,
+    k: Annotated[
+        int | None,
+        typer.Option(
+            help="Self-consistency's samples per pair; by default the k matched to "
+            "council-ranked's measured tokens.",
+            min=1,
+        ),
+    ] = None,
     runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     mappings_dir: Annotated[
         Path, typer.Option(help="Where the outcome mappings are read from.")
@@ -1221,9 +1231,6 @@ def classify_command(
     Dev and corpus recordings stay in the run directory; eval recordings are committed for CI
     to replay. A dry run also scales the current dev run's measured cost to the pairs it counts.
     """
-    if arm not in classify.SINGLE_ARMS:
-        typer.echo(f"{arm.value} is not built yet; the single arms are", err=True)
-        raise typer.Exit(1)
     config = load_config(resolve_question(question))
     run_dir = runs_dir / config.id
     sample = pair_sample.read_sample(gold_dir / config.id / pair_sample.SAMPLE_FILE)
@@ -1242,6 +1249,15 @@ def classify_command(
     guide = (gold_dir / "LABELING.md").read_text()
     replay_dir = classification_replay(split, arm, replay_root / config.id, run_dir)
     prices = load_prices(prices_file)
+    k = k if k is not None else arms.SELF_CONSISTENCY_K
+    if dry_run and arm in arms.MULTI_ARMS:
+        if arm is models.Arm.SELF_CONSISTENCY and k is None:
+            k = arms.provisional_k(items, config, guide)
+            typer.echo(f"k = {k}, provisional: council-ranked's typical tokens, not yet measured")
+        typer.echo(
+            arms.describe(arms.estimate_arm(items, arm, config, guide, replay_dir, prices, k))
+        )
+        return
     if dry_run:
         estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)
         typer.echo(classify.describe_estimate(estimate))
@@ -1260,16 +1276,26 @@ def classify_command(
             typer.echo(f"no dev run of {arm.value} under the current prompt to measure against")
         return
     try:
-        send = batch.anthropic_batches(os.environ, on_poll=typer.echo) if live else None
+        run_one = arms.attempt(arm, config, guide, k)
+    except ValueError as error:
+        typer.echo(f"{error}; pass --k", err=True)
+        raise typer.Exit(1) from error
+    try:
+        send = (
+            vendors.vendor_batches(os.environ, arms.vendors(arm), on_poll=typer.echo)
+            if live
+            else None
+        )
     except RuntimeError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
     run = batch.run_batched(
         items,
         lambda item: item.pair.pair_id,
-        lambda item, client: classify.classify_pair(item, config, guide, client, arm),
+        run_one,
         replay_dir,
         send,
+        max_rounds=arms.ROUNDS.get(arm, batch.MAX_ROUNDS),
     )
     out = run_dir / "classify" / f"{split.value}-{arm.value}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)

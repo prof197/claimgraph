@@ -144,7 +144,7 @@ def test_an_invalid_output_gets_one_retry_and_then_replays(tmp_path: Path) -> No
     result = classify.classify_pair(item(), CONFIG, GUIDE, live, Arm.SINGLE_SMALL)
 
     assert result.classification is not None and len(result.errors) == 1
-    assert len(result.usage) == 2
+    assert len(result.calls) == 2
     replayed = classify.classify_pair(
         item(), CONFIG, GUIDE, ModelClient(tmp_path), Arm.SINGLE_SMALL
     )
@@ -189,7 +189,7 @@ def test_the_measured_cost_scales_the_dev_spend_per_pair(tmp_path: Path) -> None
     prices = load_prices(ROOT / "prices.toml")
     live = ModelClient(tmp_path, Mode.LIVE, Scripted(response("{}"), response(output())))
     retried = classify.classify_pair(item(), CONFIG, GUIDE, live, Arm.SINGLE_SMALL)
-    once = retried.model_copy(update={"usage": retried.usage[:1], "errors": []})
+    once = retried.model_copy(update={"calls": retried.calls[:1], "errors": []})
 
     per_pair = classify.measured_per_pair([retried, once], prices)
 

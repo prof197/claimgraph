@@ -49,6 +49,8 @@ uv run claimgraph gold contradiction-pairs review vitamin-d-depression    # labe
 uv run claimgraph gold contradiction-pairs check vitamin-d-depression     # validate the pair labels
 uv run claimgraph classify vitamin-d-depression --split dev --arm single-small --dry-run
                                           # estimate classifying the dev pairs; sends nothing
+uv run claimgraph classify vitamin-d-depression --split eval --arm council-ranked --dry-run
+                                          # estimate any arm on the 300; sends nothing
 uv run claimgraph classify vitamin-d-depression --split corpus --arm single-small --dry-run
                                           # estimate every candidate pair, and scale the dev
                                           # run's measured cost per pair; sends nothing
@@ -80,7 +82,9 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
 - Python 3.12, fully typed. Pyright strict on `src/`; ruff clean.
 - Pydantic v2 models at every boundary and for all model output. `StrEnum` for closed sets,
   `X | None` unions, `pathlib`. Small, plain functions; no speculative abstraction.
-- Direct SDK calls only; no LLM or agent frameworks.
+- Direct SDK calls only; no LLM or agent frameworks. The council arms' OpenAI and Google SDKs
+  are an optional extra, `claimgraph[council]`, which the dev group installs; only `vendors.py`
+  imports them, and only for live runs. Their keys are in `.env.example`.
 - Comments are sparse and explain the domain (why), not the language (what).
 - Tests make no network calls. PubMed XML and model responses come from recorded fixtures.
   Fixtures that are not real records are visibly synthetic.

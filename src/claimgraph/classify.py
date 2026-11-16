@@ -98,14 +98,20 @@ class PairInput(Record):
     b: PairSide
 
 
+class Call(Record):
+    """One request's model and what it was billed for."""
+
+    model: str
+    usage: Usage
+
+
 class ClassifyResult(Record):
     pair_id: str
     arm: Arm
-    model: str
-    # None when both attempts were invalid; the run counts these.
+    # None when the arm could not reach a valid answer; the run counts these.
     classification: PairClassification | None
     errors: list[str]
-    usage: list[Usage]
+    calls: list[Call]
 
 
 class InvalidOutput(ValueError):
@@ -221,41 +227,44 @@ def response_schema() -> dict[str, Any]:
     return schema
 
 
-def request(item: PairInput, config: QuestionConfig, guide: str, arm: Arm) -> dict[str, Any]:
-    s = settings(arm)
+def claude_request(
+    s: ModelSettings, system: str, user: str, schema: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "model": s.model,
         "max_tokens": MAX_TOKENS,
         # The same for every pair: the cached prefix.
-        "system": [
-            {
-                "type": "text",
-                "text": system_prompt(config, guide),
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        "messages": [{"role": "user", "content": user_message(item)}],
-        "output_config": {
-            "effort": s.effort,
-            "format": {"type": "json_schema", "schema": response_schema()},
-        },
+        "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        "messages": [{"role": "user", "content": user}],
+        "output_config": {"effort": s.effort, "format": {"type": "json_schema", "schema": schema}},
         "thinking": s.thinking,
     }
 
 
-def read_classification(reply: Reply, pair_id: str) -> PairClassification:
+def request(item: PairInput, config: QuestionConfig, guide: str, arm: Arm) -> dict[str, Any]:
+    return claude_request(
+        settings(arm), system_prompt(config, guide), user_message(item), response_schema()
+    )
+
+
+def read_model[M: Record](reply: Reply, model: type[M]) -> M:
+    """A structured reply as `model`, or InvalidOutput naming the first problem."""
     if reply.stop_reason == "max_tokens":
         raise InvalidOutput("the output was cut off")
     try:
-        out = ClassifierOutput.model_validate_json(reply.text)
-        return PairClassification(pair_id=pair_id, **out.model_dump())
+        return model.model_validate_json(reply.text)
     except ValidationError as error:
         first = error.errors()[0]
         where = ".".join(str(p) for p in first["loc"]) or "output"
         raise InvalidOutput(f"{where}: {first['msg']}") from error
 
 
-def _note(error: str) -> str:
+def read_classification(reply: Reply, pair_id: str) -> PairClassification:
+    out = read_model(reply, ClassifierOutput)
+    return PairClassification(pair_id=pair_id, **out.model_dump())
+
+
+def note(error: str) -> str:
     return (
         f"That output was invalid: {error}. Return the complete JSON object again, corrected, "
         "following the same rules."
@@ -267,26 +276,26 @@ def classify_pair(
 ) -> ClassifyResult:
     """One pair's classification; invalid output gets one retry naming the error."""
     params = request(item, config, guide, arm)
+    model = settings(arm).model
     errors: list[str] = []
-    usage: list[Usage] = []
+    calls: list[Call] = []
     classification: PairClassification | None = None
     for attempt in range(2):
         reply = client.create(params)
-        usage.append(reply.usage)
+        calls.append(Call(model=model, usage=reply.usage))
         try:
             classification = read_classification(reply, item.pair.pair_id)
             break
         except InvalidOutput as error:
             errors.append(str(error))
             if attempt == 0:
-                params = retry_request(params, reply, _note(str(error)))
+                params = retry_request(params, reply, note(str(error)))
     return ClassifyResult(
         pair_id=item.pair.pair_id,
         arm=arm,
-        model=settings(arm).model,
         classification=classification,
         errors=errors,
-        usage=usage,
+        calls=calls,
     )
 
 
@@ -353,22 +362,29 @@ def summary_lines(results: Sequence[ClassifyResult], prices: Prices) -> list[str
     done = [r.classification for r in results if r.classification is not None]
     verdicts = {v: sum(c.verdict is v for c in done) for v in Verdict}
     reasons = {r: sum(c.reason is r for c in done) for r in Reason}
-    usd = sum(cost(u, r.model, prices, batch=True) for r in results for u in r.usage)
-    outputs = [u.output_tokens for r in results for u in r.usage]
+    usd = sum(cost(c.usage, c.model, prices, batch=True) for r in results for c in r.calls)
+    outputs = [c.usage.output_tokens for r in results for c in r.calls]
     mean_out = sum(outputs) / len(outputs) if outputs else 0
-    retried = sum(len(r.usage) > 1 for r in results)
+    retried = sum(bool(r.errors) for r in results)
     return [
         f"{len(done)} of {len(results)} pairs classified, {retried} retried, "
         f"{len(results) - len(done)} invalid twice",
         "verdicts: " + ", ".join(f"{v.value} {n}" for v, n in verdicts.items()),
         "reasons: " + ", ".join(f"{r.value} {n}" for r, n in reasons.items() if n),
-        f"measured: ${usd:.4f} at batch prices, {mean_out:.0f} output tokens per request",
+        f"measured: ${usd:.4f} at batch prices, {mean_out:.0f} output tokens per request, "
+        f"{billed_per_pair(results):,.0f} billed tokens per pair",
     ]
+
+
+def billed_per_pair(results: Sequence[ClassifyResult]) -> float:
+    """Every token billed per pair, at whatever rate, hidden reasoning included."""
+    total = sum(c.usage.billed for r in results for c in r.calls)
+    return total / len(results) if results else 0.0
 
 
 def measured_per_pair(results: Sequence[ClassifyResult], prices: Prices) -> float:
     """Measured spend per pair at batch prices, retries and cache reads included."""
-    usd = sum(cost(u, r.model, prices, batch=True) for r in results for u in r.usage)
+    usd = sum(cost(c.usage, c.model, prices, batch=True) for r in results for c in r.calls)
     return usd / len(results) if results else 0.0
 
 

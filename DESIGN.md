@@ -551,14 +551,34 @@ them, at whatever depth the run asks for.
 | --- | --- |
 | `single-small` | Haiku 5.5, one sample |
 | `single-mid` | Sonnet 5.5, one sample |
-| `self-consistency` | Sonnet 5.5, k samples, majority vote; k set so tokens match `council-ranked` |
-| `self-moa` | Sonnet 5.5, k samples, then Sonnet 5.5 synthesizes them |
-| `council` | One mid-tier model from each of three vendors answers; a chair model synthesizes |
+| `self-consistency` | Sonnet 5.5, k samples, majority vote; k set so billed tokens match `council-ranked` |
+| `self-moa` | Sonnet 5.5, three samples, as many as the council's members, then Sonnet 5.5 synthesizes them |
+| `council` | Sonnet 5.5, GPT-6.1 Sol and Gemini 4 Argon answer; Sonnet 5.5 chairs and synthesizes |
 | `council-ranked` | As `council`, with anonymized peer ranking before synthesis, following [llm-council][llm-council] by Andrej Karpathy |
 
 Claude models are the default everywhere outside the council arms. The council's other vendors
-and models are chosen after a price check, and their SDKs live only in `arms.py` behind an
-optional `council` dependency group.
+and models were chosen after a price check on 2026-11-16, from each vendor's own pricing page:
+mid-tier peers priced like Sonnet 5.5, $2 / $10 per million input and output tokens at standard
+rates, half that in batches. OpenAI's GPT-6.1 Sol is priced the same. Google's Gemini 4 Argon is
+too through 2026-11-30, and doubles on 2026-12-01, so the council's one paid run on the 300 goes
+out before then; replays cost nothing. Their SDKs, `openai` and `google-genai`, are pinned
+exactly in an optional `council` extra, and only `vendors.py` imports them, during live runs.
+
+- **Reasoning:** every member runs at its vendor's lowest setting. The Claude arms run without
+  thinking; GPT-6.1 Sol and Gemini 4 Argon cannot turn reasoning off, and their lowest is
+  "low". Their hidden reasoning is billed as output and counted in every cost and token figure.
+- **The same question:** each member gets the frozen classification prompt and the same pair,
+  with the schema's references written out for the other vendors. The chair, the rankers and
+  Self-MoA's synthesizer get that prompt plus a short statement of their role, and the answers
+  as anonymous responses in an order fixed by the pair. Ranking follows llm-council: each member
+  ranks every answer, and the chair sees each answer's mean position.
+- **Failures:** each call gets one retry on invalid output. A member invalid twice is left out,
+  and the chair synthesizes the rest; a pair whose chair is invalid twice is unclassified.
+- **Matching k:** self-consistency's k is council-ranked's billed tokens per pair, every input,
+  cache and output token at any rate, hidden reasoning included, over one single-mid sample's,
+  rounded. It is measured on council-ranked's run on the 300, before self-consistency runs.
+  Samples differ as repeated calls do, since current models take no sampling parameters; ties
+  in the vote go to the earlier sample.
 
 **Dry run.** `--dry-run` runs retrieval, extraction and normalization, then stops before
 classification. It prints pairs by outcome and the estimated cost per arm: pairs × mean tokens per
@@ -572,6 +592,15 @@ typical cost is one request each, with no cache reads and 590 output tokens, the
 full output, which real spend cannot pass. It refuses a request that could pass 100,000 prompt
 tokens, where Haiku 5.5's price changes. Each run then prints what its recorded responses cost
 from their token counts.
+
+Classification's dry run works the same way, per arm. A multi-call arm's later requests depend
+on earlier answers, so it is run against a client that sends nothing and answers each request
+with a placeholder of typical length, and every request it would make is priced. It gives three
+numbers at batch prices: the typical cost, with 190 visible output tokens per request, the dev
+runs' mean, plus 1,000 hidden reasoning tokens on each request to another vendor, an assumption
+the live run replaces with its counts; the same with Claude's instructions read from the cache,
+as they were on the dev runs; and the ceiling, every request retried at full output. A single
+arm's dry run also scales the current dev run's measured cost per pair.
 
 **Panel.** Genuine contradictions are grouped by reason and ordered by the two studies' combined
 design weight, then combined sample size. Apparent contradictions sit in a collapsed list under
@@ -776,8 +805,9 @@ data is labeled by hand, from openly licensed articles only.
     the 40 dev pairs, so strict alone would understate every arm on an ambiguity known in
     advance; the labeler fills `also_differs` wherever a second difference is as strong as the
     primary one. Both are over the scored pairs, weighted as above, and an arm that gives no
-    reason, by calling a pair `off_question`, is wrong on both. *Correct*, above, stays strict.
-    It is what the ablation's paired differences use. Added before any arm saw the 300.
+    reason, by calling a pair `off_question`, is wrong on both. *Correct*, above, stays strict:
+    the ablation's paired differences use it, and lenient is reported beside them as a
+    secondary figure only. Added before any arm saw the 300.
   - *Scope of the hosted run:* the retrieval scope stays title and abstract. If the paired 95%
     interval for the best arm's gain over `single-small` includes zero, every candidate pair is
     classified at `single-small`. Otherwise, the top N pairs per outcome in the panel's order
