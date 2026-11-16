@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contradiction pairs</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
+  --accent: #2c5fb3; --accent-ink: #ffffff; --accent-soft: #e6eefb;
+  --warn: #a86400; --warn-ink: #8a5200; --bad: #b3261e; --warn-soft: #fff4e0; --mark: #ffe08a;
+  --genuine: #b0472a; --apparent: #2c5fb3;
+  --top-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+    --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+    --warn: #f0b155; --warn-ink: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17; --mark: #6b5310;
+    --genuine: #f09a7a; --apparent: #7aa7f0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+  --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
+  --warn: #f0b155; --warn-ink: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17; --mark: #6b5310;
+  --genuine: #f09a7a; --apparent: #7aa7f0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input { font: inherit; color: inherit; }
+.top { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.top h1 { font-size: 15px; margin: 0; }
+.progress { flex: 1 1 260px; min-width: 0; font-size: 13px; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); display: flex; overflow: hidden; margin: 2px 0; }
+.bar span { display: block; height: 100%; }
+.tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.opt { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 8px;
+  cursor: pointer; font-size: 13px; }
+.opt:hover { border-color: var(--accent); }
+.opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.muted { color: var(--muted); }
+.saved { font-size: 12px; color: var(--muted); min-width: 6em; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 420px; align-items: start; }
+.main { padding: 8px 16px 24px; min-width: 0; }
+.rules { position: sticky; top: var(--top-h); height: calc(100vh - var(--top-h)); overflow-y: auto;
+  border-left: 1px solid var(--line); background: var(--panel); padding: 8px 16px 24px; font-size: 14px; }
+.rules-toggle { display: none; }
+.strip { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 4px; }
+.chip { min-width: 2.4em; border: 1px solid var(--line); background: var(--panel); border-radius: 5px;
+  padding: 0 4px; font-size: 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip[hidden] { display: none; }
+.chip.partial { border-style: dashed; border-color: var(--muted); }
+.chip.genuine { background: var(--genuine); border-color: var(--genuine); color: var(--accent-ink); }
+.chip.apparent { background: var(--apparent); border-color: var(--apparent); color: var(--accent-ink); }
+.chip.problem { outline: 2px solid var(--bad); outline-offset: -1px; }
+.chip.current { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.chip.unsaved { outline: 2px dashed var(--bad); }
+.shown { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.head { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; margin: 0 0 8px; }
+.head h2 { font-size: 17px; margin: 0; }
+.cmp { display: grid; grid-template-columns: minmax(7em, max-content) minmax(0, 1fr) minmax(0, 1fr);
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+.cmp > div { padding: 5px 10px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.cmp > .hd { border-top: 0; font-size: 13px; font-weight: 600; background: var(--accent-soft); }
+.cmp > .f { font-size: 13px; color: var(--muted); }
+.cmp > .differs { background: var(--warn-soft); }
+.cmp > .f.differs { color: var(--ink); box-shadow: inset 4px 0 0 var(--warn); }
+.cmp .tag { font-size: 11px; color: var(--warn-ink); display: block; }
+.cmp .quote { font-style: italic; }
+mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+.panel { position: sticky; bottom: 0; margin-top: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 12px; box-shadow: 0 -6px 16px rgba(0, 0, 0, .06); }
+.group { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 2px 0 6px; }
+.glabel { font-size: 13px; font-weight: 600; min-width: 7.5em; }
+.glabel em { font-weight: 400; font-style: normal; color: var(--muted); font-size: 12px; }
+.choice { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 1px 8px;
+  cursor: pointer; font-size: 13px; }
+.choice:hover:not(:disabled) { border-color: var(--accent); }
+.choice:disabled { opacity: .4; cursor: not-allowed; }
+.choice.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.choice.on.genuine { background: var(--genuine); border-color: var(--genuine); }
+.choice.on.apparent { background: var(--apparent); border-color: var(--apparent); }
+.choice.on kbd { color: inherit; border-color: currentColor; }
+.text { flex: 1 1 260px; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 6px;
+  padding: 2px 8px; font-size: 14px; }
+.text:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.status { font-size: 13px; margin: 2px 0 0; }
+.status.done { color: var(--muted); }
+.status .bad { color: var(--bad); display: block; }
+kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 4px; padding: 0 3px; color: var(--muted); }
+.rules h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
+.rules p, .rules ul { margin: 0 0 8px; }
+.rules ul { padding-left: 18px; }
+.rules table { border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
+.rules td, .rules th { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+.rules pre { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 6px; padding: 6px 8px; overflow-x: auto; }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft);
+  border-radius: 3px; padding: 0 3px; }
+.keys { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin: 4px 0 8px; }
+.help { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.help > div { background: var(--panel); border-radius: 10px; padding: 16px 20px; max-width: 520px; width: 100%; }
+.help h1 { font-size: 16px; margin: 0 0 8px; }
+.help td { padding: 2px 12px 2px 0; vertical-align: top; }
+.banner { background: var(--bad); color: #fff; padding: 6px 16px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .rules-toggle { display: inline-block; }
+  .rules { display: none; position: fixed; left: 0; right: 0; top: var(--top-h); height: auto;
+    max-height: calc(100vh - var(--top-h) - 24px); border-left: 0; border-bottom: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25); z-index: 4; }
+  body.rules-open .rules { display: block; }
+  .top { padding: 6px 12px; gap: 4px 12px; }
+  .main { padding: 6px 12px 24px; }
+}
+@media (max-width: 640px) {
+  /* Each field's name takes its own line, so the two findings keep the width between them. */
+  .cmp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cmp > .f, .cmp > .hd.corner { grid-column: 1 / -1; }
+  .cmp > .hd.corner { display: none; }
+  .panel { position: static; }
+  .glabel { min-width: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <h1 id="title">Contradiction pairs</h1>
+  <div class="progress"><div id="progress">Loading…</div><div class="bar" id="bar"></div></div>
+  <div class="tools">
+    <span class="muted" style="font-size:12px">Show</span>
+    <button class="opt" data-filter="all">All</button>
+    <button class="opt" data-filter="unlabeled">Unlabeled</button>
+    <button class="opt" id="prev" title="Previous pair (k)">← Prev</button>
+    <button class="opt" id="next" title="Next pair (j)">Next →</button>
+    <button class="opt rules-toggle" id="rules-toggle" aria-expanded="false">Rules</button>
+    <button class="opt" id="help-button" title="Keys (?)">?</button>
+    <span class="saved" id="saved" role="status"></span>
+  </div>
+</header>
+<div class="app">
+  <main class="main" id="main">
+    <nav class="strip" id="strip" aria-label="Pairs"></nav>
+    <p class="shown" id="shown"></p>
+    <section id="pair" aria-live="polite"></section>
+  </main>
+  <aside class="rules" id="rules" tabindex="0" aria-label="Rules"></aside>
+</div>
+<script>
+"use strict";
+// Every label here is set by a click or a key; nothing is filled in for the labeler, and the
+// page knows nothing of any classifier's verdict.
+
+let S = null, cur = 0, filter = "all", visible = [];
+let saving = Promise.resolve(), pending = 0;
+const timers = {};
+const FILTERS = ["all", "unlabeled"];
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === false || v == null) continue;
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k === "value") n.value = v;
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid);
+  return n;
+}
+const human = (v) => String(v).replace(/_/g, " ");
+const isLabeled = (p) => !!(p.label.verdict && p.label.reason);
+const alsoReasons = () => S.reasons.filter((r) => r !== "unclear");
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+  return res.json();
+}
+function banner(text) {
+  let b = document.querySelector(".banner");
+  if (!text) { b && b.remove(); return; }
+  if (!b) { b = el("div", { class: "banner", role: "alert" }); document.body.append(b); }
+  b.textContent = text;
+}
+
+// Rules, from the labeling guide's contradiction section
+
+function inline(text) {
+  const out = []; const re = /\*\*`([^`]+)`\*\*|\*\*([^*]+)\*\*|`([^`]+)`/g; let at = 0;
+  for (let m; (m = re.exec(text)); ) {
+    if (m.index > at) out.push(text.slice(at, m.index));
+    if (m[1]) out.push(el("strong", {}, el("code", {}, m[1])));
+    else if (m[2]) out.push(el("strong", {}, m[2]));
+    else out.push(el("code", {}, m[3]));
+    at = m.index + m[0].length;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+function markdown(md) {
+  // Fenced code first, since a code block may hold blank lines.
+  const parts = md.split(/```[a-z]*\n([\s\S]*?)```/);
+  if (parts.length > 1) return parts.flatMap((part, i) => (i % 2 ? [el("pre", {}, part)] : markdown(part)));
+  const out = [];
+  for (const block of md.split(/\n\s*\n/)) {
+    if (!block.trim()) continue;
+    const lines = block.split("\n");
+    if (lines[0].startsWith("|")) {
+      const rows = lines.filter((l) => !/^\|[-\s|]+\|$/.test(l))
+        .map((l) => l.replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+      out.push(el("table", {}, rows.map((r, i) => el("tr", {}, r.map((c) => el(i ? "td" : "th", {}, inline(c)))))));
+    } else if (lines[0].startsWith("- ")) {
+      out.push(el("ul", {}, block.split(/\n(?=- )/).map((i) => el("li", {}, inline(i.slice(2).replace(/\n\s*/g, " "))))));
+    } else if (lines[0].startsWith("#")) {
+      out.push(el("h2", {}, lines[0].replace(/^#+\s*/, "")), ...markdown(lines.slice(1).join("\n")));
+    } else out.push(el("p", {}, inline(block.replace(/\n/g, " "))));
+  }
+  return out;
+}
+function renderRules() {
+  const keys = el("div", { class: "keys" },
+    el("kbd", {}, "g"), " genuine  ", el("kbd", {}, "a"), " apparent  ",
+    el("kbd", {}, "1"), "–", el("kbd", {}, String(S.reasons.length)), " reason  ",
+    el("kbd", {}, "⇧1"), "–", el("kbd", {}, `⇧${alsoReasons().length}`), " also differs  ",
+    el("kbd", {}, "j"), el("kbd", {}, "k"), " move  ", el("kbd", {}, "n"), " next unlabeled  ",
+    el("kbd", {}, "?"), " all keys");
+  $("rules").replaceChildren(el("h2", {}, "Rules"), keys, ...markdown(S.rules));
+}
+
+// The two findings, side by side. A row whose values differ is marked, and in the descriptive
+// fields so are the words one side has and the other lacks.
+
+function fields() {
+  const fixed = [
+    ["claim", "Claim", false], ["quote", "Quote", false], ["outcome_reported", "Outcome as reported", true],
+    ["population", "Population", true], ["intervention", "Intervention", true], ["comparator", "Comparator", true],
+    ["design", "Design", false], ["sample_size", "Sample size", false], ["year", "Year", false]];
+  return [...fixed, ...S.dimensions.map((d) => [`dim:${d.name}`, human(d.name), true, d.definition])];
+}
+function value(side, key) {
+  if (key.startsWith("dim:")) return human(side.dimensions[key.slice(4)] ?? "not reported");
+  const v = side[key];
+  if (key === "design") return v === "rct" ? "RCT" : human(v);
+  if (key === "sample_size") return v == null ? "not reported" : String(v);
+  return String(v);
+}
+const norm = (t) => t.toLowerCase().replace(/\s+/g, " ").trim();
+const word = (t) => t.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+function marked(text, other) {
+  const theirs = new Set(other.split(/\s+/).map(word).filter(Boolean));
+  return text.split(/(\s+)/).map((t) => (word(t) && !theirs.has(word(t)) ? el("mark", {}, t) : t));
+}
+function sideHead(name, side) {
+  return el("div", { class: "hd" }, `Study ${name}: ${side.study}`,
+    el("span", { class: "muted", style: "font-weight:400" }, ` · PMID ${side.pmid} · finding ${side.finding_id}`));
+}
+function comparison(p) {
+  const cells = [el("div", { class: "hd corner" }, ""), sideHead("A", p.a), sideHead("B", p.b)];
+  for (const [key, name, words, definition] of fields()) {
+    const a = value(p.a, key), b = value(p.b, key), differs = norm(a) !== norm(b);
+    const cls = (base) => `${base}${differs ? " differs" : ""}`;
+    const extra = key === "quote" ? " quote" : "";
+    cells.push(
+      el("div", { class: cls("f"), title: definition || null }, name, differs ? el("span", { class: "tag" }, "differs") : null),
+      el("div", { class: cls("v") + extra, "data-field": key }, differs && words ? marked(a, b) : a),
+      el("div", { class: cls("v") + extra, "data-field": key }, differs && words ? marked(b, a) : b));
+  }
+  return el("div", { class: "cmp" }, cells);
+}
+
+// The label panel
+
+function choice(cls, on, title, onclick, ...kids) {
+  return el("button", { class: `choice ${cls}${on ? " on" : ""}`, "aria-pressed": String(on), title, onclick }, kids);
+}
+function panel(p) {
+  const l = p.label;
+  const verdicts = el("div", { class: "group", role: "group", "aria-label": "Verdict" },
+    el("span", { class: "glabel" }, "Verdict ", el("em", {}, "required")),
+    S.verdicts.map((v) => choice(v, l.verdict === v, `${human(v)} (${v[0]})`, () => setVerdict(v),
+      el("kbd", {}, v[0]), " ", human(v))));
+  const reasons = el("div", { class: "group", role: "group", "aria-label": "Reason" },
+    el("span", { class: "glabel" }, "Reason ", el("em", {}, "required")),
+    S.reasons.map((r, j) => choice("", l.reason === r, `${human(r)} (${j + 1})`, () => setReason(r),
+      el("kbd", {}, String(j + 1)), " ", human(r))));
+  const also = el("div", { class: "group", role: "group", "aria-label": "Also differs" },
+    el("span", { class: "glabel" }, "Also differs ", el("em", {}, "optional")),
+    alsoReasons().map((r, j) => {
+      const b = choice("also", l.also_differs.includes(r), r === l.reason ? "the primary reason" : `${human(r)} (shift ${j + 1})`,
+        () => toggleAlso(r), el("kbd", {}, `⇧${j + 1}`), " ", human(r));
+      b.disabled = r === l.reason;
+      return b;
+    }));
+  const text = (id, name, hint) => el("div", { class: "group" },
+    el("label", { class: "glabel", for: id }, `${name} `, el("em", {}, "optional")),
+    el("input", { class: "text", id, type: "text", value: l[id] || "", placeholder: hint, autocomplete: "off",
+      oninput: () => typed(id), onchange: () => typed(id, true) }));
+  return el("div", { class: "panel", id: "panel" }, verdicts, reasons, also,
+    text("detail", "Detail", "a short specific, such as duration: 8 weeks vs 5 years (d)"),
+    text("note", "Note", "anything else (o)"),
+    el("div", { class: "status", id: "status" }));
+}
+function renderStatus() {
+  const p = S.pairs[cur], l = p.label, s = $("status");
+  const missing = [!l.verdict && "a verdict", !l.reason && "a reason"].filter(Boolean);
+  s.className = `status${missing.length || p.problems.length ? "" : " done"}`;
+  s.replaceChildren(missing.length ? `Needs ${missing.join(" and ")}.` : "Labeled.",
+    ...p.problems.map((m) => el("span", { class: "bad" }, m)));
+}
+function renderPanel() {
+  // Rebuilt for the buttons only; the text boxes keep their focus and caret.
+  const p = S.pairs[cur], old = $("panel");
+  const fresh = panel(p);
+  for (const id of ["detail", "note"]) fresh.querySelector(`#${id}`).replaceWith(old.querySelector(`#${id}`));
+  old.replaceWith(fresh);
+  renderStatus();
+}
+function renderPair() {
+  if (!visible.includes(cur)) {
+    $("pair").replaceChildren(el("p", { class: "muted" }, "No pair to show under this filter. Choose All to see every pair."));
+    return;
+  }
+  const p = S.pairs[cur], at = visible.indexOf(cur) + 1;
+  $("pair").replaceChildren(
+    el("div", { class: "head" }, el("h2", {}, `Pair ${cur + 1} of ${S.pairs.length}`),
+      el("span", {}, el("strong", {}, p.outcome), ` · ${human(p.kind)}`),
+      filter === "all" ? null : el("span", { class: "muted" }, `${at} of ${visible.length} shown`)),
+    comparison(p), panel(p));
+  renderStatus();
+}
+
+// The strip of pairs and the progress count
+
+function renderChip(i) {
+  const p = S.pairs[i], c = $("strip").children[i], l = p.label;
+  c.className = ["chip", isLabeled(p) ? l.verdict : (l.verdict || l.reason) && "partial",
+    p.problems.length && "problem", i === cur && "current", c.classList.contains("unsaved") && "unsaved"].filter(Boolean).join(" ");
+  const state = isLabeled(p) ? `${l.verdict}, ${human(l.reason)}` : "not labeled";
+  c.setAttribute("aria-label", `Pair ${i + 1}: ${state}`);
+  c.title = `${p.outcome}: ${p.a.study} vs ${p.b.study} (${state})`;
+  if (i === cur) c.setAttribute("aria-current", "true"); else c.removeAttribute("aria-current");
+}
+function buildStrip() {
+  $("strip").replaceChildren(...S.pairs.map((p, i) => el("button", { class: "chip", onclick: () => go(i) }, String(i + 1))));
+  S.pairs.forEach((p, i) => renderChip(i));
+}
+function renderProgress() {
+  const total = S.pairs.length, done = S.pairs.filter(isLabeled);
+  const count = (v) => done.filter((p) => p.label.verdict === v).length;
+  const problems = S.pairs.filter((p) => p.problems.length).length;
+  $("progress").textContent = `${done.length} of ${total} labeled · ` +
+    S.verdicts.map((v) => `${count(v)} ${v}`).join(" · ") + (problems ? ` · ${problems} with problems` : "");
+  $("bar").replaceChildren(...S.verdicts.map((v) =>
+    el("span", { style: `width:${(100 * count(v)) / total}%;background:var(--${v})`, title: `${v}: ${count(v)}` })));
+}
+
+// Saving: every change writes the whole pair, one request at a time, in order.
+
+function save(i) {
+  const l = S.pairs[i].label;
+  const body = { ...l, detail: l.detail || "", note: l.note || "" };
+  pending++; $("saved").textContent = "Saving…";
+  saving = saving.then(() => api("/api/label", body))
+    .then((saved) => {
+      S.pairs[i].problems = saved.problems;
+      $("strip").children[i].classList.remove("unsaved");
+      if (i === cur && $("status")) renderStatus();
+    })
+    .catch((e) => { $("strip").children[i].classList.add("unsaved"); banner(`Not saved: ${e.message}`); })
+    .finally(() => {
+      renderChip(i); renderProgress();
+      pending--; if (!pending) $("saved").textContent = document.querySelector(".banner") ? "" : "Saved";
+    });
+}
+function changed() { renderPanel(); renderChip(cur); renderProgress(); save(cur); }
+function setVerdict(v) {
+  const l = S.pairs[cur].label; l.verdict = l.verdict === v ? "" : v; changed();
+}
+function setReason(r) {
+  const l = S.pairs[cur].label; l.reason = l.reason === r ? "" : r;
+  // The primary reason is never also listed as a further difference.
+  l.also_differs = l.also_differs.filter((x) => x !== l.reason);
+  changed();
+}
+function toggleAlso(r) {
+  const l = S.pairs[cur].label;
+  if (r === l.reason) return;
+  l.also_differs = l.also_differs.includes(r) ? l.also_differs.filter((x) => x !== r)
+    : alsoReasons().filter((x) => x === r || l.also_differs.includes(x));
+  changed();
+}
+function typed(id, now) {
+  const i = cur, box = $(id);
+  S.pairs[i].label[id] = box.value;
+  clearTimeout(timers[id]);
+  // Text is saved once typing pauses, and at once when the box is left.
+  if (now) save(i); else timers[id] = setTimeout(() => save(i), 600);
+}
+function flushText() {
+  for (const id of ["detail", "note"]) if (timers[id]) { clearTimeout(timers[id]); timers[id] = null; if ($(id)) typed(id, true); }
+}
+window.addEventListener("beforeunload", (ev) => { flushText(); if (pending) { ev.preventDefault(); ev.returnValue = ""; } });
+
+// Moving and filtering. A filter is applied when chosen, so a pair labeled under "Unlabeled"
+// stays in reach until the filter is chosen again.
+
+function go(i) {
+  flushText();
+  const old = cur; cur = i;
+  renderChip(old); renderChip(cur); renderPair();
+  $("strip").children[cur].scrollIntoView({ block: "nearest" });
+  window.scrollTo(0, 0);
+}
+function move(step) {
+  if (!visible.length) return;
+  const at = visible.indexOf(cur);
+  go(visible[at < 0 ? 0 : Math.min(Math.max(at + step, 0), visible.length - 1)]);
+}
+function nextUnlabeled() {
+  for (let d = 1; d <= S.pairs.length; d++) {
+    const i = (cur + d) % S.pairs.length;
+    if (!isLabeled(S.pairs[i]) && visible.includes(i)) { go(i); return; }
+  }
+}
+function applyFilter(f) {
+  filter = f;
+  visible = S.pairs.map((p, i) => i).filter((i) => f === "all" || !isLabeled(S.pairs[i]));
+  const shown = new Set(visible);
+  [...$("strip").children].forEach((c, i) => { c.hidden = !shown.has(i); });
+  for (const b of document.querySelectorAll("[data-filter]")) {
+    b.classList.toggle("on", b.dataset.filter === f); b.setAttribute("aria-pressed", String(b.dataset.filter === f));
+  }
+  $("shown").textContent = f === "all" ? `${visible.length} pairs, in the label file's order`
+    : `${visible.length} unlabeled pairs; choose again to refresh`;
+  if (visible.length && !shown.has(cur)) go(visible[0]); else renderPair();
+}
+function toggleRules() {
+  const open = document.body.classList.toggle("rules-open");
+  $("rules-toggle").setAttribute("aria-expanded", String(open));
+}
+function toggleHelp() {
+  const old = document.querySelector(".help");
+  if (old) { old.remove(); return; }
+  const keys = [
+    ["g", "genuine, or clear it"], ["a", "apparent, or clear it"],
+    ...S.reasons.map((r, j) => [String(j + 1), `reason: ${human(r)}`]),
+    ...alsoReasons().map((r, j) => [`shift ${j + 1}`, `also differs: ${human(r)}, on or off`]),
+    ["d", "write the detail"], ["o", "write a note"], ["Enter  Esc", "leave a text box"],
+    ["j  →", "next pair"], ["k  ←", "previous pair"], ["n", "next unlabeled pair"],
+    ["f", "next filter: all, unlabeled"], ["r", "rules, on a narrow screen"], ["?", "this list"], ["Esc", "close"]];
+  const box = el("div", { class: "help", role: "dialog", "aria-label": "Keys", onclick: (ev) => { if (ev.target === box) box.remove(); } },
+    el("div", {}, el("h1", {}, "Keys"), el("table", {}, keys.map(([k, v]) => el("tr", {}, el("td", {}, el("kbd", {}, k)), el("td", {}, v)))),
+      el("p", { class: "muted" }, "Clicking a verdict or reason that is already set clears it. Every change is saved to the label file at once.")));
+  document.body.append(box);
+}
+
+for (const b of document.querySelectorAll("[data-filter]")) b.addEventListener("click", () => applyFilter(b.dataset.filter));
+$("prev").addEventListener("click", () => move(-1));
+$("next").addEventListener("click", () => move(1));
+$("rules-toggle").addEventListener("click", toggleRules);
+$("help-button").addEventListener("click", toggleHelp);
+
+document.addEventListener("keydown", (ev) => {
+  if (!S || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = ev.key;
+  // Typing in a text box never labels; Enter or Esc hands the keys back to the page.
+  if (ev.target.tagName === "INPUT") {
+    if (k === "Escape" || k === "Enter") { ev.target.blur(); ev.preventDefault(); }
+    return;
+  }
+  if (k === "Escape") { document.querySelector(".help")?.remove(); document.body.classList.remove("rules-open"); return; }
+  const inView = visible.includes(cur);
+  const digit = /^Digit([1-9])$/.exec(ev.code);
+  if (ev.shiftKey && digit) { const r = alsoReasons()[Number(digit[1]) - 1]; if (r && inView) toggleAlso(r); else return; }
+  else if (/^[1-9]$/.test(k) && Number(k) <= S.reasons.length) { if (inView) setReason(S.reasons[Number(k) - 1]); }
+  else if (k === "g" || k === "a") { if (inView) setVerdict(S.verdicts.find((v) => v[0] === k)); }
+  else if (k === "d" || k === "o") { if (inView) $(k === "d" ? "detail" : "note").focus(); }
+  else if (k === "j" || k === "ArrowRight") move(1);
+  else if (k === "k" || k === "ArrowLeft") move(-1);
+  else if (k === "n") nextUnlabeled();
+  else if (k === "f") applyFilter(FILTERS[(FILTERS.indexOf(filter) + 1) % FILTERS.length]);
+  else if (k === "r") toggleRules();
+  else if (k === "?") toggleHelp();
+  else return;
+  ev.preventDefault();
+});
+
+function measure() { document.documentElement.style.setProperty("--top-h", `${$("top").offsetHeight}px`); }
+window.addEventListener("resize", measure);
+
+(async () => {
+  try { S = await api("/api/state"); }
+  catch (e) { $("progress").textContent = ""; banner(`Not loaded: ${e.message}`); return; }
+  document.title = `Contradiction pairs · ${S.question}`;
+  $("title").textContent = `Contradiction pairs · ${S.question}`;
+  if (!S.pairs.length) { $("progress").textContent = "The label file holds no pairs."; return; }
+  const first = S.pairs.findIndex((p) => !isLabeled(p));
+  cur = first < 0 ? 0 : first;
+  buildStrip(); renderRules(); renderProgress(); measure();
+  applyFilter("all");
+})();
+</script>
+</body>
+</html>
