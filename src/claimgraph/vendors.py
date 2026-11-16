@@ -12,7 +12,13 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
-from claimgraph.batch import POLL_SECONDS, BatchApi, BatchOutcome, anthropic_batches
+from claimgraph.batch import (
+    POLL_SECONDS,
+    BatchApi,
+    BatchOutcome,
+    PartialSubmit,
+    anthropic_batches,
+)
 from claimgraph.llm import Vendor, vendor_of
 
 if TYPE_CHECKING:
@@ -168,7 +174,16 @@ class VendorBatches:
         missing = sorted(set(parts) - set(self.apis))
         if missing:
             raise RuntimeError(f"no batch client for {', '.join(missing)}")
-        return ";".join(f"{name}={self.apis[name].submit(part)}" for name, part in parts.items())
+        sent: list[str] = []
+        for name, part in parts.items():
+            try:
+                sent.append(f"{name}={self.apis[name].submit(part)}")
+            except Exception as error:
+                if sent:
+                    # The parts already sent are paid for; the run records them as pending.
+                    raise PartialSubmit(";".join(sent), error) from error
+                raise
+        return ";".join(sent)
 
     def collect(self, batch_id: str) -> BatchOutcome:
         responses: dict[str, dict[str, Any]] = {}

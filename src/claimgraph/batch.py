@@ -36,6 +36,15 @@ class BatchOutcome(Record):
     failures: dict[str, str]
 
 
+class PartialSubmit(RuntimeError):
+    """A submit that sent some batches before failing; `batch_id` names the ones sent, so they
+    are collected later rather than paid for again."""
+
+    def __init__(self, batch_id: str, error: Exception) -> None:
+        super().__init__(f"sent {batch_id} before failing: {error}")
+        self.batch_id = batch_id
+
+
 class BatchApi(Protocol):
     def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
         """Send one batch of requests, keyed by request key; returns the batch's id."""
@@ -186,7 +195,11 @@ def run_batched[I, T](
                 resumed=len(left),
                 used=frozenset(client.used),
             )
-        batch_id = api.submit(pending)
+        try:
+            batch_id = api.submit(pending)
+        except PartialSubmit as partial:
+            _set_pending(replay_dir, [*pending_batches(replay_dir), partial.batch_id])
+            raise
         # Written before the wait, so a stop while waiting leaves the batch to collect.
         _set_pending(replay_dir, [*pending_batches(replay_dir), batch_id])
         outcome = api.collect(batch_id)

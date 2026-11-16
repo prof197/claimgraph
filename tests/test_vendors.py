@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from claimgraph.batch import BatchOutcome
+from claimgraph.batch import BatchOutcome, PartialSubmit
 from claimgraph.llm import (
     ModelClient,
     ReplayMiss,
@@ -340,3 +340,34 @@ def test_live_council_batches_need_each_vendor_s_key() -> None:
 
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         vendor_batches(env, {Vendor.OPENAI, Vendor.GOOGLE})
+
+
+class Refuses(Recorder):
+    def submit(self, requests: Any) -> str:
+        raise RuntimeError("synthetic refusal")
+
+
+def test_a_vendor_that_refuses_after_others_were_sent_leaves_them_pending(tmp_path: Path) -> None:
+    from claimgraph.batch import run_batched
+
+    apis = {"anthropic": Recorder("anthropic"), "google": Refuses("google")}
+    api = VendorBatches(cast(Any, apis))
+
+    def attempt(item: str, client: ModelClient) -> str:
+        replies: list[str] = []
+        misses: list[ReplayMiss] = []
+        for params in ({"model": "synthetic", "messages": [item]}, GOOGLE_REQUEST):
+            try:
+                replies.append(client.create(params).text)
+            except ReplayMiss as miss:
+                misses.append(miss)
+        if misses:
+            from claimgraph.llm import gather
+
+            raise gather(misses)
+        return "".join(replies)
+
+    with pytest.raises(PartialSubmit, match="synthetic refusal"):
+        run_batched(["synthetic"], str, attempt, tmp_path, api)
+
+    assert (tmp_path / "pending-batches.txt").read_text() == "anthropic=anthropic-batch\n"
