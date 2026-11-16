@@ -4,6 +4,14 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+# No absolute home path is ever committed: they name the machine's user. The pattern is split
+# so this file does not match itself.
+home='/Use''rs/'
+if git grep --cached -l -F -e "$home"; then
+  echo "staged files above contain an absolute home path ($home); make it relative" >&2
+  exit 1
+fi
+
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright

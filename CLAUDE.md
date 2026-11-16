@@ -86,6 +86,9 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
   are pinned exactly; npm 10 cannot resolve the tree, so change them with `npx npm@11 install`.
   Its types come from `schema/export.schema.json`, which comes from `export.py`.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
+- No absolute path is ever committed; the pre-commit hook and CI refuse any file containing a
+  home directory path. Real-data exports and screenshots of real data go only under the
+  gitignored `real-data/`: their quotes include text that is not openly licensed.
 - The gitignored data, `runs/` and `local-data/`, sits under `CLAIMGRAPH_DATA` when it is set to
   an absolute path, so several checkouts share one copy; otherwise in the working directory.
 - Commits: one small, reviewable change each, conventional-commit style, imperative subject of
