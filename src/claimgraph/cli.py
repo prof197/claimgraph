@@ -1166,6 +1166,13 @@ class Split(StrEnum):
     DEV = "dev"
 
 
+def classification_replay(split: Split, arm: models.Arm, committed: Path, run_dir: Path) -> Path:
+    """Eval recordings are committed for CI; dev pairs can carry any licence, so theirs stay in
+    the gitignored run directory."""
+    root = committed if split is Split.EVAL else run_dir / "replay"
+    return root / "classification" / arm.value
+
+
 @app.command("classify")
 def classify_command(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
@@ -1207,11 +1214,7 @@ def classify_command(
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
     items = classify.pair_inputs(pairs, findings, studies, mapping)
     guide = (gold_dir / "LABELING.md").read_text()
-    replay_dir = (
-        replay_root / config.id / "classification" / arm.value
-        if split is Split.EVAL
-        else run_dir / "replay" / "classification" / arm.value
-    )
+    replay_dir = classification_replay(split, arm, replay_root / config.id, run_dir)
     prices = load_prices(prices_file)
     if dry_run:
         estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)

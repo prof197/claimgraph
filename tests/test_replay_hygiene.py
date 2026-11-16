@@ -1,4 +1,5 @@
-"""Committed replay files may hold responses for gold abstracts only.
+"""Committed replay files may hold responses for gold abstracts and the contradiction eval's
+openly licensed pairs only.
 
 Dev abstracts can carry any licence, so their text and their model responses stay in the
 gitignored run directory. The outcome proposal is the one recording made over the whole corpus:
@@ -16,16 +17,31 @@ ROOT = Path(__file__).parents[1]
 _PMID_FIELD = re.compile(r'"pmid"\s*:\s*"?(\d+)')
 
 
+def _pair_pmids(gold_dir: Path, split: str) -> set[str]:
+    return {
+        finding.rsplit("-", 1)[0]
+        for path in gold_dir.glob("*/contradiction_sample.json")
+        for pair in json.loads(path.read_text())[split]
+        for finding in (pair["finding_a"], pair["finding_b"])
+    } | {
+        study
+        for path in gold_dir.glob("*/contradiction_sample.json")
+        for pair in json.loads(path.read_text())[split]
+        for study in (pair["study_a"], pair["study_b"])
+    }
+
+
 def gold_pmids(gold_dir: Path) -> set[str]:
+    """The gold abstracts, and the eval pairs' papers: both openly licensed."""
     return {
         json.loads(line)["abstract"]["pmid"]
         for path in gold_dir.glob("*/gold.jsonl")
         for line in path.read_text().splitlines()
-    }
+    } | _pair_pmids(gold_dir, "eval")
 
 
 def known_pmids(gold_dir: Path) -> set[str]:
-    """Every PMID the committed samples name: gold, dev and screened."""
+    """Every PMID the committed samples name: gold, dev, screened and the drawn pairs."""
     dev = {
         json.loads(line)["pmid"]
         for path in gold_dir.glob("*/dev.jsonl")
@@ -36,7 +52,7 @@ def known_pmids(gold_dir: Path) -> set[str]:
         for path in gold_dir.glob("*/screening.toml")
         for entry in tomllib.loads(path.read_text()).get("record", [])
     }
-    return gold_pmids(gold_dir) | dev | screened
+    return gold_pmids(gold_dir) | dev | screened | _pair_pmids(gold_dir, "dev")
 
 
 def non_gold_pmids_in_replay(replay_dir: Path, gold_dir: Path) -> set[str]:
@@ -62,6 +78,19 @@ def write_samples(gold_dir: Path) -> None:
     (question / "screening.toml").write_text(
         '[[record]]\npmid = "999000003"\non_topic = false\nnote = "Synthetic note."\n'
     )
+    pair = {
+        "study_a": "999000004",
+        "study_b": "999000005",
+        "finding_a": "999000004-1",
+        "finding_b": "999000005-1",
+    }
+    dev = {
+        "study_a": "999000006",
+        "study_b": "999000007",
+        "finding_a": "999000006-1",
+        "finding_b": "999000007-1",
+    }
+    (question / "contradiction_sample.json").write_text(json.dumps({"eval": [pair], "dev": [dev]}))
 
 
 def test_a_gold_response_passes(tmp_path: Path) -> None:
@@ -89,3 +118,13 @@ def test_a_known_non_gold_pmid_anywhere_in_a_file_is_caught(tmp_path: Path) -> N
     (replay / "synthetic.txt").write_text("Synthetic prompt for PMID 999000003.")
 
     assert non_gold_pmids_in_replay(tmp_path / "replay", tmp_path / "gold") == {"999000003"}
+
+
+def test_an_eval_pair_s_paper_passes_and_a_dev_pair_s_is_caught(tmp_path: Path) -> None:
+    write_samples(tmp_path / "gold")
+    replay = tmp_path / "replay"
+    replay.mkdir()
+    (replay / "eval.json").write_text('{"pmid": "999000004", "response": "Synthetic."}')
+    (replay / "dev.txt").write_text("Synthetic request naming PMID 999000007.")
+
+    assert non_gold_pmids_in_replay(replay, tmp_path / "gold") == {"999000007"}

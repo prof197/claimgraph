@@ -152,3 +152,15 @@ def test_the_estimate_prices_only_unrecorded_pairs(tmp_path: Path) -> None:
 
     assert before.pairs == 1 and 0 < before.typical_usd < before.ceiling_usd
     assert after.pairs == 0 and after.ceiling_usd == 0
+
+
+def test_only_eval_recordings_go_where_they_are_committed(tmp_path: Path) -> None:
+    from claimgraph.cli import Split, classification_replay
+
+    committed, run_dir = tmp_path / "replay" / "q", tmp_path / "runs" / "q"
+
+    assert classification_replay(Split.EVAL, Arm.SINGLE_MID, committed, run_dir) == (
+        committed / "classification" / "single-mid"
+    )
+    dev = classification_replay(Split.DEV, Arm.SINGLE_MID, committed, run_dir)
+    assert dev.is_relative_to(run_dir)
