@@ -21,6 +21,7 @@ from claimgraph import (
     normalize,
     outcome_kinds,
     outcome_pairs,
+    paths,
     relabel,
     review,
 )
@@ -29,6 +30,10 @@ from claimgraph.llm import ReplayMiss, request_key
 from claimgraph.models import NormalizedOutcome
 from claimgraph.prices import PRICES_FILE, cost, load_prices
 from claimgraph.retrieve import Abstract, EutilsError, connect_eutils, retrieve, write_atomic
+
+# Read once at startup: CLAIMGRAPH_DATA can move the gitignored data out of the checkout.
+RUNS_DIR = paths.runs_dir()
+PAGE_DIR = review.page_dir()
 
 app = typer.Typer(no_args_is_help=True, help="Map where studies on one health question disagree.")
 
@@ -83,7 +88,7 @@ def run(
     refresh: Annotated[
         bool, typer.Option(help="Search and fetch again instead of reusing cached records.")
     ] = False,
-    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are written.")] = Path("runs"),
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are written.")] = RUNS_DIR,
     dev: Annotated[
         bool, typer.Option(help="Extract the dev sample instead of every kept abstract.")
     ] = False,
@@ -368,7 +373,7 @@ app.add_typer(mapping_app, name="mapping")
 @mapping_app.command("check")
 def mapping_check(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
-    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     mappings_dir: Annotated[
         Path, typer.Option(help="Where the outcome mappings are read from.")
     ] = Path("mappings"),
@@ -411,7 +416,7 @@ app.add_typer(gold_app, name="gold")
 def gold_sample(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
     seed: Annotated[int, typer.Option(help="Seed for the sampling order.")] = gold.SEED,
-    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     gold_dir: Annotated[Path, typer.Option(help="Where the samples are written.")] = Path(
         "evals/gold"
     ),
@@ -614,7 +619,7 @@ def gold_review(
     gold_dir: GoldDir = Path("evals/gold"),
     page_dir: Annotated[
         Path, typer.Option(help="Where the local page and its notes are kept; never committed.")
-    ] = review.PAGE_DIR,
+    ] = PAGE_DIR,
     port: Annotated[int, typer.Option(help="Port on 127.0.0.1; 0 picks a free one.")] = 8765,
     open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open a browser.")] = True,
     second_pass: Annotated[
@@ -654,7 +659,7 @@ gold_app.add_typer(pairs_app, name="outcome-pairs")
 def pairs_sample(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
     seed: Annotated[int, typer.Option(help="Seed for the draw.")] = outcome_pairs.SEED,
-    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     replay_dir: Annotated[
         Path, typer.Option(help="Where the recorded proposal is read from.")
     ] = Path("replay"),
@@ -742,7 +747,7 @@ gold_app.add_typer(kinds_app, name="outcome-kinds")
 @kinds_app.command("template")
 def kinds_template(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
-    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = Path("runs"),
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     gold_dir: GoldDir = Path("evals/gold"),
     model: Model = extract.DEFAULT_MODEL,
 ) -> None:

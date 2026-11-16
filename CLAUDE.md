@@ -73,5 +73,7 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
 - The normalization prompt is frozen too: a test pins its request key. Changing the prompt,
   schema, outcome rules or settings needs the owner's approval, a dry run and a new recording.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
+- The gitignored data, `runs/` and `local-data/`, sits under `CLAIMGRAPH_DATA` when it is set to
+  an absolute path, so several checkouts share one copy; otherwise in the working directory.
 - Commits: one small, reviewable change each, conventional-commit style, imperative subject of
   72 characters or fewer; the body says what changed and why.

@@ -18,6 +18,7 @@ from pathlib import Path
 
 from pydantic import Field, NonNegativeFloat, ValidationError
 
+from claimgraph import paths
 from claimgraph.config import DimensionType, QuestionConfig
 from claimgraph.design_tree import QUESTIONS, Question
 from claimgraph.gold import GoldAbstract, Stratum
@@ -33,7 +34,11 @@ from claimgraph.labels import (
 from claimgraph.models import REVIEW_DESIGNS, Design, Pmid, Record
 
 HOST = "127.0.0.1"
-PAGE_DIR = Path("local-data/eval/review")
+
+
+def page_dir() -> Path:
+    return paths.local_dir() / "eval" / "review"
+
 
 # Sentences
 
