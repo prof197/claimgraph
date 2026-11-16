@@ -25,6 +25,7 @@ from claimgraph.models import (
 )
 
 SAMPLE_FILE = "contradiction_sample.json"
+ATTRIBUTION_FILE = "CONTRADICTION_ATTRIBUTION.md"
 SEED = 20261115
 # Benefit against harm is about one candidate pair in twenty, so the eval oversamples it to a
 # third. Dev keeps the same split.
@@ -195,3 +196,8 @@ def strata_table(
     totals = [sum(c[i] for c in counts.values()) for i in range(4)]
     lines.append(f"| All | | | {totals[0]:,} | {totals[1]:,} | {totals[2]} | {totals[3]} |")
     return "\n".join(lines) + "\n"
+
+
+def eval_papers(sample: PairSample) -> set[str]:
+    """The PMIDs of the eval pairs' headline papers, the ones their recordings quote."""
+    return {_pmid(f) for p in sample.eval for f in (p.finding_a, p.finding_b)}

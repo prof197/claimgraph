@@ -698,3 +698,18 @@ def test_an_article_is_open_only_when_both_licence_sources_agree(tmp_path: Path)
     ]
     is_open("999000001")
     assert bucket.asked == ["PMC9990001", "PMC9990002"]
+
+
+def test_the_pair_attribution_credits_each_quoted_paper_once_in_pmid_order() -> None:
+    papers = [synthetic_abstract("999000020"), synthetic_abstract("999000003")]
+    licences = {
+        "999000020": gold.Licence(pmcid="PMC9990020", code="CC BY", versions=[1]),
+        "999000003": gold.Licence(pmcid="PMC9990003", code="CC0", versions=[1]),
+    }
+
+    text = gold.pair_attribution(papers, licences, date(2026, 11, 15))
+
+    lines = [line for line in text.splitlines() if line.startswith("- ")]
+    assert [("999000003" in lines[0]), ("999000020" in lines[1])] == [True, True]
+    assert "Licence: CC0." in lines[0] and "Licence: CC BY." in lines[1]
+    assert "November 15, 2026" in text

@@ -152,3 +152,12 @@ def test_the_same_seed_draws_the_same_pairs() -> None:
         pair_sample.draw("synthetic-question", list(reversed(pool())), lambda _: True, seed=5)
         == first
     )
+
+
+def test_the_eval_papers_are_the_eval_pairs_headline_papers() -> None:
+    assert pair_sample.eval_papers(synthetic_sample()) == {
+        "999000101",
+        "999000102",
+        "999000103",
+        "999000105",
+    }

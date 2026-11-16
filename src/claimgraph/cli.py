@@ -1150,15 +1150,26 @@ def contradiction_sample(
         ):
             is_open = gold.openly_licensed(abstracts, eutils, bucket, run_dir / "pmc", date.today())
             sample = pair_sample.draw(config.id, pairs, is_open, seed)
+            by_pmid = {a.pmid: a for a in abstracts}
+            papers = [by_pmid[p] for p in sorted(pair_sample.eval_papers(sample))]
+            licences: dict[str, gold.Licence] = {}
+            for paper in papers:
+                assert paper.pmcid is not None
+                found = gold.licence(bucket.versions(paper.pmcid))
+                assert isinstance(found, gold.Licence)
+                licences[paper.pmid] = found
+            checked_on = gold.open_pool(abstracts, eutils, run_dir / "pmc", date.today()).checked_on
     except EutilsError as error:
         typer.echo(f"licence check failed: {error}", err=True)
         raise typer.Exit(1) from error
     out = gold_dir / config.id / pair_sample.SAMPLE_FILE
     write_atomic(out, (sample.model_dump_json(indent=2) + "\n").encode())
+    credits = out.parent / pair_sample.ATTRIBUTION_FILE
+    write_atomic(credits, gold.pair_attribution(papers, licences, checked_on).encode())
     typer.echo(
         pair_sample.strata_table(pairs, pair_sample.licensed(pairs, is_open), sample), nl=False
     )
-    typer.echo(f"wrote {out}")
+    typer.echo(f"wrote {out} and {credits}")
 
 
 class Split(StrEnum):

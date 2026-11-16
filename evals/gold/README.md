@@ -10,6 +10,10 @@ One directory per question:
   so their text is not committed; after the retrieve stage, `claimgraph gold sample` rebuilds
   it in `runs/`.
 - `screening.toml`: the on- or off-topic reading of every record the sampler reached.
+- `contradiction_sample.json`: the contradiction eval's 300 drawn pairs, both papers openly
+  licensed, and the 40 dev pairs, by study and finding ID, with the seed.
+- `CONTRADICTION_ATTRIBUTION.md`: the source and licence of every eval pair's paper, whose
+  sentences the committed classification recordings quote. Generated.
 - `sample.json`: the seed, quotas, and the composition of the corpus and the open pool.
 - `labels/`, `outcome_kinds.toml`, `contradiction_pairs.toml`: the hand labels, written by
   the rules in [LABELING.md](LABELING.md).
