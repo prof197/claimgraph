@@ -181,6 +181,23 @@ def test_only_eval_recordings_go_where_they_are_committed(tmp_path: Path) -> Non
     )
     dev = classification_replay(Split.DEV, Arm.SINGLE_MID, committed, run_dir)
     assert dev.is_relative_to(run_dir)
+    # The corpus shares the dev recordings, so the dev pairs are not paid for twice.
+    assert classification_replay(Split.CORPUS, Arm.SINGLE_MID, committed, run_dir) == dev
+
+
+def test_the_measured_cost_scales_the_dev_spend_per_pair(tmp_path: Path) -> None:
+    prices = load_prices(ROOT / "prices.toml")
+    live = ModelClient(tmp_path, Mode.LIVE, Scripted(response("{}"), response(output())))
+    retried = classify.classify_pair(item(), CONFIG, GUIDE, live, Arm.SINGLE_SMALL)
+    once = retried.model_copy(update={"usage": retried.usage[:1], "errors": []})
+
+    per_pair = classify.measured_per_pair([retried, once], prices)
+
+    assert per_pair == pytest.approx(
+        classify.measured_per_pair([retried], prices) * 3 / 4, rel=1e-9
+    )
+    assert classify.measured_per_pair([], prices) == 0
+    assert "for these 1,000 pairs" in classify.describe_measured([once], 1000, prices)
 
 
 # The request keys of one synthetic pair under the classification prompt as tuned on dev.

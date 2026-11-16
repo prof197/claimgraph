@@ -1180,11 +1180,13 @@ def contradiction_sample(
 class Split(StrEnum):
     EVAL = "eval"
     DEV = "dev"
+    # Every candidate pair of the run: what the hosted page shows.
+    CORPUS = "corpus"
 
 
 def classification_replay(split: Split, arm: models.Arm, committed: Path, run_dir: Path) -> Path:
-    """Eval recordings are committed for CI; dev pairs can carry any licence, so theirs stay in
-    the gitignored run directory."""
+    """Eval recordings are committed for CI; dev and corpus pairs can carry any licence, so
+    theirs stay in the gitignored run directory."""
     root = committed if split is Split.EVAL else run_dir / "replay"
     return root / "classification" / arm.value
 
@@ -1192,7 +1194,9 @@ def classification_replay(split: Split, arm: models.Arm, committed: Path, run_di
 @app.command("classify")
 def classify_command(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
-    split: Annotated[Split, typer.Option(help="The drawn pairs to classify.")] = Split.DEV,
+    split: Annotated[
+        Split, typer.Option(help="The drawn eval or dev pairs, or every candidate pair.")
+    ] = Split.DEV,
     arm: Annotated[
         models.Arm, typer.Option(help="The classification arm.")
     ] = models.Arm.SINGLE_SMALL,
@@ -1211,9 +1215,11 @@ def classify_command(
     prices_file: PricesFile = PRICES_FILE,
     model: Model = extract.DEFAULT_MODEL,
 ) -> None:
-    """Classify the drawn eval or dev pairs with one arm, replaying recorded responses.
+    """Classify the drawn eval or dev pairs, or the whole corpus's candidate pairs, with one
+    arm, replaying recorded responses.
 
-    Dev recordings stay in the run directory; eval recordings are committed for CI to replay.
+    Dev and corpus recordings stay in the run directory; eval recordings are committed for CI
+    to replay. A dry run also scales the current dev run's measured cost to the pairs it counts.
     """
     if arm not in classify.SINGLE_ARMS:
         typer.echo(f"{arm.value} is not built yet; the single arms are", err=True)
@@ -1221,12 +1227,16 @@ def classify_command(
     config = load_config(resolve_question(question))
     run_dir = runs_dir / config.id
     sample = pair_sample.read_sample(gold_dir / config.id / pair_sample.SAMPLE_FILE)
-    pairs = sample.eval if split is Split.EVAL else sample.dev
     results = _corpus_results(run_dir, model)
     findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
     studies = {
         r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
     }
+    if split is Split.CORPUS:
+        designs = {pmid: design for pmid, (design, _) in studies.items()}
+        pairs = pair_sample.drawn_pairs(_candidates(run_dir), designs)
+    else:
+        pairs = sample.eval if split is Split.EVAL else sample.dev
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
     items = classify.pair_inputs(pairs, findings, studies, mapping)
     guide = (gold_dir / "LABELING.md").read_text()
@@ -1235,6 +1245,19 @@ def classify_command(
     if dry_run:
         estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)
         typer.echo(classify.describe_estimate(estimate))
+        dev_items = classify.pair_inputs(sample.dev, findings, studies, mapping)
+        dev_replay = classification_replay(Split.DEV, arm, replay_root / config.id, run_dir)
+        dev_out = run_dir / "classify" / f"{Split.DEV.value}-{arm.value}.jsonl"
+        # The dev run measures the current prompt only when every dev request is recorded.
+        current = classify.estimate(dev_items, config, guide, arm, dev_replay, prices).pairs == 0
+        if current and dev_out.exists():
+            dev_run = [
+                classify.ClassifyResult.model_validate_json(line)
+                for line in dev_out.read_text().splitlines()
+            ]
+            typer.echo(classify.describe_measured(dev_run, estimate.pairs, prices))
+        else:
+            typer.echo(f"no dev run of {arm.value} under the current prompt to measure against")
         return
     try:
         send = batch.anthropic_batches(os.environ, on_poll=typer.echo) if live else None

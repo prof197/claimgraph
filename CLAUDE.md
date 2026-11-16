@@ -49,6 +49,9 @@ uv run claimgraph gold contradiction-pairs review vitamin-d-depression    # labe
 uv run claimgraph gold contradiction-pairs check vitamin-d-depression     # validate the pair labels
 uv run claimgraph classify vitamin-d-depression --split dev --arm single-small --dry-run
                                           # estimate classifying the dev pairs; sends nothing
+uv run claimgraph classify vitamin-d-depression --split corpus --arm single-small --dry-run
+                                          # estimate every candidate pair, and scale the dev
+                                          # run's measured cost per pair; sends nothing
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
 uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-recording them
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live

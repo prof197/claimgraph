@@ -366,6 +366,20 @@ def summary_lines(results: Sequence[ClassifyResult], prices: Prices) -> list[str
     ]
 
 
+def measured_per_pair(results: Sequence[ClassifyResult], prices: Prices) -> float:
+    """Measured spend per pair at batch prices, retries and cache reads included."""
+    usd = sum(cost(u, r.model, prices, batch=True) for r in results for u in r.usage)
+    return usd / len(results) if results else 0.0
+
+
+def describe_measured(dev_run: Sequence[ClassifyResult], pairs: int, prices: Prices) -> str:
+    per_pair = measured_per_pair(dev_run, prices)
+    return (
+        f"measured on the {len(dev_run)} dev pairs: ${per_pair:.5f} per pair, so about "
+        f"${per_pair * pairs:.2f} for these {pairs:,} pairs if the cache hits as often"
+    )
+
+
 def describe_estimate(result: Estimate) -> str:
     return (
         f"{result.arm.value} on {result.model}: {result.pairs} unrecorded pairs, about "
