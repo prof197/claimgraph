@@ -418,14 +418,7 @@ def sample(
     today: date,
 ) -> tuple[Sample, SampleManifest]:
     """Gold from the CC BY and CC0 articles; dev, by the same quotas, from everything else."""
-    pmcids = sorted({a.pmcid for a in abstracts if a.pmcid is not None})
-    found = _load_open_pool(cache_dir / "open.json", pmcids)
-    if found is None:
-        found = _OpenPool(
-            checked_on=today, queried=pmcids, open=sorted(open_pmcids(eutils, pmcids))
-        )
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        write_atomic(cache_dir / "open.json", found.model_dump_json(indent=2).encode())
+    found = open_pool(abstracts, eutils, cache_dir, today)
     open_ids = set(found.open)
     pool = [a for a in abstracts if a.pmcid in open_ids]
 
@@ -447,7 +440,7 @@ def sample(
         checked_on=found.checked_on,
         quotas=QUOTAS,
         corpus=composition(abstracts),
-        with_pmcid=len(pmcids),
+        with_pmcid=len(found.queried),
         open_pool=composition(pool),
         skipped=gold.skipped,
         splits={
@@ -457,6 +450,48 @@ def sample(
         },
     )
     return result, manifest
+
+
+def open_pool(
+    abstracts: Sequence[Abstract], eutils: EutilsClient, cache_dir: Path, today: date
+) -> _OpenPool:
+    """PMC's licence filters' answer for the abstracts' PMCIDs, asked once and cached."""
+    pmcids = sorted({a.pmcid for a in abstracts if a.pmcid is not None})
+    found = _load_open_pool(cache_dir / "open.json", pmcids)
+    if found is None:
+        found = _OpenPool(
+            checked_on=today, queried=pmcids, open=sorted(open_pmcids(eutils, pmcids))
+        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        write_atomic(cache_dir / "open.json", found.model_dump_json(indent=2).encode())
+    return found
+
+
+def openly_licensed(
+    abstracts: Sequence[Abstract],
+    eutils: EutilsClient,
+    bucket: PmcBucket,
+    cache_dir: Path,
+    today: date,
+) -> Callable[[str], bool]:
+    """Whether a PMID's article is CC BY or CC0 by both sources, as gold requires: PMC's
+    licence filters and every version's metadata in the bucket."""
+    pool = set(open_pool(abstracts, eutils, cache_dir, today).open)
+    pmcid_of = {a.pmcid: a.pmid for a in abstracts}
+    by_pmid = {pmid: pmcid for pmcid, pmid in pmcid_of.items() if pmcid is not None}
+    answers: dict[str, bool] = {}
+
+    def check(pmid: str) -> bool:
+        if pmid not in answers:
+            pmcid = by_pmid.get(pmid)
+            answers[pmid] = (
+                pmcid is not None
+                and pmcid in pool
+                and isinstance(licence(bucket.versions(pmcid)), Licence)
+            )
+        return answers[pmid]
+
+    return check
 
 
 def _load_open_pool(path: Path, pmcids: list[str]) -> _OpenPool | None:

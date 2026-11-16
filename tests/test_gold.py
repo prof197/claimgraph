@@ -5,13 +5,15 @@ import re
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs
 
 import httpx
 import pytest
+from test_labels import synthetic_abstract
 from test_retrieve_parse import article
 
+from claimgraph import gold
 from claimgraph.gold import (
     DevEntry,
     GoldAbstract,
@@ -638,3 +640,61 @@ def test_screened_pool_writes_the_samples_and_a_rerun_makes_no_requests(
     assert len(search.terms) + len(store.requests) == asked
     assert "0 requests" in second.output
     assert {name: (out / name).read_text() for name in files} == files
+
+
+class _VersionsBucket:
+    """Licence metadata by PMCID, standing in for the PMC bucket."""
+
+    def __init__(self, codes: dict[str, str]) -> None:
+        self.codes = codes
+        self.asked: list[str] = []
+
+    def versions(self, pmcid: str) -> list[gold.PmcVersion]:
+        self.asked.append(pmcid)
+        code = self.codes.get(pmcid)
+        if code is None:
+            return []
+        return [
+            gold.PmcVersion(
+                pmcid=pmcid, version=1, license_code=code, is_retracted=False, is_manuscript=False
+            )
+        ]
+
+
+def test_an_article_is_open_only_when_both_licence_sources_agree(tmp_path: Path) -> None:
+    abstracts = [
+        synthetic_abstract(pmid).model_copy(update={"pmcid": pmcid})
+        for pmid, pmcid in [
+            ("999000001", "PMC9990001"),
+            ("999000002", "PMC9990002"),
+            ("999000003", "PMC9990003"),
+            ("999000004", None),
+        ]
+    ]
+    # The filters list 1 and 2 as open; the bucket's metadata says 2 is not.
+    (tmp_path / "open.json").write_text(
+        gold._OpenPool(  # pyright: ignore[reportPrivateUsage]
+            checked_on=date(2026, 11, 5),
+            queried=["PMC9990001", "PMC9990002", "PMC9990003"],
+            open=["PMC9990001", "PMC9990002"],
+        ).model_dump_json()
+    )
+    bucket = _VersionsBucket({"PMC9990001": "CC BY", "PMC9990002": "CC BY-NC", "PMC9990003": "CC0"})
+
+    is_open = gold.openly_licensed(
+        abstracts,
+        # The cached filter answer means no search is sent.
+        cast(EutilsClient, None),
+        cast(gold.PmcBucket, bucket),
+        tmp_path,
+        date(2026, 11, 15),
+    )
+
+    assert [is_open(p) for p in ["999000001", "999000002", "999000003", "999000004"]] == [
+        True,
+        False,
+        False,
+        False,
+    ]
+    is_open("999000001")
+    assert bucket.asked == ["PMC9990001", "PMC9990002"]

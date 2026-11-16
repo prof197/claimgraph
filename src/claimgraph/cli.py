@@ -23,6 +23,7 @@ from claimgraph import (
     normalize,
     outcome_kinds,
     outcome_pairs,
+    pair_sample,
     paths,
     publish,
     relabel,
@@ -1113,3 +1114,46 @@ def export_fetch(
         typer.echo(f"no verified export: {error}", err=True)
         raise typer.Exit(1) from error
     typer.echo(f"fetched {pinned.asset} to {out}; SHA-256 matches")
+
+
+contradiction_app = typer.Typer(
+    no_args_is_help=True, help="Draw and label the contradiction eval's pairs."
+)
+gold_app.add_typer(contradiction_app, name="contradiction-pairs")
+
+
+@contradiction_app.command("sample")
+def contradiction_sample(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    seed: Annotated[int, typer.Option(help="Seed for the draw.")] = pair_sample.SEED,
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    gold_dir: GoldDir = Path("evals/gold"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Draw the eval's pairs from openly licensed studies, and the dev pairs from the rest.
+
+    Checks licences with PMC's licence filters and the PMC bucket's metadata, both cached.
+    """
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    found = _candidates(run_dir)
+    results = _corpus_results(run_dir, model)
+    designs = {r.pmid: r.study.design for r in results if r.study is not None}
+    abstracts = gold.read_abstracts(run_dir / "abstracts.jsonl")
+    pairs = pair_sample.drawn_pairs(found, designs)
+    try:
+        with (
+            connect_eutils(os.environ) as eutils,
+            gold.connect_bucket(run_dir / "pmc") as bucket,
+        ):
+            is_open = gold.openly_licensed(abstracts, eutils, bucket, run_dir / "pmc", date.today())
+            sample = pair_sample.draw(config.id, pairs, is_open, seed)
+    except EutilsError as error:
+        typer.echo(f"licence check failed: {error}", err=True)
+        raise typer.Exit(1) from error
+    out = gold_dir / config.id / pair_sample.SAMPLE_FILE
+    write_atomic(out, (sample.model_dump_json(indent=2) + "\n").encode())
+    typer.echo(
+        pair_sample.strata_table(pairs, pair_sample.licensed(pairs, is_open), sample), nl=False
+    )
+    typer.echo(f"wrote {out}")

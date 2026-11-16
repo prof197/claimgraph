@@ -643,8 +643,8 @@ data is labeled by hand, from openly licensed articles only.
 | --- | --- | --- | --- | --- |
 | Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Each outcome string labeled score, case status, remission, response or out of domain; pair verdicts follow from the kinds | 547 strings, so every pair; 200 drawn pairs, including the hard cases, as a subset | Merge precision and recall over every pair of in-domain strings, and on the drawn pairs with the stratum sizes; out-of-domain strings counted | Replay |
-| Contradictions | Labeled candidate pairs, genuine or apparent, with reason | About 150 pairs, stratified by reason | Precision on genuine; reason accuracy with a confusion matrix | Replay |
-| Council ablation | The contradiction set | About 150 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
+| Contradictions | Drawn candidate pairs, labeled genuine or apparent with the primary reason | 300 pairs, both studies openly licensed, stratified by outcome, pair kind and designs | Precision on genuine; reason accuracy with a confusion matrix; per stratum and on the 300 as drawn | Replay |
+| Council ablation | The contradiction set | The 300 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
 | Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
 
 - **Gold sizes:** extraction gold is sized to catch a broken field, such as a design that always
@@ -690,6 +690,45 @@ data is labeled by hand, from openly licensed articles only.
   frozen prompt's proposal by stratum and a note that its rates are in sample. CI prints both. A string the proposal puts under an
   outcome it marks outside the domain merges with nothing, since review deletes that outcome,
   and the eval counts how many strings each side puts out of domain.
+- **Contradiction pair draw:** every arm's requests are recorded and replayed in CI, and each
+  carries both findings' quotes, so the 300 eval pairs come only from candidates whose two
+  headline papers are CC BY or CC0 by both licence sources, the gold rule. The strata are
+  outcome, pair kind and the two designs: trial and trial, trial and observational,
+  observational and observational, or with another design; case series count as observational.
+  The reason cannot be a stratum, because it is the label: it is unknown until the pair is
+  labeled, so the draw stratifies only on what the extraction fixes. Benefit against harm is
+  about one candidate in twenty, so it gets 100 of the 300. Within each pair kind the slots are
+  shared equally across strata, a stratum with another design taking half a share, since its
+  pairs carry no design weight and sort last on the panel; a stratum that runs out frees its
+  slots for the rest. Because of that oversampling, results are reported per stratum and on
+  the 300 as drawn, never as accuracy over all candidate pairs. The 40 dev pairs (13 benefit
+  against harm) come from studies no eval pair touches, under any licence, and only their IDs
+  are committed. `gold contradiction-pairs sample` draws both with a fixed seed into
+  `contradiction_sample.json`.
+- **Measured on vitamin D:** 3,124 of the 27,945 candidate pairs have both papers openly
+  licensed, and the bucket's metadata agreed with PMC's licence filters on every one. The eval
+  limits that follow: no remission or treatment response pair has both papers open, so neither
+  outcome is in the eval; depression cases has one trial-against-trial pair; and benefit
+  against harm has 17 pairs of a trial against an observational study (16 on depressive
+  symptoms, 1 on depression cases). Results in those cells say little.
+
+  | Outcome | Pair kind | Designs | Candidates | Both open | Eval | Dev |
+  | --- | --- | --- | ---: | ---: | ---: | ---: |
+  | Depression cases | Benefit vs harm | Observational, observational | 650 | 40 | 40 | 3 |
+  | Depression cases | Benefit vs harm | Trial, observational | 10 | 1 | 1 | 3 |
+  | Depression cases | Benefit vs harm | With other | 150 | 2 | 2 | 2 |
+  | Depression cases | Effect vs none | Observational, observational | 4,590 | 369 | 33 | 4 |
+  | Depression cases | Effect vs none | Trial, observational | 1,013 | 50 | 33 | 4 |
+  | Depression cases | Effect vs none | Trial, trial | 14 | 1 | 1 | 4 |
+  | Depression cases | Effect vs none | With other | 1,433 | 328 | 17 | 2 |
+  | Depressive symptoms | Benefit vs harm | Observational, observational | 432 | 94 | 41 | 3 |
+  | Depressive symptoms | Benefit vs harm | Trial, observational | 102 | 16 | 16 | 2 |
+  | Depressive symptoms | Effect vs none | Observational, observational | 9,114 | 980 | 33 | 4 |
+  | Depressive symptoms | Effect vs none | Trial, observational | 8,723 | 1,042 | 33 | 4 |
+  | Depressive symptoms | Effect vs none | Trial, trial | 1,530 | 144 | 33 | 3 |
+  | Depressive symptoms | Effect vs none | With other | 181 | 57 | 17 | 0 |
+  | Remission and treatment response | Effect vs none | Any | 3 | 0 | 0 | 2 |
+  | All | | | 27,945 | 3,124 | 300 | 40 |
 - **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
   points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
   their differences. The README states the width so close results aren't over-read.

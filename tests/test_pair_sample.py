@@ -86,3 +86,69 @@ def test_the_committed_synthetic_sample_matches_its_builder() -> None:
 
     assert FIXTURE.read_text() == text
     assert pair_sample.read_sample(FIXTURE) == synthetic_sample()
+
+
+BVH, EVN = PairKind.BENEFIT_VS_HARM, PairKind.EFFECT_VS_NONE
+TT, TO, OO, WO = (
+    Combination.TRIAL_TRIAL,
+    Combination.TRIAL_OBSERVATIONAL,
+    Combination.OBSERVATIONAL_OBSERVATIONAL,
+    Combination.WITH_OTHER,
+)
+
+
+def test_slots_are_shared_equally_with_half_for_pairs_with_another_design() -> None:
+    # 70 slots over three full cells and a half-weight one: 20 each, and 10.
+    available = {("o", EVN, TT): 100, ("o", EVN, TO): 100, ("o", EVN, OO): 100, ("o", EVN, WO): 100}
+
+    slots = pair_sample.allocate(available, {EVN: 70})
+
+    assert slots == {("o", EVN, TT): 20, ("o", EVN, TO): 20, ("o", EVN, OO): 20, ("o", EVN, WO): 10}
+
+
+def test_a_cell_that_runs_out_frees_its_slots_for_the_others() -> None:
+    available = {("o", BVH, TO): 3, ("o", BVH, OO): 100}
+
+    assert pair_sample.allocate(available, {BVH: 20}) == {("o", BVH, TO): 3, ("o", BVH, OO): 17}
+
+
+def test_each_pair_kind_fills_only_its_own_cells() -> None:
+    available = {("o", BVH, OO): 5, ("o", EVN, OO): 100}
+
+    slots = pair_sample.allocate(available, {BVH: 10, EVN: 10})
+
+    assert slots == {("o", BVH, OO): 5, ("o", EVN, OO): 10}
+
+
+def pool() -> list[DrawnPair]:
+    """Synthetic pairs: 30 effect-vs-none and 10 benefit-vs-harm among 80 studies."""
+    pairs: list[DrawnPair] = []
+    for i in range(40):
+        a, b = f"999{2 * i:06d}", f"999{2 * i + 1:06d}"
+        pair = drawn(a, b, TT if i % 2 else OO)
+        pairs.append(pair.model_copy(update={"kind": BVH if i < 10 else EVN}))
+    return pairs
+
+
+def test_eval_pairs_are_openly_licensed_and_dev_pairs_share_no_study(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pair_sample, "EVAL_SIZES", {BVH: 4, EVN: 6})
+    monkeypatch.setattr(pair_sample, "DEV_SIZES", {BVH: 2, EVN: 4})
+    # Even-numbered pairs have both papers open.
+    is_open = lambda pmid: int(pmid) // 2 % 2 == 0  # noqa: E731
+
+    sample = pair_sample.draw("synthetic-question", pool(), is_open, seed=3)
+
+    assert len(sample.eval) == 10 and len(sample.dev) == 6
+    assert all(is_open(p.study_a) and is_open(p.study_b) for p in sample.eval)
+    assert sum(p.kind is BVH for p in sample.eval) == 4
+
+
+def test_the_same_seed_draws_the_same_pairs() -> None:
+    first = pair_sample.draw("synthetic-question", pool(), lambda _: True, seed=5)
+
+    assert (
+        pair_sample.draw("synthetic-question", list(reversed(pool())), lambda _: True, seed=5)
+        == first
+    )
