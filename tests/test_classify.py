@@ -63,6 +63,7 @@ def test_the_prompt_carries_the_guide_s_rules_but_not_its_file_format() -> None:
     system = classify.system_prompt(CONFIG, GUIDE)
 
     assert "**`verdict`** is about the results" in system
+    assert all(f"`{v.value}`" in system for v in Verdict)
     assert all(f"`{r.value}`" in system for r in Reason)
     assert "[[pair]]" not in system
     assert "baseline_vitamin_d_status refines population" in system
@@ -93,6 +94,9 @@ def test_the_rationale_comes_first_and_titles_are_left_out() -> None:
     schema = classify.response_schema()
 
     assert next(iter(schema["properties"])) == "rationale"
+    # Required but nullable: an off_question pair has no reason.
+    assert "reason" in schema["required"]
+    assert {"type": "null"} in schema["properties"]["reason"]["anyOf"]
     assert "title" not in json.dumps(schema).replace('"title":', "X") or "title" not in schema
 
 
@@ -103,11 +107,24 @@ def test_a_valid_output_reads_as_the_pair_s_classification() -> None:
     assert (read.verdict, read.reason) == (Verdict.GENUINE, Reason.POPULATION)
 
 
+def test_an_off_question_pair_reads_with_no_reason() -> None:
+    text = output(
+        verdict="off_question", reason=None, also_differs=[], detail="exposure: synthetic trait"
+    )
+
+    read = classify.read_classification(reply(text), "synthetic|1|2")
+
+    assert (read.verdict, read.reason, read.also_differs) == (Verdict.OFF_QUESTION, None, [])
+
+
 @pytest.mark.parametrize(
     "text",
     [
         pytest.param(output(also_differs=["population"]), id="also differs repeats the reason"),
         pytest.param(output(reason="dose"), id="unknown reason"),
+        pytest.param(output(reason=None), id="a genuine pair with no reason"),
+        pytest.param(output(verdict="apparent", reason="unclear"), id="apparent and unclear"),
+        pytest.param(output(verdict="off_question", also_differs=[]), id="off question, a reason"),
         pytest.param("not json", id="not JSON"),
     ],
 )

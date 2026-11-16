@@ -10,7 +10,7 @@
   --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
   --accent: #2c5fb3; --accent-ink: #ffffff; --accent-soft: #e6eefb;
   --warn: #a86400; --warn-ink: #8a5200; --bad: #b3261e; --warn-soft: #fff4e0; --mark: #ffe08a;
-  --genuine: #b0472a; --apparent: #2c5fb3;
+  --genuine: #b0472a; --apparent: #2c5fb3; --off_question: #6b6b66;
   --top-h: 64px;
 }
 @media (prefers-color-scheme: dark) {
@@ -18,14 +18,14 @@
     --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
     --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
     --warn: #f0b155; --warn-ink: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17; --mark: #6b5310;
-    --genuine: #f09a7a; --apparent: #7aa7f0;
+    --genuine: #f09a7a; --apparent: #7aa7f0; --off_question: #a3a29b;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
   --accent: #7aa7f0; --accent-ink: #111; --accent-soft: #23314a;
   --warn: #f0b155; --warn-ink: #f0b155; --bad: #f08a80; --warn-soft: #3a2e17; --mark: #6b5310;
-  --genuine: #f09a7a; --apparent: #7aa7f0;
+  --genuine: #f09a7a; --apparent: #7aa7f0; --off_question: #a3a29b;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
@@ -56,6 +56,7 @@ button, input { font: inherit; color: inherit; }
 .chip.partial { border-style: dashed; border-color: var(--muted); }
 .chip.genuine { background: var(--genuine); border-color: var(--genuine); color: var(--accent-ink); }
 .chip.apparent { background: var(--apparent); border-color: var(--apparent); color: var(--accent-ink); }
+.chip.off_question { background: var(--off_question); border-color: var(--off_question); color: var(--accent-ink); }
 .chip.problem { outline: 2px solid var(--bad); outline-offset: -1px; }
 .chip.current { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
 .chip.unsaved { outline: 2px dashed var(--bad); }
@@ -84,6 +85,7 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 .choice.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .choice.on.genuine { background: var(--genuine); border-color: var(--genuine); }
 .choice.on.apparent { background: var(--apparent); border-color: var(--apparent); }
+.choice.on.off_question { background: var(--off_question); border-color: var(--off_question); }
 .choice.on kbd { color: inherit; border-color: currentColor; }
 .text { flex: 1 1 260px; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 6px;
   padding: 2px 8px; font-size: 14px; }
@@ -175,7 +177,10 @@ function el(tag, attrs = {}, ...kids) {
   return n;
 }
 const human = (v) => String(v).replace(/_/g, " ");
-const isLabeled = (p) => !!(p.label.verdict && p.label.reason);
+// An off-question pair compares nothing on the question, so it takes no reason.
+const OFF = "off_question";
+const VERDICT_KEYS = { genuine: "g", apparent: "a", off_question: "x" };
+const isLabeled = (p) => p.label.verdict === OFF || !!(p.label.verdict && p.label.reason);
 const alsoReasons = () => S.reasons.filter((r) => r !== "unclear");
 
 async function api(path, body) {
@@ -227,7 +232,7 @@ function markdown(md) {
 }
 function renderRules() {
   const keys = el("div", { class: "keys" },
-    el("kbd", {}, "g"), " genuine  ", el("kbd", {}, "a"), " apparent  ",
+    el("kbd", {}, "g"), " genuine  ", el("kbd", {}, "a"), " apparent  ", el("kbd", {}, "x"), " off question  ",
     el("kbd", {}, "1"), "–", el("kbd", {}, String(S.reasons.length)), " reason  ",
     el("kbd", {}, "⇧1"), "–", el("kbd", {}, `⇧${alsoReasons().length}`), " also differs  ",
     el("kbd", {}, "j"), el("kbd", {}, "k"), " move  ", el("kbd", {}, "n"), " next unlabeled  ",
@@ -285,18 +290,23 @@ function panel(p) {
   const l = p.label;
   const verdicts = el("div", { class: "group", role: "group", "aria-label": "Verdict" },
     el("span", { class: "glabel" }, "Verdict ", el("em", {}, "required")),
-    S.verdicts.map((v) => choice(v, l.verdict === v, `${human(v)} (${v[0]})`, () => setVerdict(v),
-      el("kbd", {}, v[0]), " ", human(v))));
+    S.verdicts.map((v) => choice(v, l.verdict === v, `${human(v)} (${VERDICT_KEYS[v]})`, () => setVerdict(v),
+      el("kbd", {}, VERDICT_KEYS[v]), " ", human(v))));
+  const off = l.verdict === OFF;
   const reasons = el("div", { class: "group", role: "group", "aria-label": "Reason" },
-    el("span", { class: "glabel" }, "Reason ", el("em", {}, "required")),
-    S.reasons.map((r, j) => choice("", l.reason === r, `${human(r)} (${j + 1})`, () => setReason(r),
-      el("kbd", {}, String(j + 1)), " ", human(r))));
+    el("span", { class: "glabel" }, "Reason ", el("em", {}, off ? "none when off question" : "required")),
+    S.reasons.map((r, j) => {
+      const b = choice("", l.reason === r, `${human(r)} (${j + 1})`, () => setReason(r),
+        el("kbd", {}, String(j + 1)), " ", human(r));
+      b.disabled = off;
+      return b;
+    }));
   const also = el("div", { class: "group", role: "group", "aria-label": "Also differs" },
     el("span", { class: "glabel" }, "Also differs ", el("em", {}, "optional")),
     alsoReasons().map((r, j) => {
       const b = choice("also", l.also_differs.includes(r), r === l.reason ? "the primary reason" : `${human(r)} (shift ${j + 1})`,
         () => toggleAlso(r), el("kbd", {}, `⇧${j + 1}`), " ", human(r));
-      b.disabled = r === l.reason;
+      b.disabled = off || r === l.reason;
       return b;
     }));
   const text = (id, name, hint) => el("div", { class: "group" },
@@ -310,7 +320,7 @@ function panel(p) {
 }
 function renderStatus() {
   const p = S.pairs[cur], l = p.label, s = $("status");
-  const missing = [!l.verdict && "a verdict", !l.reason && "a reason"].filter(Boolean);
+  const missing = [!l.verdict && "a verdict", l.verdict !== OFF && !l.reason && "a reason"].filter(Boolean);
   s.className = `status${missing.length || p.problems.length ? "" : " done"}`;
   s.replaceChildren(missing.length ? `Needs ${missing.join(" and ")}.` : "Labeled.",
     ...p.problems.map((m) => el("span", { class: "bad" }, m)));
@@ -343,7 +353,7 @@ function renderChip(i) {
   const p = S.pairs[i], c = $("strip").children[i], l = p.label;
   c.className = ["chip", isLabeled(p) ? l.verdict : (l.verdict || l.reason) && "partial",
     p.problems.length && "problem", i === cur && "current", c.classList.contains("unsaved") && "unsaved"].filter(Boolean).join(" ");
-  const state = isLabeled(p) ? `${l.verdict}, ${human(l.reason)}` : "not labeled";
+  const state = !isLabeled(p) ? "not labeled" : l.verdict === OFF ? human(OFF) : `${l.verdict}, ${human(l.reason)}`;
   c.setAttribute("aria-label", `Pair ${i + 1}: ${state}`);
   c.title = `${p.outcome}: ${p.a.study} vs ${p.b.study} (${state})`;
   if (i === cur) c.setAttribute("aria-current", "true"); else c.removeAttribute("aria-current");
@@ -357,7 +367,7 @@ function renderProgress() {
   const count = (v) => done.filter((p) => p.label.verdict === v).length;
   const problems = S.pairs.filter((p) => p.problems.length).length;
   $("progress").textContent = `${done.length} of ${total} labeled · ` +
-    S.verdicts.map((v) => `${count(v)} ${v}`).join(" · ") + (problems ? ` · ${problems} with problems` : "");
+    S.verdicts.map((v) => `${count(v)} ${human(v)}`).join(" · ") + (problems ? ` · ${problems} with problems` : "");
   $("bar").replaceChildren(...S.verdicts.map((v) =>
     el("span", { style: `width:${(100 * count(v)) / total}%;background:var(--${v})`, title: `${v}: ${count(v)}` })));
 }
@@ -382,17 +392,21 @@ function save(i) {
 }
 function changed() { renderPanel(); renderChip(cur); renderProgress(); save(cur); }
 function setVerdict(v) {
-  const l = S.pairs[cur].label; l.verdict = l.verdict === v ? "" : v; changed();
+  const l = S.pairs[cur].label; l.verdict = l.verdict === v ? "" : v;
+  if (l.verdict === OFF) { l.reason = ""; l.also_differs = []; }
+  changed();
 }
 function setReason(r) {
-  const l = S.pairs[cur].label; l.reason = l.reason === r ? "" : r;
+  const l = S.pairs[cur].label;
+  if (l.verdict === OFF) return;
+  l.reason = l.reason === r ? "" : r;
   // The primary reason is never also listed as a further difference.
   l.also_differs = l.also_differs.filter((x) => x !== l.reason);
   changed();
 }
 function toggleAlso(r) {
   const l = S.pairs[cur].label;
-  if (r === l.reason) return;
+  if (l.verdict === OFF || r === l.reason) return;
   l.also_differs = l.also_differs.includes(r) ? l.also_differs.filter((x) => x !== r)
     : alsoReasons().filter((x) => x === r || l.also_differs.includes(x));
   changed();
@@ -451,6 +465,7 @@ function toggleHelp() {
   if (old) { old.remove(); return; }
   const keys = [
     ["g", "genuine, or clear it"], ["a", "apparent, or clear it"],
+    ["x", "off question, or clear it: one exposure is not the question's; clears the reasons"],
     ...S.reasons.map((r, j) => [String(j + 1), `reason: ${human(r)}`]),
     ...alsoReasons().map((r, j) => [`shift ${j + 1}`, `also differs: ${human(r)}, on or off`]),
     ["d", "write the detail"], ["o", "write a note"], ["Enter  Esc", "leave a text box"],
@@ -481,7 +496,9 @@ document.addEventListener("keydown", (ev) => {
   const digit = /^Digit([1-9])$/.exec(ev.code);
   if (ev.shiftKey && digit) { const r = alsoReasons()[Number(digit[1]) - 1]; if (r && inView) toggleAlso(r); else return; }
   else if (/^[1-9]$/.test(k) && Number(k) <= S.reasons.length) { if (inView) setReason(S.reasons[Number(k) - 1]); }
-  else if (k === "g" || k === "a") { if (inView) setVerdict(S.verdicts.find((v) => v[0] === k)); }
+  else if (Object.values(VERDICT_KEYS).includes(k)) {
+    if (inView) setVerdict(S.verdicts.find((v) => VERDICT_KEYS[v] === k));
+  }
   else if (k === "d" || k === "o") { if (inView) $(k === "d" ? "detail" : "note").focus(); }
   else if (k === "j" || k === "ArrowRight") move(1);
   else if (k === "k" || k === "ArrowLeft") move(-1);

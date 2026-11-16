@@ -143,6 +143,18 @@ def test_also_differs_never_repeats_the_reason_or_names_unclear() -> None:
         draft(EVAL[0], also_differs=["unclear"])
 
 
+def test_an_off_question_verdict_labels_a_pair_without_a_reason() -> None:
+    off = draft(EVAL[0], verdict="off_question")
+
+    assert off.labeled
+    assert contradiction_review.label_problems(off) == []
+    assert not draft(EVAL[0], verdict="genuine").labeled
+    with_reason = draft(EVAL[0], verdict="off_question", reason="population")
+    assert contradiction_review.label_problems(with_reason) == [
+        "an off_question pair takes no reason and no also_differs"
+    ]
+
+
 # Checking
 
 
@@ -150,7 +162,7 @@ def test_the_check_passes_a_completed_file() -> None:
     report = contradiction_review.check(pair_sample.read_sample(SAMPLE), FIXTURES / "complete.toml")
 
     assert report.problems == []
-    assert report.verdicts == {Verdict.GENUINE: 2, Verdict.APPARENT: 1}
+    assert report.verdicts == {Verdict.GENUINE: 2, Verdict.APPARENT: 1, Verdict.OFF_QUESTION: 0}
     assert (report.drawn, report.unlabeled) == (3, 0)
 
 
@@ -174,7 +186,7 @@ def test_the_check_counts_blank_pairs_until_both_clicks_are_made(tmp_path: Path)
     report = contradiction_review.check(page.sample, page.path)
 
     assert report.unlabeled == 3
-    assert report.problems == ["3 of 3 pairs have no verdict and reason yet"]
+    assert report.problems == ["3 of 3 pairs are not labeled yet"]
 
 
 def test_the_check_finds_a_repeat_and_a_missing_file(tmp_path: Path) -> None:
@@ -261,7 +273,7 @@ def test_a_save_writes_the_pair_and_keeps_every_other(tmp_path: Path) -> None:
     assert after[EVAL[2]] == label
     assert all(after[p] == before[p] for p in EVAL if p != EVAL[2])
     assert (saved.labeled, saved.total, saved.problems) == (1, 3, [])
-    assert saved.verdicts == {Verdict.GENUINE: 1, Verdict.APPARENT: 0}
+    assert saved.verdicts == {Verdict.GENUINE: 1, Verdict.APPARENT: 0, Verdict.OFF_QUESTION: 0}
 
 
 def test_an_apparent_pair_saves_without_a_detail(tmp_path: Path) -> None:
@@ -399,7 +411,7 @@ def test_the_check_command_passes_a_completed_file_and_fails_a_bad_one(tmp_path:
     done = invoke("check", str(CONFIG_PATH), "--gold-dir", str(tmp_path / "done" / "gold"))
     bad = invoke("check", str(CONFIG_PATH), "--gold-dir", str(tmp_path / "bad" / "gold"))
 
-    assert done == (0, "3 of 3 pairs labeled: 2 genuine, 1 apparent\n")
+    assert done == (0, "3 of 3 pairs labeled: 2 genuine, 1 apparent, 0 off_question\n")
     assert bad[0] == 1
     assert "is not an eval pair of the draw" in bad[1]
 

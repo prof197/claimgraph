@@ -445,6 +445,30 @@ def test_the_method_counts_drops_and_costs(tmp_path: Path) -> None:
     assert method.evals == []
 
 
+def test_an_off_question_pair_is_counted_as_a_drop_and_left_off_the_panel(tmp_path: Path) -> None:
+    off = PairClassification(
+        pair_id=pair_id("999000101", "999000105"),
+        verdict=Verdict.OFF_QUESTION,
+        reason=None,
+        also_differs=[],
+        detail="exposure: a synthetic trait",
+        rationale="Synthetic rationale: one exposure is not the supplement.",
+    )
+    classified = CLASSIFIED_PAIRS.model_copy(update={"classifications": [*CLASSIFIED, off]})
+    run_dir = tmp_path / CONFIG.id
+    write_run(run_dir)
+
+    export = export_build.build_export(CONFIG, run_dir, MAPPING, classified, tmp_path / "gold")
+
+    drops = {d.what: d.count for d in export.method.drops}
+    assert drops["candidate pairs where one finding's exposure is not the question's"] == 1
+    assert build(tmp_path / "plain").method.drops[-1].count == 0
+    shown = {e.pair_id for e in export.graph.edges if isinstance(e, ContradictionEdge)}
+    shown |= {p.pair_id for o in export.outcomes for p in o.apparent}
+    assert off.pair_id not in shown
+    assert export.outcomes[0].classified_pairs == 4
+
+
 def test_classified_pairs_from_another_comparison_are_refused(tmp_path: Path) -> None:
     run_dir = tmp_path / CONFIG.id
     write_run(run_dir)

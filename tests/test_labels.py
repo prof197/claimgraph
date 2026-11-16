@@ -400,6 +400,12 @@ def test_an_apparent_pair_needs_no_detail() -> None:
             {"verdict": "apparent", "reason": "unclear", "detail": "synthetic"},
             id="apparent with an unclear reason",
         ),
+        pytest.param({"reason": ""}, id="genuine with a blank reason"),
+        pytest.param({"verdict": "off_question"}, id="off question with a reason"),
+        pytest.param(
+            {"verdict": "off_question", "reason": "", "also_differs": ["population"]},
+            id="off question with a further difference",
+        ),
     ],
 )
 def test_rejects_bad_contradiction_labels(tmp_path: Path, overrides: dict[str, Any]) -> None:
@@ -768,3 +774,15 @@ def test_the_docs_state_the_gold_size() -> None:
 
         assert stated, doc
         assert {int(n) for n in stated} == {size}, doc
+
+
+def test_an_off_question_pair_keeps_its_blank_reason(tmp_path: Path) -> None:
+    path = tmp_path / "contradiction_pairs.toml"
+    path.write_text(
+        '[[pair]]\noutcome = "synthetic"\nstudy_a = "999000001"\nstudy_b = "999000002"\n'
+        'verdict = "off_question"\nreason = ""\ndetail = "exposure: synthetic trait"\n'
+    )
+
+    (label,) = load_contradiction_pairs(path)
+
+    assert (label.verdict, label.reason) == (Verdict.OFF_QUESTION, None)

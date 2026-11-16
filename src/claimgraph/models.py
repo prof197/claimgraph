@@ -102,6 +102,10 @@ class Reason(StrEnum):
 class Verdict(StrEnum):
     GENUINE = "genuine"
     APPARENT = "apparent"
+    # One finding's exposure is not the question's, so the pair compares nothing on the
+    # question: a finding extraction should have dropped. It takes no reason, is left out of the
+    # panel and the eval, and is counted.
+    OFF_QUESTION = "off_question"
 
 
 class PairKind(StrEnum):
@@ -282,14 +286,15 @@ class PairClassification(Record):
 
     pair_id: NonBlank
     verdict: Verdict
-    reason: Reason
+    # None exactly when the verdict is off_question.
+    reason: Reason | None
     also_differs: list[Reason]
     detail: NonBlank
     rationale: NonBlank
 
     @model_validator(mode="after")
-    def _also_differs_adds_new_reasons(self) -> Self:
-        check_also_differs(self.reason, self.also_differs)
+    def _reasons_fit_the_verdict(self) -> Self:
+        check_reasons(self.verdict, self.reason, self.also_differs)
         return self
 
 
@@ -325,3 +330,18 @@ def check_also_differs(reason: Reason, also_differs: list[Reason]) -> None:
         raise ValueError("also_differs must not repeat a reason")
     if Reason.UNCLEAR in also_differs:
         raise ValueError("unclear is not a difference")
+
+
+def check_reasons(verdict: Verdict, reason: Reason | None, also_differs: list[Reason]) -> None:
+    """A pair's reasons against its verdict; shared by the classifier and the gold labels."""
+    if verdict is Verdict.OFF_QUESTION:
+        if reason is not None or also_differs:
+            raise ValueError("an off_question pair takes no reason and no also_differs")
+        return
+    if reason is None:
+        raise ValueError(f"a {verdict.value} pair names a reason")
+    check_also_differs(reason, also_differs)
+    # A genuine conflict may have no standout reason; an apparent one is dissolved by a known
+    # difference.
+    if verdict is Verdict.APPARENT and reason is Reason.UNCLEAR:
+        raise ValueError("an apparent pair names the reason the conflict dissolves")

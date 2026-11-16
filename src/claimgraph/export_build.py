@@ -137,6 +137,7 @@ def _drops(
     extracted: ExtractManifest,
     found: compare.Candidates,
     excluded: int,
+    off_question: int,
     config: QuestionConfig,
 ) -> list[Drop]:
     """What each stage left out, in pipeline order."""
@@ -154,6 +155,10 @@ def _drops(
     ]
     if designs:
         rows.append((f"findings from designs the question excludes: {designs}", excluded))
+    # An extraction failure that classification finds: the finding should have been dropped.
+    rows.append(
+        ("candidate pairs where one finding's exposure is not the question's", off_question)
+    )
     return [Drop(what=what, count=count) for what, count in rows]
 
 
@@ -298,8 +303,10 @@ def _finding_nodes(
 class _Classified:
     genuine: list[ContradictionEdge]
     apparent: dict[str, list[ApparentPair]]
-    # Classified pairs by outcome, genuine or apparent.
+    # Classified pairs by outcome, off-question pairs included.
     counts: Counter[str]
+    # Pairs left out because one finding's exposure is not the question's.
+    off_question: int
 
 
 def _classified(
@@ -313,11 +320,16 @@ def _classified(
     genuine: list[ContradictionEdge] = []
     apparent: dict[str, list[ApparentPair]] = defaultdict(list)
     counts: Counter[str] = Counter()
+    off_question = 0
     for pair in found.pairs:
         verdict = verdicts.get(pair.pair_id)
         if verdict is None:
             continue
         counts[pair.outcome] += 1
+        if verdict.reason is None:
+            # Only an off_question pair has no reason; it compares nothing on the question.
+            off_question += 1
+            continue
         a, b = studies[pair.study_a], studies[pair.study_b]
         finding_a, finding_b = headline[(pair.outcome, a.key)], headline[(pair.outcome, b.key)]
         if verdict.verdict is Verdict.APPARENT:
@@ -351,7 +363,9 @@ def _classified(
                 sample_size=None if size_a is None or size_b is None else size_a + size_b,
             )
         )
-    return _Classified(genuine=genuine, apparent=dict(apparent), counts=counts)
+    return _Classified(
+        genuine=genuine, apparent=dict(apparent), counts=counts, off_question=off_question
+    )
 
 
 def _outcome(
@@ -447,7 +461,7 @@ def build_export(
             abstracts_kept=retrieved.kept,
             findings=len(nodes),
             studies=len(corpus.studies),
-            drops=_drops(retrieved, extracted, found, corpus.excluded, config),
+            drops=_drops(retrieved, extracted, found, corpus.excluded, pairs.off_question, config),
             candidate_pairs=len(found.pairs),
             classified_pairs=len(classified.classifications),
             depth=classified.depth,

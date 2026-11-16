@@ -96,7 +96,27 @@ def classification(**overrides: Any) -> Classification:
     return Classification.model_validate(fields | overrides)
 
 
-@pytest.mark.parametrize("record", [study(), finding(), outcome(), pair(), classification()])
+def test_an_off_question_classification_has_no_reason() -> None:
+    off = classification(verdict=Verdict.OFF_QUESTION, reason=None, also_differs=[])
+
+    assert off.reason is None
+    with pytest.raises(ValueError, match="takes no reason"):
+        classification(verdict=Verdict.OFF_QUESTION)
+    with pytest.raises(ValueError, match="names a reason"):
+        classification(reason=None)
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        study(),
+        finding(),
+        outcome(),
+        pair(),
+        classification(),
+        classification(verdict=Verdict.OFF_QUESTION, reason=None, also_differs=[]),
+    ],
+)
 def test_json_round_trip(record: BaseModel) -> None:
     assert type(record).model_validate_json(record.model_dump_json()) == record
 

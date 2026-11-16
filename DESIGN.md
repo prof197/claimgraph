@@ -86,7 +86,7 @@ several outcomes, arms or subgroups.
 | Finding | `dimensions` | dict | One value per custom dimension, keyed by name |
 | NormalizedOutcome | `name`, `members`, `higher_is_better`, `reviewed` | str, list[str], bool, bool | Lives in the committed mapping file |
 | CandidatePair | `outcome`, `study_a`, `study_b`, `kind` | — | `kind` is `effect_vs_none` or `benefit_vs_harm` |
-| Classification | `pair_id`, `verdict`, `reason`, `also_differs`, `detail`, `rationale`, `arm` | — | `verdict` is `genuine` or `apparent`; `detail` is a short specific, such as "duration: 8 weeks vs a median 5.3 years" |
+| Classification | `pair_id`, `verdict`, `reason`, `also_differs`, `detail`, `rationale`, `arm` | — | `verdict` is `genuine`, `apparent` or `off_question`, which takes no reason; `detail` is a short specific, such as "duration: 8 weeks vs a median 5.3 years" |
 
 A `pair_id` is the outcome plus the two study keys in canonical order, so a pair has one
 identity across runs and arms. The study key comes from the same rule that merges papers from
@@ -529,7 +529,14 @@ them, at whatever depth the run asks for.
 - Input: both findings' claim, quote, population, intervention, comparator, measure as reported,
   design, sample size and custom dimensions. Output: a Classification with `genuine` or
   `apparent`, a primary reason from the fixed set, any `also_differs` reasons, a short `detail`
-  and a one-sentence rationale.
+  and a one-sentence rationale; or `off_question`, with no reason, when one finding's exposure is
+  not the question's.
+- An `off_question` pair is an extraction failure found late: a finding whose exposure is
+  another condition, an unrelated gene or a contrast that holds vitamin D fixed. Like a finding
+  on an out-of-domain outcome, it is counted, as a drop in the method section, and left out of
+  the contradiction panel and the eval. Its findings stay on the graph, since each may still pair
+  with a vitamin D finding by another study. A combination product that includes vitamin D, and
+  a genetic proxy for vitamin D level in a Mendelian randomization study, are on the question.
 - `--depth` picks one arm of the council ablation, and arm names double as depth names.
 
 | Arm | What runs per pair |
@@ -733,6 +740,10 @@ data is labeled by hand, from openly licensed articles only.
   - *Correct:* an arm is right on a pair when its verdict and its primary reason both match
     the label. Precision on genuine uses the verdict alone: of the pairs an arm calls genuine,
     the share labeled genuine.
+  - *Off the question:* a pair labeled `off_question` is left out of every score and counted,
+    so fewer than 300 pairs can be scored. A pair an arm calls `off_question` that the label
+    puts on the question counts as wrong, and each arm's `off_question` count is reported
+    beside its scores. This rule was added before any arm classified an eval pair.
   - *What is labeled:* every eval pair where any two arms differ on the verdict or the primary
     reason, capped at 50 by a seeded draw proportional to the strata; and 20 pairs where every
     arm agrees, drawn at random with a seed, in an order that later labels can extend.
@@ -930,10 +941,12 @@ Labels are hand-written TOML, checked by `claimgraph gold check QUESTION`;
   field rather than as a missed finding. The README reports the agreement beside the
   extraction results.
 - **Genuine or apparent is about the results.** A genuine pair's results really point different
-  ways, whether or not a reason stands out. An apparent pair does not conflict on a close read:
-  the null study could not rule out the effect, by its own account or its confidence interval,
-  or the two findings measure different things. An apparent pair always names the reason and a
-  detail saying what dissolves the conflict.
+  ways, whether or not a reason stands out, and a difference between the studies is that reason,
+  never grounds for calling the pair apparent. An apparent pair does not conflict on a close
+  read, in two cases only: the null study could not rule out the effect, by its own account or
+  its confidence interval, or the two findings measure different things. An apparent pair
+  always names the reason that dissolves the conflict. A third verdict, `off_question`, marks a
+  pair where one finding's exposure is not vitamin D; it takes no reason.
 - **Outcome kinds** label what each reported string measures; whether two strings merge
   follows from their kinds, including in the ruled hard cases.
   **Contradiction pairs** label a candidate pair's verdict, reason, other differences and

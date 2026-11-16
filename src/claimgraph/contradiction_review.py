@@ -87,7 +87,8 @@ class PairDraft(Record):
 
     @property
     def labeled(self) -> bool:
-        return bool(self.verdict and self.reason)
+        # An off_question pair takes no reason, so its verdict alone labels it.
+        return self.verdict == Verdict.OFF_QUESTION or bool(self.verdict and self.reason)
 
 
 def _list(values: Sequence[str]) -> str:
@@ -95,14 +96,15 @@ def _list(values: Sequence[str]) -> str:
 
 
 def render(question: str, drafts: Sequence[PairDraft]) -> str:
-    verdicts = " or ".join(f'"{v}"' for v in Verdict)
+    verdicts = ", ".join(f'"{v}"' for v in Verdict)
     reasons = ", ".join(f'"{r}"' for r in Reason)
     lines = [
         f"# Contradiction-pair labels for {question}: {len(drafts)} pairs.",
-        f"# Set each verdict to {verdicts}, and each reason to one of",
-        f"# {reasons},",
-        "# by the rules in evals/gold/LABELING.md, here or on the page that",
-        "# gold contradiction-pairs review serves. also_differs, detail and note are optional.",
+        f"# Set each verdict to one of {verdicts},",
+        f"# and each reason to one of {reasons};",
+        '# an off_question pair keeps reason = "". Label by the rules in evals/gold/LABELING.md,',
+        "# here or on the page that gold contradiction-pairs review serves. also_differs, detail",
+        "# and note are optional.",
     ]
     for d in drafts:
         lines += [
@@ -184,6 +186,7 @@ def label_problems(draft: PairDraft) -> list[str]:
     if not draft.labeled:
         return []
     try:
+        # A blank reason reads as none, as the label file's own loader reads it.
         ContradictionLabel.model_validate(draft.model_dump(exclude_none=True))
     except ValidationError as error:
         return _messages(error)
@@ -246,7 +249,7 @@ def check(sample: PairSample, path: Path) -> Report:
         more = f" and {len(missing) - 5} more" if len(missing) > 5 else ""
         problems.append(f"{len(missing)} drawn pairs are not in the file: {listed}{more}")
     if unlabeled:
-        problems.append(f"{unlabeled} of {len(drawn)} pairs have no verdict and reason yet")
+        problems.append(f"{unlabeled} of {len(drawn)} pairs are not labeled yet")
     return Report(
         drawn=len(drawn),
         verdicts={v: verdicts[v] for v in Verdict},

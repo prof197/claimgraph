@@ -389,7 +389,8 @@ counts. A study with only subgroup findings on an outcome has no headline findin
 is not paired on it. `study_a` and `study_b` are written in the order the candidate pair gives
 them.
 
-Two fields are required, and they are what the eval scores: `verdict` and the primary `reason`.
+Two fields are required, and they are what the eval scores: `verdict` and the primary `reason`,
+though an `off_question` pair takes no reason.
 `also_differs`, `detail` and `note` are optional and never scored.
 
 ```toml
@@ -405,17 +406,33 @@ detail = "baseline 25(OH)D: 12 vs 31 ng/mL"
 
 **`verdict`** is about the results, not whether a reason was found:
 
-- `genuine`: the two results really point different ways. An observational association against
-  a null trial is genuine, with reason `design_or_bias`.
-- `apparent`: on a close read, they don't conflict. Either the null study could not rule out the
-  effect, because the abstract calls it a pilot, a feasibility study or underpowered, or its
-  confidence interval includes the other study's effect; or the two findings don't measure the
-  same thing despite the shared outcome. There is no sample-size cutoff for underpowered: use the
-  abstract's own signals.
+- `off_question`: one finding's exposure is not vitamin D, so the pair is not a vitamin D
+  comparison. The finding is an extraction failure: such pairs are left out of the panel and
+  the eval, and counted. This covers an exposure that is another condition or trait, such as a
+  skin disease or a genetic liability to poor sleep; a gene variant studied for its own
+  association, a vitamin D receptor variant included; and a contrast in which both groups get
+  the same vitamin D and differ only in something else. An `off_question` pair takes no reason
+  and no `also_differs`; `detail` can name the exposure. Two exposures are not off the question:
+  a combination product that includes vitamin D is a normal pair, with a difference in
+  co-treatment under `intervention`; and a genetic proxy for vitamin D level in a Mendelian
+  randomization study is a normal finding, so its difference with a trial or an observational
+  study is `design_or_bias`.
+- `genuine`: the two results really point different ways. Differences between the studies are
+  what a genuine pair's reason names, not grounds for calling it apparent: different
+  populations, doses, comparators, instruments or designs are the likely reason the results
+  differ. An observational association against a null trial, or against a Mendelian
+  randomization study, is genuine, with reason `design_or_bias`.
+- `apparent`: on a close read, they don't conflict, and only in two cases. Either the null study
+  could not rule out the effect, because the abstract calls it a pilot, a feasibility study or
+  underpowered, or its confidence interval includes the other study's effect; or the two
+  findings don't measure the same thing despite the shared outcome, such as mood rated as one
+  item of a wider symptom checklist against a full depression scale. A different instrument,
+  cut-off or timing for the same thing is a genuine pair with reason `outcome_measure`. There is
+  no sample-size cutoff for underpowered: use the abstract's own signals.
 
 **`reason`**: for a genuine pair, the difference most likely to explain it, or `unclear` when
 none stands out. An apparent pair still gets a reason, never `unclear`: the one that dissolves
-the conflict. A null that could not rule out the effect is `design_or_bias`; findings that
+the conflict. An `off_question` pair gets none; in the file, its reason stays `""`. A null that could not rule out the effect is `design_or_bias`; findings that
 measure different things are `outcome_measure`.
 
 | Reason | Covers |
@@ -442,6 +459,11 @@ One invented example for each reason. None comes from a real abstract.
   abstract calls it an underpowered pilot; detail "underpowered: n = 22".*
 - `unclear`, genuine. *Example: two placebo-controlled trials in similar adults, with similar
   doses and the same rating scale, point different ways, and neither abstract suggests why.*
+
+And one for the verdict that takes no reason:
+
+- `off_question`. *Example: Study Y tests whether a genetic tendency to migraine raises the
+  risk of depression, and measures no vitamin D; detail "exposure: migraine liability".*
 
 **`also_differs`** (optional): other differences present, never the primary reason again and
 never `unclear`. **`detail`** (optional): a short specific, such as "duration: 8 weeks vs a

@@ -8,9 +8,9 @@ one request per pair to one model.
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, model_validator
 
 from claimgraph.compare import direction
 from claimgraph.config import QuestionConfig
@@ -26,6 +26,7 @@ from claimgraph.models import (
     Reason,
     Record,
     Verdict,
+    check_reasons,
 )
 from claimgraph.normalize import OutcomeMapping
 from claimgraph.pair_sample import DrawnPair
@@ -58,17 +59,28 @@ class ClassifierOutput(Record):
     rationale: NonBlank = Field(
         description="One short sentence explaining the judgment, naming the deciding difference."
     )
-    verdict: Verdict = Field(description="genuine or apparent, by the rules.")
-    reason: Reason = Field(description="The primary reason, by the rules.")
+    verdict: Verdict = Field(description="genuine, apparent or off_question, by the rules.")
+    reason: Reason | None = Field(
+        description="The primary reason, by the rules; null exactly when off_question."
+    )
     also_differs: list[Reason] = Field(
-        description="Other differences present; never the primary reason again, never unclear."
+        description=(
+            "Other differences present; never the primary reason again, never unclear; empty "
+            "when off_question."
+        )
     )
     detail: NonBlank = Field(
         description=(
             "A short specific, such as 'duration: 8 weeks vs a median 5.3 years'; for an "
-            "apparent pair, what dissolves the conflict, such as 'underpowered: n = 40'."
+            "apparent pair, what dissolves the conflict, such as 'underpowered: n = 40'; for an "
+            "off_question pair, the exposure that is not the question's."
         )
     )
+
+    @model_validator(mode="after")
+    def _reasons_fit_the_verdict(self) -> Self:
+        check_reasons(self.verdict, self.reason, self.also_differs)
+        return self
 
 
 class PairSide(Record):
@@ -157,8 +169,9 @@ Question: {config.title}
 Each study is shown by its headline finding on the outcome: the claim, the sentence it was \
 taken from, what was measured, who was enrolled, what they got and what it was compared with, \
 the design and the sample size. Judge from these fields alone, not from your own knowledge of \
-the studies. Decide whether the disagreement is genuine or apparent, and name the reason, by \
-the rules below. Return one JSON object that follows the schema.
+the studies. First check that both findings bear on the question; a pair where one does not \
+is off_question. Otherwise decide whether the disagreement is genuine or apparent, and name \
+the reason, by the rules below. Return one JSON object that follows the schema.
 
 ## Rules
 

@@ -37,7 +37,7 @@ from claimgraph.models import (
     Reason,
     Record,
     Verdict,
-    check_also_differs,
+    check_reasons,
 )
 from claimgraph.retrieve import Abstract, write_atomic
 from claimgraph.verbatim import abstract_source, normalize_quote
@@ -162,21 +162,24 @@ class ContradictionLabel(Record):
     study_a: NonBlank
     study_b: NonBlank
     verdict: Verdict
-    reason: Reason
+    # None for an off_question pair. Only the verdict and the primary reason are scored, so the
+    # detail naming the difference is optional.
+    reason: Reason | None = None
     also_differs: list[Reason] = Field(default_factory=list[Reason])
     detail: str | None = None
     note: str | None = None
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _blank_reason_is_absent(cls, value: object) -> object:
+        # TOML has no null; the template writes reason = "" until a reason is chosen.
+        return None if value == "" else value
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
         if not self.study_a < self.study_b:
             raise ValueError("study_a must sort strictly before study_b, as in candidate pairs")
-        check_also_differs(self.reason, self.also_differs)
-        # A genuine conflict may have no standout reason; an apparent one is dissolved by a
-        # known difference. Only the verdict and the primary reason are scored, so the detail
-        # naming that difference is optional.
-        if self.verdict is Verdict.APPARENT and self.reason is Reason.UNCLEAR:
-            raise ValueError("an apparent pair names the reason the conflict dissolves")
+        check_reasons(self.verdict, self.reason, self.also_differs)
         return self
 
     @property
