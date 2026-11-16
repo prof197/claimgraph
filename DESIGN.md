@@ -590,6 +590,16 @@ page to draw.
   question and its dimensions, each outcome's summary block and apparent pairs, the studies, the
   graph in NetworkX's node-link form, the reviews and the method numbers. Every finding carries
   its verbatim quote. Fixture exports for the page are synthetic, with 999-prefixed PMIDs.
+- **Shipping the export:** the page quotes a sentence from every finding's abstract, and most
+  of those abstracts are under publisher copyright, so the export is never committed. `export
+  publish` builds it, uploads it to a public GitHub release with `gh` under a name carrying its
+  SHA-256, and writes the name and hash to the committed `site/export.lock.json`. The deploy runs
+  `export fetch`, which downloads the pinned asset and refuses it if the hash differs. Each
+  commit keeps pointing at the export it was published with. Publishing refuses an unreviewed
+  mapping and stub contradictions. Rejected: committing the export (publisher text in git
+  history for good), quotes only from openly licensed articles (about two thirds of findings
+  would lose their sentence), and fetching abstracts from PubMed in the reader's browser (a
+  runtime dependency on NCBI, for the same quotes).
 - **Ties and missing sizes:** when the top shares tie, no direction leads. The sample-size line
   counts only studies that report a sample size and is left out when none does. Designs outside
   the weight table, such as other, are shown with their headline finding but not counted.

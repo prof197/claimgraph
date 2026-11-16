@@ -24,6 +24,7 @@ from claimgraph import (
     outcome_kinds,
     outcome_pairs,
     paths,
+    publish,
     relabel,
     review,
 )
@@ -1030,6 +1031,23 @@ def export_stub(
     typer.echo(f"{len(stubbed.classifications)} of {stubbed.candidates} pairs stubbed; wrote {out}")
 
 
+def _build_export(
+    question: str, runs_dir: Path, mappings_dir: Path, gold_dir: Path, stub: bool
+) -> tuple[Path, str]:
+    """The run's directory and its export as written to disk."""
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    source = run_dir / "classify" / (contradictions.STUB_FILE if stub else contradictions.FILE)
+    try:
+        classified = contradictions.read(source)
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no classified pairs in {source}", err=True)
+        raise typer.Exit(1) from error
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    built = export_build.build_export(config, run_dir, mapping, classified, gold_dir / config.id)
+    return run_dir, built.model_dump_json(indent=2) + "\n"
+
+
 @export_app.command("build")
 def export_build_command(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
@@ -1046,17 +1064,52 @@ def export_build_command(
     ] = None,
 ) -> None:
     """Write the export the page reads: summaries, the graph, contradictions and the method."""
-    config = load_config(resolve_question(question))
-    run_dir = runs_dir / config.id
-    source = run_dir / "classify" / (contradictions.STUB_FILE if stub else contradictions.FILE)
-    try:
-        classified = contradictions.read(source)
-    except (FileNotFoundError, ValidationError) as error:
-        typer.echo(f"no classified pairs in {source}", err=True)
-        raise typer.Exit(1) from error
-    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
-    built = export_build.build_export(config, run_dir, mapping, classified, gold_dir / config.id)
-    target = out or run_dir / "export" / f"{config.id}.json"
+    run_dir, text = _build_export(question, runs_dir, mappings_dir, gold_dir, stub)
+    target = out or run_dir / "export" / f"{run_dir.name}.json"
     target.parent.mkdir(parents=True, exist_ok=True)
-    write_atomic(target, (built.model_dump_json(indent=2) + "\n").encode())
+    write_atomic(target, text.encode())
     typer.echo(f"wrote {target}")
+
+
+LockFile = Annotated[Path, typer.Option(help="The committed file pinning the hosted export.")]
+
+
+@export_app.command("publish")
+def export_publish(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    lock: LockFile = publish.LOCK_FILE,
+) -> None:
+    """Build the hosted export, upload it to the GitHub release with gh, and pin its hash.
+
+    The release is public. Refuses an unreviewed mapping or stub contradictions. Commit the
+    updated lock file afterwards; the deploy builds from the export it pins.
+    """
+    run_dir, text = _build_export(question, runs_dir, mappings_dir, gold_dir, stub=False)
+    try:
+        pinned = publish.publish(text, run_dir / "export", lock)
+    except publish.PublishError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"published {pinned.asset} to release {pinned.tag}; commit {lock}")
+
+
+@export_app.command("fetch")
+def export_fetch(
+    out: Annotated[Path, typer.Option(help="Where the page's build reads the export.")] = Path(
+        "site/public/export.json"
+    ),
+    lock: LockFile = publish.LOCK_FILE,
+) -> None:
+    """Download the pinned export for the page's build, refusing it unless its hash matches."""
+    try:
+        pinned = publish.read_lock(lock)
+        publish.fetch(pinned, out)
+    except (FileNotFoundError, ValidationError, publish.PublishError) as error:
+        typer.echo(f"no verified export: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"fetched {pinned.asset} to {out}; SHA-256 matches")

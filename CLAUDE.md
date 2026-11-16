@@ -29,6 +29,9 @@ uv run claimgraph mapping check vitamin-d-depression   # every outcome reviewed,
 uv run claimgraph run vitamin-d-depression --stage compare  # candidate pairs and block sizes
 uv run claimgraph export stub vitamin-d-depression    # stub contradictions, no model
 uv run claimgraph export build vitamin-d-depression --stub  # the page's export from a run
+uv run claimgraph export publish vitamin-d-depression  # build, upload to the public release with
+                                          # gh, pin its hash in site/export.lock.json; commit that
+uv run claimgraph export fetch                         # the deploy: download the pinned export
 uv run claimgraph eval normalization vitamin-d-depression  # score the recorded outcome proposal
 uv run claimgraph eval normalization vitamin-d-depression --readme README.md  # README block
 uv run claimgraph gold outcome-pairs sample vitamin-d-depression
