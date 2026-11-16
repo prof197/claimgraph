@@ -44,6 +44,11 @@ uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-reco
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live
                                           # re-record gold extraction responses (costs money)
 uv run pytest                             # tests
+npm --prefix site ci                      # site install, from the lockfile
+npm --prefix site run check               # site: export types current, typecheck, tests, build
+npm --prefix site run dev                 # the page on a fixture: /?fixture=synthetic
+npm --prefix site run e2e                 # browser checks in the installed Chrome
+npm --prefix site run types               # regenerate the site's types after a schema change
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .
 ```
@@ -74,6 +79,9 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
   after the owner approves a dry-run estimate, and commit the new recordings with the change.
 - The normalization prompt is frozen too: a test pins its request key. Changing the prompt,
   schema, outcome rules or settings needs the owner's approval, a dry run and a new recording.
+- The site is React and TypeScript (strict) on Vite, with D3 for geometry only. Its dependencies
+  are pinned exactly; npm 10 cannot resolve the tree, so change them with `npx npm@11 install`.
+  Its types come from `schema/export.schema.json`, which comes from `export.py`.
 - Secrets come from the environment (see `.env.example`); `.env` is never committed.
 - The gitignored data, `runs/` and `local-data/`, sits under `CLAIMGRAPH_DATA` when it is set to
   an absolute path, so several checkouts share one copy; otherwise in the working directory.

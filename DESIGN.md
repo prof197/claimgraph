@@ -990,7 +990,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
 - `claimgraph eval [extraction | normalization | contradictions | ablation]`
-- `claimgraph site QUESTION` writes the page data.
+- `claimgraph export build QUESTION` writes the page data; `export stub` stands in for
+  classification while the page is built.
 
 ```
 claimgraph/
@@ -998,8 +999,9 @@ claimgraph/
   src/claimgraph/
     models.py  dimensions.py  config.py  retrieve.py  gold.py  labels.py  extract.py
     verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
-    kind_review.py  normalization_eval.py  compare.py  arms.py  summary.py  graph.py  llm.py
-    prices.py  cli.py
+    kind_review.py  normalization_eval.py  compare.py  contradictions.py  pair_sample.py
+    arms.py  summary.py  graph.py  export.py  export_build.py  paths.py  llm.py  prices.py  cli.py
+  schema/      export.schema.json, generated from export.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
@@ -1007,7 +1009,8 @@ claimgraph/
                sample.json, ATTRIBUTION.md, labels/, outcome_pair_sample.json,
                outcome_kinds.toml, contradiction_pairs.toml)  run.py  results/
   replay/      recorded model responses used by CI
-  site/        React + TypeScript front end
+  site/        React + TypeScript front end: src/types/export.ts generated from the schema,
+               src/fixtures/ synthetic exports, components/ shell, graph and contradictions
   tests/
   .github/workflows/   ci.yml  pages.yml
 ```
