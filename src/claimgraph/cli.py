@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from claimgraph import (
     batch,
+    classify,
     compare,
     contradictions,
     evaluation,
@@ -19,6 +20,7 @@ from claimgraph import (
     gold,
     kind_review,
     labels,
+    models,
     normalization_eval,
     normalize,
     outcome_kinds,
@@ -1157,3 +1159,86 @@ def contradiction_sample(
         pair_sample.strata_table(pairs, pair_sample.licensed(pairs, is_open), sample), nl=False
     )
     typer.echo(f"wrote {out}")
+
+
+class Split(StrEnum):
+    EVAL = "eval"
+    DEV = "dev"
+
+
+@app.command("classify")
+def classify_command(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    split: Annotated[Split, typer.Option(help="The drawn pairs to classify.")] = Split.DEV,
+    arm: Annotated[
+        models.Arm, typer.Option(help="The classification arm.")
+    ] = models.Arm.SINGLE_SMALL,
+    dry_run: Annotated[bool, typer.Option(help="Estimate the cost; send nothing.")] = False,
+    live: Annotated[
+        bool, typer.Option(help="Send unrecorded requests through batches (costs money).")
+    ] = False,
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_root: Annotated[
+        Path, typer.Option(help="Where the committed eval recordings live.")
+    ] = Path("replay"),
+    prices_file: PricesFile = PRICES_FILE,
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Classify the drawn eval or dev pairs with one arm, replaying recorded responses.
+
+    Dev recordings stay in the run directory; eval recordings are committed for CI to replay.
+    """
+    if arm not in classify.SINGLE_ARMS:
+        typer.echo(f"{arm.value} is not built yet; the single arms are", err=True)
+        raise typer.Exit(1)
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    sample = pair_sample.read_sample(gold_dir / config.id / pair_sample.SAMPLE_FILE)
+    pairs = sample.eval if split is Split.EVAL else sample.dev
+    results = _corpus_results(run_dir, model)
+    findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
+    studies = {
+        r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
+    }
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    items = classify.pair_inputs(pairs, findings, studies, mapping)
+    guide = (gold_dir / "LABELING.md").read_text()
+    replay_dir = (
+        replay_root / config.id / "classification" / arm.value
+        if split is Split.EVAL
+        else run_dir / "replay" / "classification" / arm.value
+    )
+    prices = load_prices(prices_file)
+    if dry_run:
+        estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)
+        typer.echo(classify.describe_estimate(estimate))
+        return
+    try:
+        send = batch.anthropic_batches(os.environ, on_poll=typer.echo) if live else None
+    except RuntimeError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    run = batch.run_batched(
+        items,
+        lambda item: item.pair.pair_id,
+        lambda item, client: classify.classify_pair(item, config, guide, client, arm),
+        replay_dir,
+        send,
+    )
+    out = run_dir / "classify" / f"{split.value}-{arm.value}.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, "".join(r.model_dump_json() + "\n" for r in run.results).encode())
+    typer.echo(f"{split.value}: {len(items)} pairs, {arm.value}")
+    for line in classify.summary_lines(run.results, prices):
+        typer.echo(line)
+    typer.echo(f"wrote {out}")
+    if run.missing:
+        typer.echo(
+            f"{len(run.missing)} pairs not recorded; record them with --live after a dry run",
+            err=True,
+        )
+        raise typer.Exit(1)

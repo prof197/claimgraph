@@ -11,6 +11,7 @@ replays the same however its responses were obtained.
 import json
 import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -125,18 +126,29 @@ class BatchRun(Record):
     used: frozenset[str]
 
 
-def extract_batched(
-    abstracts: Sequence[Abstract],
-    config: QuestionConfig,
-    replay_dir: Path,
-    choice: ModelChoice,
-    api: BatchApi | None,
-) -> BatchRun:
-    """Every abstract's extraction from the recordings, sending batches for what is missing.
+@dataclass(frozen=True)
+class Batched[T]:
+    results: list[T]
+    # Items without a complete result, by name, and why.
+    missing: dict[str, str]
+    batches: int
+    resumed: int
+    used: frozenset[str]
 
-    With no batch API, this is replay: nothing is sent and unrecorded abstracts are reported.
-    A live run first collects the batches a stopped run left, and records each result whose key
-    is a request it needs, so no request is paid for twice.
+
+def run_batched[I, T](
+    items: Sequence[I],
+    name: Callable[[I], str],
+    attempt: Callable[[I, ModelClient], T],
+    replay_dir: Path,
+    api: BatchApi | None,
+) -> Batched[T]:
+    """Every item's result from the recordings, sending batches for what is missing.
+
+    `attempt` works one item through a client that replays, raising ReplayMiss on the first
+    request it lacks. With no batch API, this is replay: nothing is sent and unrecorded items
+    are reported. A live run first collects the batches a stopped run left, and records each
+    result whose key is a request it needs, so no request is paid for twice.
     """
     failures: dict[str, str] = {}
     collected: dict[str, dict[str, Any]] = {}
@@ -148,14 +160,14 @@ def extract_batched(
     batches = 0
     while True:
         client = ModelClient(replay_dir)
-        results: list[ExtractionResult] = []
+        results: list[T] = []
         missing: dict[str, str] = {}
         pending: dict[str, Mapping[str, Any]] = {}
-        for abstract in abstracts:
+        for item in items:
             try:
-                results.append(extract_abstract(abstract, config, client, choice))
+                results.append(attempt(item, client))
             except ReplayMiss as miss:
-                missing[abstract.pmid] = failures.get(miss.key, "not recorded")
+                missing[name(item)] = failures.get(miss.key, "not recorded")
                 if miss.key not in failures:
                     pending[miss.key] = miss.params
         found = [key for key in pending if key in collected]
@@ -164,7 +176,7 @@ def extract_batched(
                 client.record(pending[key], collected.pop(key))
             continue
         if not pending or api is None or batches == MAX_ROUNDS:
-            return BatchRun(
+            return Batched(
                 results=results,
                 missing=missing,
                 batches=batches,
@@ -180,6 +192,30 @@ def extract_batched(
             client.record(pending[key], response)
         _set_pending(replay_dir, [b for b in pending_batches(replay_dir) if b != batch_id])
         failures |= outcome.failures
+
+
+def extract_batched(
+    abstracts: Sequence[Abstract],
+    config: QuestionConfig,
+    replay_dir: Path,
+    choice: ModelChoice,
+    api: BatchApi | None,
+) -> BatchRun:
+    """Every abstract's extraction from the recordings, sending batches for what is missing."""
+    run = run_batched(
+        abstracts,
+        lambda a: a.pmid,
+        lambda a, client: extract_abstract(a, config, client, choice),
+        replay_dir,
+        api,
+    )
+    return BatchRun(
+        results=run.results,
+        missing=run.missing,
+        batches=run.batches,
+        resumed=run.resumed,
+        used=run.used,
+    )
 
 
 def stale(replay_dir: Path, used: frozenset[str]) -> list[str]:

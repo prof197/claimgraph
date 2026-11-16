@@ -250,23 +250,24 @@ MAX_OPTIONAL = 24
 MAX_UNIONS = 16
 
 
-def _strip(node: Any) -> Any:
+def strip_schema(node: Any) -> Any:
+    """A model's JSON Schema with what structured outputs do not enforce left out."""
     if isinstance(node, list):
-        return [_strip(n) for n in cast(list[Any], node)]
+        return [strip_schema(n) for n in cast(list[Any], node)]
     if not isinstance(node, dict):
         return node
     out: dict[str, Any] = {}
     for key, value in cast(dict[str, Any], node).items():
         if key in ("properties", "$defs"):
             # Keys here are names, not keywords, so a property called "title" would survive.
-            out[key] = {name: _strip(v) for name, v in cast(dict[str, Any], value).items()}
+            out[key] = {name: strip_schema(v) for name, v in cast(dict[str, Any], value).items()}
         elif key not in _DROPPED:
-            out[key] = _strip(value)
+            out[key] = strip_schema(value)
     return out
 
 
 def response_schema(config: QuestionConfig) -> dict[str, Any]:
-    schema: dict[str, Any] = _strip(build_extraction_model(config).model_json_schema())
+    schema: dict[str, Any] = strip_schema(build_extraction_model(config).model_json_schema())
     return schema
 
 
