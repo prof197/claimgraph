@@ -69,12 +69,21 @@ def test_the_synthetic_fixture_covers_the_page_s_edge_cases() -> None:
     assert genuine
 
 
-def test_the_minimal_fixture_has_no_pairs_quotes_or_reviews_to_show() -> None:
+def test_the_minimal_fixture_has_no_pairs_or_reviews_to_show() -> None:
     fixture = minimal()
 
     assert fixture.method.depth is None
     assert not fixture.reviews and not fixture.question.dimensions
-    assert any(n.kind == "finding" and n.quote is None for n in fixture.graph.nodes)
+    assert all(o.candidate_pairs == 0 for o in fixture.outcomes)
+
+
+def test_every_finding_carries_its_quote() -> None:
+    data = _dump()
+    finding = next(n for n in data["graph"]["nodes"] if n["kind"] == "finding")
+    finding["quote"] = None
+
+    with pytest.raises(ValidationError, match="quote"):
+        Export.model_validate(data)
 
 
 def _dump() -> dict[str, Any]:

@@ -478,8 +478,7 @@ def synthetic() -> Export:
 
 
 def minimal() -> Export:
-    """One thin outcome, two studies that agree, no reviews, no dimensions, stub depth, and a
-    finding shown without its quote."""
+    """One thin outcome, two studies that agree, no reviews, no dimensions and stub depth."""
     studies = ["999000301", "999000302"]
     nodes = [
         FindingNode(
@@ -491,7 +490,7 @@ def minimal() -> Export:
             direction=B,
             headline=True,
             claim=f"Synthetic supplement X lowered synthetic symptoms in study {s[-3:]}.",
-            quote=None if s == "999000302" else f"Synthetic sentence from abstract {s}.",
+            quote=f"Synthetic sentence from abstract {s}.",
             outcome_reported="synthetic symptom score",
             is_primary=True,
             subgroup=None,

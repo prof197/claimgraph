@@ -157,7 +157,7 @@ export interface FindingNode {
   direction: Direction;
   headline: boolean;
   claim: string;
-  quote: string | null;
+  quote: string;
   outcome_reported: string;
   is_primary: boolean;
   subgroup: string | null;

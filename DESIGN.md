@@ -588,9 +588,8 @@ page to draw.
   models in `export.py` define it; `schema/export.schema.json` is generated from them and the
   site's TypeScript types from the schema, and tests fail if either falls behind. It holds the
   question and its dimensions, each outcome's summary block and apparent pairs, the studies, the
-  graph in NetworkX's node-link form, the reviews and the method numbers. A finding's quote may
-  be null, for a page that shows the claim and the link without it. Fixture exports for the
-  page are synthetic, with 999-prefixed PMIDs.
+  graph in NetworkX's node-link form, the reviews and the method numbers. Every finding carries
+  its verbatim quote. Fixture exports for the page are synthetic, with 999-prefixed PMIDs.
 - **Ties and missing sizes:** when the top shares tie, no direction leads. The sample-size line
   counts only studies that report a sample size and is left out when none does. Designs outside
   the weight table, such as other, are shown with their headline finding but not counted.

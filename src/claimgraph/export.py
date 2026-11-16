@@ -214,8 +214,8 @@ class FindingNode(Record):
     # strip counts it when the study's design is counted. Other findings show in node detail.
     headline: bool
     claim: NonBlank
-    # The verbatim sentence; None where the page shows the claim and the link without it.
-    quote: str | None
+    # The sentence from the abstract, verbatim: every finding on the page shows its own.
+    quote: NonBlank
     outcome_reported: NonBlank
     is_primary: bool
     subgroup: str | None
