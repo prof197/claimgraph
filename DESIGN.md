@@ -658,7 +658,7 @@ data is labeled by hand, from openly licensed articles only.
 | --- | --- | --- | --- | --- |
 | Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Each outcome string labeled score, case status, remission, response or out of domain; pair verdicts follow from the kinds | 547 strings, so every pair; 200 drawn pairs, including the hard cases, as a subset | Merge precision and recall over every pair of in-domain strings, and on the drawn pairs with the stratum sizes; out-of-domain strings counted | Replay |
-| Contradictions | Drawn candidate pairs, labeled genuine or apparent with the primary reason | 300 pairs, both studies openly licensed, stratified by outcome, pair kind and designs | Precision on genuine; reason accuracy with a confusion matrix; per stratum and on the 300 as drawn | Replay |
+| Contradictions | Drawn candidate pairs, labeled genuine or apparent with the primary reason | 300 pairs, both studies openly licensed, stratified by outcome, pair kind and designs | Precision on genuine; reason accuracy, strict and lenient, with a confusion matrix; per stratum and on the 300 as drawn | Replay |
 | Council ablation | The contradiction set | The 300 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
 | Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
 
@@ -769,6 +769,15 @@ data is labeled by hand, from openly licensed articles only.
   - *Reporting:* per stratum and on the 300 as drawn, never as accuracy over all candidate
     pairs. Reason accuracy comes with a confusion matrix on the labeled pairs, weighted the
     same way, and per-reason rates come with their intervals, not as headlines.
+  - *Reason accuracy, strict and lenient:* reported both ways, side by side in the README
+    table. Strict: the arm's primary reason is the label's primary reason. Lenient: it is the
+    label's primary reason or one of the label's `also_differs`. Where several differences
+    stand out, `population` against `design_or_bias` split the two single arms on about 8 of
+    the 40 dev pairs, so strict alone would understate every arm on an ambiguity known in
+    advance; the labeler fills `also_differs` wherever a second difference is as strong as the
+    primary one. Both are over the scored pairs, weighted as above, and an arm that gives no
+    reason, by calling a pair `off_question`, is wrong on both. *Correct*, above, stays strict.
+    It is what the ablation's paired differences use. Added before any arm saw the 300.
   - *Scope of the hosted run:* the retrieval scope stays title and abstract. If the paired 95%
     interval for the best arm's gain over `single-small` includes zero, every candidate pair is
     classified at `single-small`. Otherwise, the top N pairs per outcome in the panel's order
