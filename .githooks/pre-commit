@@ -9,7 +9,7 @@ uv run ruff check .
 uv run pyright
 uv run pytest -q
 
-# The static page, once it exists; its package.json defines the check script.
-if [ -d site ]; then
+# The static page, once it is scaffolded; its package.json defines the check script.
+if [ -f site/package.json ]; then
   npm --prefix site run check
 fi

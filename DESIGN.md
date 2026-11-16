@@ -584,6 +584,16 @@ page to draw.
   with a per-outcome summary block, and a JSON schema test guards the export.
 - **Layout** is computed deterministically in the browser, so the export carries data, not
   coordinates. NetworkX holds the graph model and the export; it does no layout or analytics here.
+- **The export** is one JSON file per question, and the page reads nothing else. Pydantic
+  models in `export.py` define it; `schema/export.schema.json` is generated from them and the
+  site's TypeScript types from the schema, and tests fail if either falls behind. It holds the
+  question and its dimensions, each outcome's summary block and apparent pairs, the studies, the
+  graph in NetworkX's node-link form, the reviews and the method numbers. A finding's quote may
+  be null, for a page that shows the claim and the link without it. Fixture exports for the
+  page are synthetic, with 999-prefixed PMIDs.
+- **Ties and missing sizes:** when the top shares tie, no direction leads. The sample-size line
+  counts only studies that report a sample size and is left out when none does. Designs outside
+  the weight table, such as other, are shown with their headline finding but not counted.
 
 ## Page
 

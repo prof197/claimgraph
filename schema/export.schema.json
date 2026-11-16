@@ -1,0 +1,1157 @@
+{
+  "$defs": {
+    "ApparentPair": {
+      "additionalProperties": false,
+      "description": "A pair that looked contradictory but is not, with the one line that says why.",
+      "properties": {
+        "pair_id": {
+          "pattern": "\\S",
+          "title": "Pair Id",
+          "type": "string"
+        },
+        "pair_kind": {
+          "$ref": "#/$defs/PairKind"
+        },
+        "study_a": {
+          "pattern": "\\S",
+          "title": "Study A",
+          "type": "string"
+        },
+        "study_b": {
+          "pattern": "\\S",
+          "title": "Study B",
+          "type": "string"
+        },
+        "finding_a": {
+          "pattern": "^[1-9][0-9]*-[1-9][0-9]*$",
+          "title": "Finding A",
+          "type": "string"
+        },
+        "finding_b": {
+          "pattern": "^[1-9][0-9]*-[1-9][0-9]*$",
+          "title": "Finding B",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "detail": {
+          "pattern": "\\S",
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pair_id",
+        "pair_kind",
+        "study_a",
+        "study_b",
+        "finding_a",
+        "finding_b",
+        "reason",
+        "detail"
+      ],
+      "title": "ApparentPair",
+      "type": "object"
+    },
+    "Arm": {
+      "description": "Classification arms; the values double as `--depth` names.",
+      "enum": [
+        "single-small",
+        "single-mid",
+        "self-consistency",
+        "self-moa",
+        "council",
+        "council-ranked"
+      ],
+      "title": "Arm",
+      "type": "string"
+    },
+    "ContradictionEdge": {
+      "additionalProperties": false,
+      "description": "A genuine contradiction between two studies' headline findings.",
+      "properties": {
+        "kind": {
+          "const": "contradiction",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "pattern": "^[1-9][0-9]*-[1-9][0-9]*$",
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^[1-9][0-9]*-[1-9][0-9]*$",
+          "title": "Target",
+          "type": "string"
+        },
+        "pair_id": {
+          "pattern": "\\S",
+          "title": "Pair Id",
+          "type": "string"
+        },
+        "pair_kind": {
+          "$ref": "#/$defs/PairKind"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "also_differs": {
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "title": "Also Differs",
+          "type": "array"
+        },
+        "detail": {
+          "pattern": "\\S",
+          "title": "Detail",
+          "type": "string"
+        },
+        "rationale": {
+          "pattern": "\\S",
+          "title": "Rationale",
+          "type": "string"
+        },
+        "design_weight": {
+          "minimum": 0,
+          "title": "Design Weight",
+          "type": "number"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sample Size"
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "target",
+        "pair_id",
+        "pair_kind",
+        "reason",
+        "also_differs",
+        "detail",
+        "rationale",
+        "design_weight",
+        "sample_size"
+      ],
+      "title": "ContradictionEdge",
+      "type": "object"
+    },
+    "Design": {
+      "enum": [
+        "rct",
+        "non_randomized_trial",
+        "cohort",
+        "case_control",
+        "cross_sectional",
+        "case_series",
+        "systematic_review",
+        "meta_analysis",
+        "narrative_review",
+        "case_report",
+        "animal",
+        "in_vitro",
+        "other"
+      ],
+      "title": "Design",
+      "type": "string"
+    },
+    "DesignCount": {
+      "additionalProperties": false,
+      "properties": {
+        "design": {
+          "$ref": "#/$defs/Design"
+        },
+        "studies": {
+          "exclusiveMinimum": 0,
+          "title": "Studies",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "design",
+        "studies"
+      ],
+      "title": "DesignCount",
+      "type": "object"
+    },
+    "Dimension": {
+      "additionalProperties": false,
+      "description": "A custom dimension from the question config, as the finding card shows it.",
+      "properties": {
+        "name": {
+          "pattern": "\\S",
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "pattern": "\\S",
+          "title": "Label",
+          "type": "string"
+        },
+        "refines": {
+          "$ref": "#/$defs/Reason"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unit"
+        },
+        "evaluated": {
+          "title": "Evaluated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "refines",
+        "unit",
+        "evaluated"
+      ],
+      "title": "Dimension",
+      "type": "object"
+    },
+    "Direction": {
+      "enum": [
+        "benefit",
+        "harm",
+        "none"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "DirectionCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "benefit": {
+          "minimum": 0,
+          "title": "Benefit",
+          "type": "integer"
+        },
+        "none": {
+          "minimum": 0,
+          "title": "None",
+          "type": "integer"
+        },
+        "harm": {
+          "minimum": 0,
+          "title": "Harm",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "benefit",
+        "none",
+        "harm"
+      ],
+      "title": "DirectionCounts",
+      "type": "object"
+    },
+    "DirectionShares": {
+      "additionalProperties": false,
+      "properties": {
+        "benefit": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Benefit",
+          "type": "number"
+        },
+        "none": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "None",
+          "type": "number"
+        },
+        "harm": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Harm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "benefit",
+        "none",
+        "harm"
+      ],
+      "title": "DirectionShares",
+      "type": "object"
+    },
+    "Drop": {
+      "additionalProperties": false,
+      "description": "Something the pipeline left out, and how many, for the method section.",
+      "properties": {
+        "what": {
+          "pattern": "\\S",
+          "title": "What",
+          "type": "string"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "what",
+        "count"
+      ],
+      "title": "Drop",
+      "type": "object"
+    },
+    "EvalResult": {
+      "additionalProperties": false,
+      "properties": {
+        "eval": {
+          "pattern": "\\S",
+          "title": "Eval",
+          "type": "string"
+        },
+        "metric": {
+          "pattern": "\\S",
+          "title": "Metric",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "n": {
+          "exclusiveMinimum": 0,
+          "title": "N",
+          "type": "integer"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Low"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "High"
+        }
+      },
+      "required": [
+        "eval",
+        "metric",
+        "value",
+        "n",
+        "low",
+        "high"
+      ],
+      "title": "EvalResult",
+      "type": "object"
+    },
+    "FindingNode": {
+      "additionalProperties": false,
+      "description": "One finding, with every field the finding card shows.",
+      "properties": {
+        "kind": {
+          "const": "finding",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[1-9][0-9]*-[1-9][0-9]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "outcome": {
+          "pattern": "\\S",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "study": {
+          "pattern": "\\S",
+          "title": "Study",
+          "type": "string"
+        },
+        "pmid": {
+          "pattern": "^[1-9][0-9]*$",
+          "title": "Pmid",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "headline": {
+          "title": "Headline",
+          "type": "boolean"
+        },
+        "claim": {
+          "pattern": "\\S",
+          "title": "Claim",
+          "type": "string"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Quote"
+        },
+        "outcome_reported": {
+          "pattern": "\\S",
+          "title": "Outcome Reported",
+          "type": "string"
+        },
+        "is_primary": {
+          "title": "Is Primary",
+          "type": "boolean"
+        },
+        "subgroup": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subgroup"
+        },
+        "population": {
+          "title": "Population",
+          "type": "string"
+        },
+        "intervention": {
+          "title": "Intervention",
+          "type": "string"
+        },
+        "comparator": {
+          "title": "Comparator",
+          "type": "string"
+        },
+        "dimensions": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Dimensions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "outcome",
+        "study",
+        "pmid",
+        "direction",
+        "headline",
+        "claim",
+        "quote",
+        "outcome_reported",
+        "is_primary",
+        "subgroup",
+        "population",
+        "intervention",
+        "comparator",
+        "dimensions"
+      ],
+      "title": "FindingNode",
+      "type": "object"
+    },
+    "Graph": {
+      "additionalProperties": false,
+      "description": "NetworkX node-link data: `nx.node_link_data(graph, edges=\"edges\")`.",
+      "properties": {
+        "directed": {
+          "const": false,
+          "title": "Directed",
+          "type": "boolean"
+        },
+        "multigraph": {
+          "const": false,
+          "title": "Multigraph",
+          "type": "boolean"
+        },
+        "graph": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Graph",
+          "type": "object"
+        },
+        "nodes": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "finding": "#/$defs/FindingNode",
+                "hub": "#/$defs/HubNode"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HubNode"
+              },
+              {
+                "$ref": "#/$defs/FindingNode"
+              }
+            ]
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "contradiction": "#/$defs/ContradictionEdge",
+                "outcome": "#/$defs/OutcomeEdge"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/OutcomeEdge"
+              },
+              {
+                "$ref": "#/$defs/ContradictionEdge"
+              }
+            ]
+          },
+          "title": "Edges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "directed",
+        "multigraph",
+        "graph",
+        "nodes",
+        "edges"
+      ],
+      "title": "Graph",
+      "type": "object"
+    },
+    "HubNode": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "hub",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "\\S",
+          "title": "Id",
+          "type": "string"
+        },
+        "outcome": {
+          "pattern": "\\S",
+          "title": "Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "outcome"
+      ],
+      "title": "HubNode",
+      "type": "object"
+    },
+    "Method": {
+      "additionalProperties": false,
+      "properties": {
+        "records_found": {
+          "minimum": 0,
+          "title": "Records Found",
+          "type": "integer"
+        },
+        "abstracts_kept": {
+          "minimum": 0,
+          "title": "Abstracts Kept",
+          "type": "integer"
+        },
+        "findings": {
+          "minimum": 0,
+          "title": "Findings",
+          "type": "integer"
+        },
+        "studies": {
+          "minimum": 0,
+          "title": "Studies",
+          "type": "integer"
+        },
+        "drops": {
+          "items": {
+            "$ref": "#/$defs/Drop"
+          },
+          "title": "Drops",
+          "type": "array"
+        },
+        "candidate_pairs": {
+          "minimum": 0,
+          "title": "Candidate Pairs",
+          "type": "integer"
+        },
+        "classified_pairs": {
+          "minimum": 0,
+          "title": "Classified Pairs",
+          "type": "integer"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Arm"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "costs": {
+          "items": {
+            "$ref": "#/$defs/StageCost"
+          },
+          "title": "Costs",
+          "type": "array"
+        },
+        "evals": {
+          "items": {
+            "$ref": "#/$defs/EvalResult"
+          },
+          "title": "Evals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "records_found",
+        "abstracts_kept",
+        "findings",
+        "studies",
+        "drops",
+        "candidate_pairs",
+        "classified_pairs",
+        "depth",
+        "costs",
+        "evals"
+      ],
+      "title": "Method",
+      "type": "object"
+    },
+    "Outcome": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "\\S",
+          "title": "Name",
+          "type": "string"
+        },
+        "hub": {
+          "pattern": "\\S",
+          "title": "Hub",
+          "type": "string"
+        },
+        "higher_is_better": {
+          "title": "Higher Is Better",
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/Summary"
+        },
+        "candidate_pairs": {
+          "minimum": 0,
+          "title": "Candidate Pairs",
+          "type": "integer"
+        },
+        "classified_pairs": {
+          "minimum": 0,
+          "title": "Classified Pairs",
+          "type": "integer"
+        },
+        "apparent": {
+          "items": {
+            "$ref": "#/$defs/ApparentPair"
+          },
+          "title": "Apparent",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "hub",
+        "higher_is_better",
+        "summary",
+        "candidate_pairs",
+        "classified_pairs",
+        "apparent"
+      ],
+      "title": "Outcome",
+      "type": "object"
+    },
+    "OutcomeEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "outcome",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "pattern": "\\S",
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "\\S",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "target"
+      ],
+      "title": "OutcomeEdge",
+      "type": "object"
+    },
+    "PairKind": {
+      "enum": [
+        "effect_vs_none",
+        "benefit_vs_harm"
+      ],
+      "title": "PairKind",
+      "type": "string"
+    },
+    "Question": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "\\S",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "pattern": "\\S",
+          "title": "Title",
+          "type": "string"
+        },
+        "retrieved": {
+          "format": "date",
+          "title": "Retrieved",
+          "type": "string"
+        },
+        "abstracts": {
+          "minimum": 0,
+          "title": "Abstracts",
+          "type": "integer"
+        },
+        "mapping_reviewed": {
+          "title": "Mapping Reviewed",
+          "type": "boolean"
+        },
+        "dimensions": {
+          "items": {
+            "$ref": "#/$defs/Dimension"
+          },
+          "title": "Dimensions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "retrieved",
+        "abstracts",
+        "mapping_reviewed",
+        "dimensions"
+      ],
+      "title": "Question",
+      "type": "object"
+    },
+    "Reason": {
+      "description": "Why two studies disagree: Cochrane's clinical and methodological heterogeneity.",
+      "enum": [
+        "population",
+        "intervention",
+        "comparator",
+        "outcome_measure",
+        "design_or_bias",
+        "unclear"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "Review": {
+      "additionalProperties": false,
+      "description": "Listed for context and never counted: reviews pool studies already on the page.",
+      "properties": {
+        "pmid": {
+          "pattern": "^[1-9][0-9]*$",
+          "title": "Pmid",
+          "type": "string"
+        },
+        "title": {
+          "pattern": "\\S",
+          "title": "Title",
+          "type": "string"
+        },
+        "first_author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Author"
+        },
+        "journal": {
+          "pattern": "\\S",
+          "title": "Journal",
+          "type": "string"
+        },
+        "year": {
+          "title": "Year",
+          "type": "integer"
+        },
+        "design": {
+          "$ref": "#/$defs/Design"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "pmid",
+        "title",
+        "first_author",
+        "journal",
+        "year",
+        "design",
+        "summary"
+      ],
+      "title": "Review",
+      "type": "object"
+    },
+    "StageCost": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "pattern": "\\S",
+          "title": "Stage",
+          "type": "string"
+        },
+        "dollars": {
+          "minimum": 0,
+          "title": "Dollars",
+          "type": "number"
+        }
+      },
+      "required": [
+        "stage",
+        "dollars"
+      ],
+      "title": "StageCost",
+      "type": "object"
+    },
+    "Study": {
+      "additionalProperties": false,
+      "description": "A primary study: one paper, or the papers of one trial, the earliest leading.",
+      "properties": {
+        "key": {
+          "pattern": "\\S",
+          "title": "Key",
+          "type": "string"
+        },
+        "pmids": {
+          "items": {
+            "pattern": "^[1-9][0-9]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Pmids",
+          "type": "array"
+        },
+        "title": {
+          "pattern": "\\S",
+          "title": "Title",
+          "type": "string"
+        },
+        "first_author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Author"
+        },
+        "journal": {
+          "pattern": "\\S",
+          "title": "Journal",
+          "type": "string"
+        },
+        "year": {
+          "title": "Year",
+          "type": "integer"
+        },
+        "design": {
+          "$ref": "#/$defs/Design"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Weight"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sample Size"
+        },
+        "trial_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Trial Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "pmids",
+        "title",
+        "first_author",
+        "journal",
+        "year",
+        "design",
+        "weight",
+        "sample_size",
+        "trial_ids"
+      ],
+      "title": "Study",
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "description": "The summary strip for one outcome. Studies, not findings, are the unit.",
+      "properties": {
+        "studies": {
+          "minimum": 0,
+          "title": "Studies",
+          "type": "integer"
+        },
+        "counts": {
+          "$ref": "#/$defs/DirectionCounts"
+        },
+        "designs": {
+          "items": {
+            "$ref": "#/$defs/DesignCount"
+          },
+          "title": "Designs",
+          "type": "array"
+        },
+        "thin": {
+          "title": "Thin",
+          "type": "boolean"
+        },
+        "views": {
+          "items": {
+            "$ref": "#/$defs/WeightedView"
+          },
+          "title": "Views",
+          "type": "array"
+        },
+        "subgroup_only": {
+          "minimum": 0,
+          "title": "Subgroup Only",
+          "type": "integer"
+        },
+        "uncounted": {
+          "minimum": 0,
+          "title": "Uncounted",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "studies",
+        "counts",
+        "designs",
+        "thin",
+        "views",
+        "subgroup_only",
+        "uncounted"
+      ],
+      "title": "Summary",
+      "type": "object"
+    },
+    "WeightedView": {
+      "additionalProperties": false,
+      "properties": {
+        "weighting": {
+          "$ref": "#/$defs/Weighting"
+        },
+        "studies": {
+          "exclusiveMinimum": 0,
+          "title": "Studies",
+          "type": "integer"
+        },
+        "shares": {
+          "$ref": "#/$defs/DirectionShares"
+        },
+        "leading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Direction"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "changes_leading": {
+          "title": "Changes Leading",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "weighting",
+        "studies",
+        "shares",
+        "leading",
+        "changes_leading"
+      ],
+      "title": "WeightedView",
+      "type": "object"
+    },
+    "Weighting": {
+      "enum": [
+        "design",
+        "unweighted",
+        "sample_size"
+      ],
+      "title": "Weighting",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "question": {
+      "$ref": "#/$defs/Question"
+    },
+    "outcomes": {
+      "items": {
+        "$ref": "#/$defs/Outcome"
+      },
+      "title": "Outcomes",
+      "type": "array"
+    },
+    "studies": {
+      "items": {
+        "$ref": "#/$defs/Study"
+      },
+      "title": "Studies",
+      "type": "array"
+    },
+    "graph": {
+      "$ref": "#/$defs/Graph"
+    },
+    "reviews": {
+      "items": {
+        "$ref": "#/$defs/Review"
+      },
+      "title": "Reviews",
+      "type": "array"
+    },
+    "method": {
+      "$ref": "#/$defs/Method"
+    }
+  },
+  "required": [
+    "schema_version",
+    "question",
+    "outcomes",
+    "studies",
+    "graph",
+    "reviews",
+    "method"
+  ],
+  "title": "Export",
+  "type": "object"
+}
