@@ -125,7 +125,12 @@ def test_other_vendors_get_the_schema_inlined_and_their_lowest_reasoning() -> No
     assert openai["text"]["format"]["strict"] is True
     assert openai["reasoning"] == {"effort": "low"}
     assert google["config"]["thinking_config"] == {"thinking_level": "low"}
-    assert google["config"]["response_json_schema"] == flat
+    gemini = google["config"]["response_schema"]
+    assert "additionalProperties" not in json.dumps(gemini)
+    assert gemini["properties"]["reason"]["nullable"] is True
+    assert (
+        gemini["properties"]["reason"]["enum"] == flat["properties"]["reason"]["anyOf"][0]["enum"]
+    )
 
 
 def test_ranked_members_rank_the_anonymous_answers_before_the_chair(tmp_path: Path) -> None:

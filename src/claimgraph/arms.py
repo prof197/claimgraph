@@ -120,6 +120,29 @@ def inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     return resolved
 
 
+def openapi_schema(node: Any) -> Any:
+    """A JSON Schema in the OpenAPI form Gemini's response_schema takes: no
+    additionalProperties, and a member that may be null marked nullable. Gemini's batches
+    ignore a response_json_schema and enforce this one."""
+    if isinstance(node, list):
+        return [openapi_schema(n) for n in cast(list[Any], node)]
+    if not isinstance(node, dict):
+        return node
+    out: dict[str, Any] = {}
+    for key, value in cast(dict[str, Any], node).items():
+        if key == "additionalProperties":
+            continue
+        if key == "anyOf":
+            members = cast(list[Any], value)
+            rest = [m for m in members if m != {"type": "null"}]
+            if len(rest) == 1 and len(rest) < len(members):
+                out |= openapi_schema(rest[0])
+                out["nullable"] = True
+                continue
+        out[key] = openapi_schema(value)
+    return out
+
+
 def member_request(
     member: Member, system: str, user: str, schema: dict[str, Any], name: str
 ) -> dict[str, Any]:
@@ -157,7 +180,7 @@ def member_request(
             "config": {
                 "system_instruction": system,
                 "response_mime_type": "application/json",
-                "response_json_schema": flat,
+                "response_schema": openapi_schema(flat),
                 "thinking_config": {"thinking_level": member.reasoning},
                 "max_output_tokens": MAX_TOKENS,
             },
