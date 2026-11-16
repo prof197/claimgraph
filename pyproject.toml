@@ -15,11 +15,20 @@ dependencies = [
     "typer>=0.27",
 ]
 
+[project.optional-dependencies]
+# The council arms' other vendors, pinned exactly. Only those arms import them.
+council = [
+    "google-genai==2.34.0",
+    "openai==3.42.1",
+]
+
 [project.scripts]
 claimgraph = "claimgraph.cli:app"
 
 [dependency-groups]
 dev = [
+    # The checks type the council arms, so development installs their SDKs.
+    "claimgraph[council]",
     "pyright>=1.1.414",
     "pytest>=9.2",
     "ruff>=0.17",
@@ -47,3 +56,8 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers"]
+
+[tool.uv]
+# Dependencies are taken at releases at least two weeks old; this holds back the one the
+# council SDKs pulled in newer than that.
+constraint-dependencies = ["google-auth<=2.62.0"]
