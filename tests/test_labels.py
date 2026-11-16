@@ -23,6 +23,7 @@ from claimgraph.gold import (
 )
 from claimgraph.labels import (
     AbstractLabel,
+    ContradictionLabel,
     FindingDraft,
     LabelDraft,
     PairVerdict,
@@ -375,6 +376,18 @@ def test_the_example_contradiction_pairs_load() -> None:
     assert pairs[0].pair_id == "synthetic depressive symptoms|999000001|999000002"
 
 
+def test_an_apparent_pair_needs_no_detail() -> None:
+    label = ContradictionLabel(
+        outcome="synthetic depressive symptoms",
+        study_a="999000001",
+        study_b="999000002",
+        verdict=Verdict.APPARENT,
+        reason=Reason.DESIGN_OR_BIAS,
+    )
+
+    assert label.detail is None
+
+
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -383,7 +396,6 @@ def test_the_example_contradiction_pairs_load() -> None:
         pytest.param({"also_differs": ["unclear"]}, id="unclear as a difference"),
         pytest.param({"verdict": "likely"}, id="unknown verdict"),
         pytest.param({"reason": "dose"}, id="unknown reason"),
-        pytest.param({"verdict": "apparent"}, id="apparent without a detail"),
         pytest.param(
             {"verdict": "apparent", "reason": "unclear", "detail": "synthetic"},
             id="apparent with an unclear reason",

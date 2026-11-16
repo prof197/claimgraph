@@ -386,8 +386,11 @@ Each pair is two studies whose headline findings on one normalized outcome point
 ways. A study's headline finding on an outcome is its primary finding on that outcome, else its
 first-reported finding there that is not a subgroup result, the same finding the summary strip
 counts. A study with only subgroup findings on an outcome has no headline finding there, so it
-is not paired on it. `study_a` and `study_b` are
-written in the order the candidate pair gives them.
+is not paired on it. `study_a` and `study_b` are written in the order the candidate pair gives
+them.
+
+Two fields are required, and they are what the eval scores: `verdict` and the primary `reason`.
+`also_differs`, `detail` and `note` are optional and never scored.
 
 ```toml
 [[pair]]
@@ -424,7 +427,23 @@ measure different things are `outcome_measure`.
 | `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; a null that could not rule out the effect |
 | `unclear` | For a genuine pair only: no difference stands out |
 
-**`also_differs`**: other differences present, never the primary reason again and never
-`unclear`. **`detail`**: a short specific, such as "duration: 8 weeks vs a median 5.3 years".
-An apparent pair needs one, saying what dissolves the conflict, such as "underpowered: n = 40".
-**`note`**: optional.
+One invented example for each reason. None comes from a real abstract.
+
+- `population`, genuine. *Example: Study X enrolled outpatients with diagnosed major depression
+  and found that symptom scores fell; Study Y enrolled healthy retirees and found no change.*
+- `intervention`, genuine. *Example: Study X gave a large weekly dose for six weeks; Study Y gave
+  a small daily dose for four years; only Study X found a benefit.*
+- `comparator`, genuine. *Example: Study X compared the supplement with a dummy pill and found a
+  benefit; Study Y compared it with an established antidepressant and found no difference.*
+- `outcome_measure`, genuine. *Example: both map to depressive symptoms, but Study X rated a
+  long clinician interview after three months and Study Y a two-question screen after five
+  years.*
+- `design_or_bias`, apparent. *Example: Study Y found no effect in 22 people, and its own
+  abstract calls it an underpowered pilot; detail "underpowered: n = 22".*
+- `unclear`, genuine. *Example: two placebo-controlled trials in similar adults, with similar
+  doses and the same rating scale, point different ways, and neither abstract suggests why.*
+
+**`also_differs`** (optional): other differences present, never the primary reason again and
+never `unclear`. **`detail`** (optional): a short specific, such as "duration: 8 weeks vs a
+median 5.3 years", or for an apparent pair what dissolves the conflict, such as "underpowered:
+n = 40". **`note`** (optional): anything else.
