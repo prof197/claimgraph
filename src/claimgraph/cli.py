@@ -14,6 +14,7 @@ from claimgraph import (
     compare,
     contradictions,
     evaluation,
+    export_build,
     extract,
     gold,
     kind_review,
@@ -1027,3 +1028,35 @@ def export_stub(
     out = run_dir / "classify" / contradictions.STUB_FILE
     contradictions.write(out, stubbed)
     typer.echo(f"{len(stubbed.classifications)} of {stubbed.candidates} pairs stubbed; wrote {out}")
+
+
+@export_app.command("build")
+def export_build_command(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    stub: Annotated[
+        bool, typer.Option(help="Read the stub contradictions instead of the classified pairs.")
+    ] = False,
+    out: Annotated[
+        Path | None, typer.Option(help="Where to write the export; by default in the run.")
+    ] = None,
+) -> None:
+    """Write the export the page reads: summaries, the graph, contradictions and the method."""
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    source = run_dir / "classify" / (contradictions.STUB_FILE if stub else contradictions.FILE)
+    try:
+        classified = contradictions.read(source)
+    except (FileNotFoundError, ValidationError) as error:
+        typer.echo(f"no classified pairs in {source}", err=True)
+        raise typer.Exit(1) from error
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    built = export_build.build_export(config, run_dir, mapping, classified, gold_dir / config.id)
+    target = out or run_dir / "export" / f"{config.id}.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(target, (built.model_dump_json(indent=2) + "\n").encode())
+    typer.echo(f"wrote {target}")
