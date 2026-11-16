@@ -537,6 +537,14 @@ them, at whatever depth the run asks for.
   the contradiction panel and the eval. Its findings stay on the graph, since each may still pair
   with a vitamin D finding by another study. A combination product that includes vitamin D, and
   a genetic proxy for vitamin D level in a Mendelian randomization study, are on the question.
+- The prompt was tuned on the 40 dev pairs in two rounds and then frozen. In the first, both
+  single arms called pairs apparent for differences alone, against the rules, and stumbled on
+  findings whose exposure was not vitamin D; the arms agreed on 22 verdicts and on 15 verdicts
+  with their reason. The second round added `off_question` and said apparent covers two cases
+  only. The arms then agreed on 33 verdicts and 25 with their reason, and both marked the same
+  six pairs `off_question`. What is left is for the eval to measure: `single-small` misses the
+  underpowered rule on pairs where the abstract itself flags it, and where several differences
+  stand out, the arms split between `population` and `design_or_bias`. Both rounds cost $0.14.
 - `--depth` picks one arm of the council ablation, and arm names double as depth names.
 
 | Arm | What runs per pair |

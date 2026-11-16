@@ -89,6 +89,9 @@ commit if any fails. Enable it once per clone with `git config core.hooksPath .g
   after the owner approves a dry-run estimate, and commit the new recordings with the change.
 - The normalization prompt is frozen too: a test pins its request key. Changing the prompt,
   schema, outcome rules or settings needs the owner's approval, a dry run and a new recording.
+- The classification prompt is frozen as well: a test pins both single arms' request keys. Its
+  rules are the labeling guide's contradiction section, so editing those rules unfreezes it,
+  and needs the owner's approval and a dry run.
 - The site is React and TypeScript (strict) on Vite, with D3 for geometry only. Its dependencies
   are pinned exactly; npm 10 cannot resolve the tree, so change them with `npx npm@11 install`,
   then run `npm install --package-lock-only` so `npm ci` works on npm 10 and 11.

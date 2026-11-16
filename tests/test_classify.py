@@ -10,7 +10,7 @@ from test_labeling_guide import runs
 from claimgraph import classify
 from claimgraph.classify import InvalidOutput, PairInput
 from claimgraph.config import load_config
-from claimgraph.llm import Mode, ModelClient
+from claimgraph.llm import Mode, ModelClient, request_key
 from claimgraph.models import Arm, Design, Effect, PairKind, Reason, Verdict
 from claimgraph.pair_sample import Combination, DrawnPair
 from claimgraph.prices import load_prices
@@ -181,3 +181,19 @@ def test_only_eval_recordings_go_where_they_are_committed(tmp_path: Path) -> Non
     )
     dev = classification_replay(Split.DEV, Arm.SINGLE_MID, committed, run_dir)
     assert dev.is_relative_to(run_dir)
+
+
+# The request keys of one synthetic pair under the classification prompt as tuned on dev.
+FROZEN_KEYS = {
+    Arm.SINGLE_SMALL: "d7f669a37366110d9397aacb8c72dcd09696b3101b5b35266627a68ec0367dc8",
+    Arm.SINGLE_MID: "ce0e8c72caecdf5e96a1ff2e017a3d7b497b57590e87520c8a39d25fb607cec1",
+}
+
+
+@pytest.mark.parametrize("arm", list(FROZEN_KEYS))
+def test_the_classification_prompt_is_frozen(arm: Arm) -> None:
+    # Frozen after the second dev round, before any arm classified an eval pair. The prompt
+    # carries the labeling guide's contradiction rules, so a change to those rules, the prompt,
+    # the schema or the settings is a deliberate unfreeze: it needs the owner's approval and a
+    # dry run, and then these keys change with it.
+    assert request_key(classify.request(item(), CONFIG, GUIDE, arm)) == FROZEN_KEYS[arm]
