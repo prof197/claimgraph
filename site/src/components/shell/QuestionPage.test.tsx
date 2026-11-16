@@ -44,7 +44,7 @@ describe.each(Object.entries(fixtures))("the %s fixture", (_, data) => {
     const quote = card.querySelector("blockquote")?.textContent ?? "";
     const quotes = data.graph.nodes.flatMap((n) => (n.kind === "finding" ? [n.quote] : []));
     expect(quotes).toContain(quote);
-    expect(within(card).getByRole("link", { name: "Open on PubMed" }).getAttribute("href")).toMatch(
+    expect(within(card).getByRole("link", { name: "Open on PubMed (opens in a new tab)" }).getAttribute("href")).toMatch(
       /^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/999\d+\/$/,
     );
   });
@@ -99,7 +99,7 @@ describe("the synthetic fixture", () => {
     render(<QuestionPage data={data} outcome="Synthetic symptoms" />);
     const list = await showList();
 
-    const row = within(list).getByRole("button", { name: "Synthetic106 et al." });
+    const row = within(list).getByRole("button", { name: "Synthetic106 et al. 2016" });
     await userEvent.click(row);
 
     expect(row.getAttribute("aria-pressed")).toBe("true");
@@ -126,7 +126,7 @@ describe("the synthetic fixture", () => {
   it("switches the strip, the list and the selection with the outcome", async () => {
     const { rerender } = render(<QuestionPage data={data} outcome="Synthetic symptoms" />);
     const list = await showList();
-    await userEvent.click(within(list).getByRole("button", { name: "Synthetic106 et al." }));
+    await userEvent.click(within(list).getByRole("button", { name: "Synthetic106 et al. 2016" }));
 
     rerender(<QuestionPage data={data} outcome="Synthetic cases" />);
     expect(screen.getByRole("region", { name: "Summary for synthetic cases" })).toBeTruthy();
@@ -148,7 +148,7 @@ describe("the synthetic fixture", () => {
   it("opens another outcome on the same study from the card", async () => {
     const { rerender } = render(<QuestionPage data={data} outcome="Synthetic symptoms" />);
     const list = await showList();
-    await userEvent.click(within(list).getByRole("button", { name: "Synthetic101 et al." }));
+    await userEvent.click(within(list).getByRole("button", { name: "Synthetic101 et al. 2011" }));
 
     const also = within(detail()).getByRole("link", { name: "Also reports: synthetic remission" });
     expect(also.getAttribute("href")).toBe("#/outcome/Synthetic%20remission");
@@ -188,7 +188,7 @@ describe("the minimal fixture", () => {
     render(<QuestionPage data={fixtures.minimal} outcome={null} />);
 
     expect(screen.getByText(/Thin evidence\./)).toBeTruthy();
-    expect(screen.getByText("No reviews or meta-analyses were found for this question.")).toBeTruthy();
+    expect(screen.getByText("No systematic reviews or meta-analyses were found for this question.")).toBeTruthy();
     expect(screen.getByText(/No contradictions were classified/)).toBeTruthy();
   });
 });

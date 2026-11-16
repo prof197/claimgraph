@@ -1,5 +1,6 @@
 // Words and rows the question page shows, derived from one export.
 import { findingsOn, studiesByKey } from "../../lib/data";
+import { fullCitation, shortCitation } from "../../lib/names";
 import type {
   Design,
   Direction,
@@ -161,13 +162,10 @@ export function inSentence(name: string): string {
 }
 
 export function studyLabel(study: Study): string {
-  return study.first_author === null ? study.title : `${study.first_author} et al.`;
+  return shortCitation(study);
 }
 
-export function citation(parts: { first_author: string | null; journal: string; year: number }): string {
-  const author = parts.first_author === null ? [] : [`${parts.first_author} et al.`];
-  return [...author, parts.journal, String(parts.year)].join(" · ");
-}
+export const citation = fullCitation;
 
 export function pubmedUrl(pmid: string): string {
   return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(pmid)}/`;

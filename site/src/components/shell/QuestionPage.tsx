@@ -102,7 +102,7 @@ function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }
           </h2>
           <p className="shell-intro">
             {view === "graph"
-              ? `Each dot is one finding on ${name}, grouped by what it found. Lines between dots are contradictions the pipeline classified.`
+              ? `Each dot is one study of ${name}, grouped by what it found. Lines between dots are contradictions the pipeline classified.`
               : `Each row is one study's finding on ${name}, grouped by what it found. Select a study to see its finding.`}
           </p>
         </div>
@@ -110,9 +110,7 @@ function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }
           <div className="shell-card shell-figure">
             <div className="shell-figure__bar">
               <p className="shell-small shell-muted">
-                {view === "graph"
-                  ? `${number(findings.length)} ${findings.length === 1 ? "finding" : "findings"} on ${name}`
-                  : `${number(rows.length)} ${rows.length === 1 ? "study" : "studies"} on ${name}`}
+                {`${number(rows.length)} ${rows.length === 1 ? "study" : "studies"} on ${name}`}
               </p>
               <div role="group" aria-label="Show the findings as" className="shell-toggle">
                 <button type="button" aria-pressed={view === "graph"} onClick={() => onView("graph")}>

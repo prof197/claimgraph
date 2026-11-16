@@ -90,7 +90,7 @@ test("the finding card keeps its height and scrolls only its middle", async ({ p
   const before = await card.boundingBox();
 
   await page.getByRole("button", { name: "List" }).click();
-  await page.getByRole("button", { name: "Synthetic106 et al." }).click();
+  await page.getByRole("button", { name: "Synthetic106 et al. 2016" }).click();
   await expect(card.getByRole("heading")).toHaveText("Synthetic study 106 of supplement X and mood");
 
   const after = await card.boundingBox();

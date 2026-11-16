@@ -1,3 +1,4 @@
+import { fullCitation, shortCitation } from "../../lib/names";
 // The words the graph, the panel and the pair page use for studies, designs and directions.
 import type { Design, Dimension, Direction, Reason, Study } from "../../types/export";
 
@@ -77,21 +78,11 @@ export function isObservational(design: Design): boolean {
 
 /** A short name for a study, as a reader would cite it. */
 export function studyLabel(study: Study | undefined, key: string): string {
-  if (study === undefined) {
-    return `PMID ${key}`;
-  }
-  if (study.first_author !== null) {
-    return `${study.first_author} ${study.year}`;
-  }
-  return `PMID ${study.pmids[0]} (${study.year})`;
+  return study === undefined ? `PMID ${key}` : shortCitation(study);
 }
 
 export function citation(study: Study | undefined): string {
-  if (study === undefined) {
-    return "";
-  }
-  const author = study.first_author === null ? [] : [`${study.first_author} et al.`];
-  return [...author, study.journal, String(study.year)].join(" · ");
+  return study === undefined ? "" : fullCitation(study);
 }
 
 export function formatCount(n: number): string {

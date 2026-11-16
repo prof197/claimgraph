@@ -33,17 +33,17 @@ describe("the graph view", () => {
     render(<Harness data={fixtures.synthetic} outcome={symptoms} />);
     const dots = within(graph()).getAllByRole("button");
     expect(dots).toHaveLength(8);
-    expect(within(graph()).getByRole("button", { name: /^Synthetic101 2011: Benefit, randomized controlled trial, n 120, 2 contradictions$/ })).toBeTruthy();
-    expect(within(graph()).getByRole("button", { name: /^Synthetic108 2018: .*subgroup results only, not counted/ })).toBeTruthy();
+    expect(within(graph()).getByRole("button", { name: /^Synthetic101 et al. 2011: Benefit, randomized controlled trial, n 120, 2 contradictions$/ })).toBeTruthy();
+    expect(within(graph()).getByRole("button", { name: /^Synthetic108 et al. 2018: .*subgroup results only, not counted/ })).toBeTruthy();
     expect(screen.getByText(/arranged around the outcome: 4 benefit on the left, 2 no effect on the right, 2 harm at the bottom/)).toBeTruthy();
   });
 
   it("selects a study on click and calls onSelect with its finding", async () => {
     const user = userEvent.setup();
     render(<Harness data={fixtures.synthetic} outcome={symptoms} />);
-    await user.click(within(graph()).getByRole("button", { name: /^Synthetic102 2012/ }));
+    await user.click(within(graph()).getByRole("button", { name: /^Synthetic102 et al. 2012/ }));
     expect(screen.getByRole("status").textContent).toBe("999000102-1");
-    expect(within(graph()).getByRole("button", { name: /^Synthetic102 2012/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(graph()).getByRole("button", { name: /^Synthetic102 et al. 2012/ }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("selected state: rings the study and draws all of its contradictions solid", () => {
@@ -59,7 +59,7 @@ describe("the graph view", () => {
 
   it("selected state: a subgroup finding chosen elsewhere marks its study's dot", () => {
     render(<Harness data={fixtures.synthetic} outcome={symptoms} initial="999000101-2" />);
-    expect(within(graph()).getByRole("button", { name: /^Synthetic101 2011/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(graph()).getByRole("button", { name: /^Synthetic101 et al. 2011/ }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keyboard: the graph is one tab stop, arrow keys move between dots and Enter selects", async () => {
@@ -87,8 +87,8 @@ describe("the graph view", () => {
     const data = fixtures.minimal;
     const { container } = render(<Harness data={data} outcome={outcomeOf(data, "Synthetic symptoms")} />);
     const labels = [...container.querySelectorAll("text")].map((t) => t.textContent);
-    expect(labels).toContain("Synthetic301 2021");
-    expect(labels).toContain("Synthetic302 2021");
+    expect(labels).toContain("Synthetic301 et al. 2021");
+    expect(labels).toContain("Synthetic302 et al. 2021");
     expect(labels).toContain("Benefit · 2");
     // No contradictions, so no contradiction key.
     expect(within(screen.getByRole("list", { name: "Legend" })).queryByText("Contradiction")).toBeNull();
@@ -122,4 +122,20 @@ describe("the graph view", () => {
     };
     expect(draw()).toEqual(draw());
   });
+});
+
+it("gives each sector the counted studies and marks the rest not counted", () => {
+  const data = fixtures.synthetic;
+  const outcome = data.outcomes.find((o) => o.name === "Synthetic symptoms");
+  if (outcome === undefined) throw new Error("the synthetic fixture has symptoms");
+  const { container } = render(
+    <GraphView data={data} outcome={outcome} selected={null} onSelect={() => {}} />,
+  );
+  const labels = [...container.querySelectorAll("text")].map((t) => t.textContent);
+
+  // The strip counts 3 benefit, 1 no effect and 2 harm; one benefit study has only subgroup
+  // results and one no-effect study has a design without a weight.
+  expect(labels).toContain("Benefit · 3 · 1 not counted");
+  expect(labels).toContain("No effect · 1 · 1 not counted");
+  expect(labels).toContain("Harm · 2");
 });

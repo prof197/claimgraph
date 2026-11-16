@@ -45,7 +45,7 @@ describe("the contradiction panel", () => {
     const link = within(panel()).getByRole("link", { name: /depressed adults vs a general older population/ });
     expect(link.getAttribute("href")).toBe(href({ page: "pair", pairId: "Synthetic symptoms|999000101|999000102" }));
     expect(link.textContent).toContain("Found a benefit");
-    expect(link.textContent).toContain("Synthetic101 2011");
+    expect(link.textContent).toContain("Synthetic101 et al. 2011");
     expect(link.textContent).toContain("Found no effect");
     expect(link.textContent).toContain("n 18,000");
     expect(link.textContent).toContain("Likely reason: population");
@@ -90,7 +90,7 @@ describe("the contradiction panel", () => {
     expect(details?.open).toBe(false);
     await user.click(screen.getByText("2 pairs looked contradictory but weren't"));
     expect(details?.open).toBe(true);
-    expect(screen.getByText("Synthetic102 2012 vs Synthetic106 2016 · underpowered: a harm seen in 18 people")).toBeTruthy();
+    expect(screen.getByText("Synthetic102 et al. 2012 vs Synthetic106 et al. 2016 · underpowered: a harm seen in 18 people")).toBeTruthy();
   });
 
   it("no genuine contradictions, with apparent ones: says so and still lists them", () => {

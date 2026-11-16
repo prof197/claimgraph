@@ -27,7 +27,7 @@ test("the graph draws the same coordinates on every load", async ({ page }) => {
 
 test("selecting a dot by mouse marks it and draws its contradictions solid", async ({ page }) => {
   await page.goto(SYMPTOMS);
-  const dot = graph(page).getByRole("button", { name: /^Synthetic102 2012/ });
+  const dot = graph(page).getByRole("button", { name: /^Synthetic102 et al. 2012/ });
   await dot.click();
   await expect(dot).toHaveAttribute("aria-pressed", "true");
   await expect(graph(page).locator("[data-selected]")).toHaveAttribute("data-selected", "999000102-1");
@@ -61,6 +61,6 @@ for (const outcome of ["Synthetic%20symptoms", "Synthetic%20cases", "Synthetic%2
 
 test("a thin outcome names every dot", async ({ page }) => {
   await page.goto("/?fixture=minimal");
-  await expect(graph(page).getByText("Synthetic301 2021")).toBeVisible();
-  await expect(graph(page).getByText("Synthetic302 2021")).toBeVisible();
+  await expect(graph(page).getByText("Synthetic301 et al. 2021")).toBeVisible();
+  await expect(graph(page).getByText("Synthetic302 et al. 2021")).toBeVisible();
 });

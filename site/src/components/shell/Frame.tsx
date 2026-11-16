@@ -1,4 +1,6 @@
+import { ExternalLink, REPOSITORY_URL } from "../../lib/ExternalLink";
 import type { MouseEvent, ReactNode } from "react";
+import "./shell.css";
 
 /** A link to a section of this page. Routes live in the hash, so an in-page `#id` would read
  * as a route: the link keeps the current route as its address and scrolls on click instead. */
@@ -31,6 +33,7 @@ export function PageHeader({ here }: { here: string }) {
           <JumpLink here={here} to="evals-h">
             Evals
           </JumpLink>
+          <ExternalLink href={REPOSITORY_URL}>Source code</ExternalLink>
         </nav>
       </div>
     </header>
@@ -42,7 +45,10 @@ export function PageFooter() {
     <footer className="shell-footer">
       <div className="shell-footer__inner">
         <p className="shell-footer__note">Research navigation demo, not medical advice.</p>
-        <p className="shell-small shell-muted">Abstracts from PubMed via NCBI E-utilities</p>
+        <p className="shell-small shell-muted">
+          Abstracts from PubMed via NCBI E-utilities ·{" "}
+          <ExternalLink href={REPOSITORY_URL}>Open source on GitHub</ExternalLink>
+        </p>
       </div>
     </footer>
   );

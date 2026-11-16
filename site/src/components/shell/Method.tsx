@@ -1,3 +1,4 @@
+import { ExternalLink } from "../../lib/ExternalLink";
 import { type ReactNode, useState } from "react";
 import type { Export, Method as MethodData, Review } from "../../types/export";
 import { citation, longDate, money, number, pubmedUrl } from "./labels";
@@ -6,9 +7,27 @@ import { citation, longDate, money, number, pubmedUrl } from "./labels";
 const REVIEWS_SHOWN = 4;
 
 /** Reviews pool studies already on the page, so they are listed for context, never counted. */
+// Systematic reviews and meta-analyses are listed; narrative reviews, which pool no studies
+// by a stated method, sit in a collapsed list with their count.
+const LISTED_REVIEWS: ReadonlySet<Review["design"]> = new Set(["systematic_review", "meta_analysis"]);
+
+function ReviewItem({ review }: { review: Review }) {
+  return (
+    <li className="shell-card shell-review">
+      <p className="shell-strong shell-small">{citation(review)}</p>
+      <p className="shell-review__text">{review.summary ?? review.title}</p>
+      <ExternalLink className="shell-small" href={pubmedUrl(review.pmid)}>
+        Open on PubMed<span className="shell-visually-hidden">: {review.title}</span>
+      </ExternalLink>
+    </li>
+  );
+}
+
 export function Reviews({ reviews }: { reviews: Review[] }) {
   const [all, setAll] = useState(false);
-  const shown = all ? reviews : reviews.slice(0, REVIEWS_SHOWN);
+  const listed = reviews.filter((r) => LISTED_REVIEWS.has(r.design));
+  const narrative = reviews.filter((r) => !LISTED_REVIEWS.has(r.design));
+  const shown = all ? listed : listed.slice(0, REVIEWS_SHOWN);
   return (
     <section className="shell-section" aria-labelledby="rev-h">
       <div className="shell-section__intro">
@@ -19,25 +38,32 @@ export function Reviews({ reviews }: { reviews: Review[] }) {
           Listed for context, not counted above: they pool studies that are already on this page.
         </p>
       </div>
-      {reviews.length === 0 ? (
-        <p className="shell-text">No reviews or meta-analyses were found for this question.</p>
+      {listed.length === 0 ? (
+        <p className="shell-text">No systematic reviews or meta-analyses were found for this question.</p>
       ) : (
         <ul className="shell-reviews">
           {shown.map((review) => (
-            <li key={review.pmid} className="shell-card shell-review">
-              <p className="shell-strong shell-small">{citation(review)}</p>
-              <p className="shell-review__text">{review.summary ?? review.title}</p>
-              <a className="shell-small" href={pubmedUrl(review.pmid)}>
-                Open on PubMed<span className="shell-visually-hidden">: {review.title}</span>
-              </a>
-            </li>
+            <ReviewItem key={review.pmid} review={review} />
           ))}
         </ul>
       )}
-      {!all && reviews.length > REVIEWS_SHOWN && (
+      {!all && listed.length > REVIEWS_SHOWN && (
         <button type="button" className="shell-button" onClick={() => setAll(true)}>
-          Show {reviews.length - REVIEWS_SHOWN} more
+          Show {listed.length - REVIEWS_SHOWN} more
         </button>
+      )}
+      {narrative.length > 0 && (
+        <details className="shell-narrative">
+          <summary>
+            {narrative.length} narrative {narrative.length === 1 ? "review" : "reviews"}, without
+            systematic methods
+          </summary>
+          <ul className="shell-reviews">
+            {narrative.map((review) => (
+              <ReviewItem key={review.pmid} review={review} />
+            ))}
+          </ul>
+        </details>
       )}
     </section>
   );
@@ -57,8 +83,7 @@ export function Method({ data }: { data: Export }) {
         </Step>
         <Step n="02" title="Extract">
           A model fills fixed fields for each finding, and the quoted sentence must match the
-          abstract exactly: {number(method.findings)} findings from {number(method.studies)}{" "}
-          primary studies.
+          abstract exactly, for {number(method.studies)} primary studies.
         </Step>
         <Step n="03" title="Normalize">
           Outcome names merge through a mapping{" "}

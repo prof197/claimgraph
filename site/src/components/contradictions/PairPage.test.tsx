@@ -25,7 +25,7 @@ describe("the pair page", () => {
     expect(screen.getByText("synthetic: depressed adults vs a general older population")).toBeTruthy();
 
     const cards = within(screen.getByRole("region", { name: "The two findings" })).getAllByRole("article");
-    expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual(["Synthetic101 2011", "Synthetic102 2012"]);
+    expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual(["Synthetic101 et al. 2011", "Synthetic102 et al. 2012"]);
     const first = cards[0];
     if (first === undefined) throw new Error("two cards");
     expect(within(first).getByText("Found a benefit")).toBeTruthy();

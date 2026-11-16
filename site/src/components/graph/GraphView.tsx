@@ -155,6 +155,20 @@ export function GraphView({ data, outcome, selected, onSelect }: GraphViewProps)
     return `${label(node)}: ${parts.join(", ")}`;
   };
 
+  // Studies the strip counts: a headline finding and a weighted design. The rest are drawn but
+  // not counted, so the sector says both and matches the strip's number.
+  const counted = new Map<Direction, number>();
+  for (const node of layout.nodes) {
+    if (node.headline && studies.get(node.study)?.weight != null) {
+      counted.set(node.direction, (counted.get(node.direction) ?? 0) + 1);
+    }
+  }
+  const sectorText = (d: Direction) => {
+    const n = counted.get(d) ?? 0;
+    const rest = (counts.get(d) ?? 0) - n;
+    const label = `${DIRECTION_LABEL[d]} · ${formatCount(n)}`;
+    return rest > 0 ? `${label} · ${formatCount(rest)} not counted` : label;
+  };
   const hub = hubLines(outcome.name);
   const sectors = (["benefit", "none", "harm"] as const).filter((d) => (counts.get(d) ?? 0) > 0);
   const where: Record<Direction, string> = {
@@ -228,7 +242,7 @@ export function GraphView({ data, outcome, selected, onSelect }: GraphViewProps)
                 y={SECTOR_LABEL[d].y}
                 textAnchor={SECTOR_LABEL[d].anchor}
               >
-                {DIRECTION_LABEL[d]} · {formatCount(counts.get(d) ?? 0)}
+                {sectorText(d)}
               </text>
             ))}
             {labelAll &&

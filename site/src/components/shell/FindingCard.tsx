@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ExternalLink } from "../../lib/ExternalLink";
 import { href } from "../../routes";
 import type { Export, FindingNode, Outcome } from "../../types/export";
 import {
@@ -105,9 +106,9 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
         </dl>
       </div>
       <div className="shell-detail__actions">
-        <a className="shell-action shell-action--primary" href={pubmedUrl(finding.pmid)}>
+        <ExternalLink className="shell-action shell-action--primary" href={pubmedUrl(finding.pmid)}>
           Open on PubMed
-        </a>
+        </ExternalLink>
         {elsewhere.map((e) => (
           <a
             key={e.outcome}

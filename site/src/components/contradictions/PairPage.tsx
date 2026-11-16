@@ -1,5 +1,7 @@
 // One genuine contradiction: both findings side by side, and a row per field the classifier
 // reasons about, marking which differ and which it named as the likely reason.
+import { ExternalLink } from "../../lib/ExternalLink";
+import { PageFooter } from "../shell/Frame";
 import type { ReactNode } from "react";
 import { studiesByKey } from "../../lib/data";
 import { href } from "../../routes";
@@ -80,12 +82,7 @@ export function PairPage({ data, pairId }: PairPageProps) {
           <Pair data={data} found={found} />
         )}
       </main>
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <p className={styles.footerNote}>Research navigation demo, not medical advice.</p>
-          <p className={styles.footerSource}>Abstracts from PubMed via NCBI E-utilities</p>
-        </div>
-      </footer>
+      <PageFooter />
     </div>
   );
 }
@@ -178,9 +175,9 @@ function FindingCard({ finding, study }: { finding: FindingNode; study: Study | 
           {finding.quote}
         </blockquote>
       </figure>
-      <a className={styles.pubmed} href={pubmedUrl(finding.pmid)}>
+      <ExternalLink className={styles.pubmed} href={pubmedUrl(finding.pmid)}>
         Open on PubMed<span className={styles.visuallyHidden}>: PMID {finding.pmid}</span>
-      </a>
+      </ExternalLink>
     </article>
   );
 }
