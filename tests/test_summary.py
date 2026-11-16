@@ -8,11 +8,6 @@ from claimgraph.export import DirectionShares, Weighting
 from claimgraph.models import Design
 from claimgraph.summary import HeadlineStudy, leading, summarize, weighted_view
 
-# Written before the summary math; remove this marker once it is built.
-pytestmark = pytest.mark.xfail(
-    raises=NotImplementedError, strict=True, reason="the summary math is not built yet"
-)
-
 B, N, H = Direction.BENEFIT, Direction.NONE, Direction.HARM
 
 
