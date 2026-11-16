@@ -729,11 +729,40 @@ data is labeled by hand, from openly licensed articles only.
   | Depressive symptoms | Effect vs none | With other | 181 | 57 | 17 | 0 |
   | Remission and treatment response | Effect vs none | Any | 3 | 0 | 0 | 2 |
   | All | | | 27,945 | 3,124 | 300 | 40 |
-- **Interval width:** at 150 pairs and about 80% accuracy, each arm's 95% interval is roughly ±6
-  points. Arms are compared on the same pairs, so the paired bootstrap gives tighter intervals on
-  their differences. The README states the width so close results aren't over-read.
-- **Reason classes:** six classes leave about 25 labeled pairs each, so per-class accuracy is
-  reported with its interval, not as a headline.
+- **Pre-registered contradiction scoring**, written before any arm classified an eval pair:
+  - *Correct:* an arm is right on a pair when its verdict and its primary reason both match
+    the label. Precision on genuine uses the verdict alone: of the pairs an arm calls genuine,
+    the share labeled genuine.
+  - *What is labeled:* every eval pair where any two arms differ on the verdict or the primary
+    reason, capped at 50 by a seeded draw proportional to the strata; and 20 pairs where every
+    arm agrees, drawn at random with a seed, in an order that later labels can extend.
+  - *Why that is enough for the ablation:* on a pair where all arms agree, every arm is right
+    or every arm is wrong, so it adds nothing to any paired difference. The difference between
+    two arms is the disagreement pairs' share of the 300 times their mean difference in
+    correctness on the labeled disagreement pairs, each weighted by the inverse of its chance
+    of being drawn when the cap binds. Its 95% interval is a paired bootstrap over the labeled
+    disagreement pairs, resampled within strata, 10,000 times with a fixed seed.
+  - *Absolute accuracy and precision on genuine* weight the two groups by their shares of the
+    300: the disagreement pairs' labeled rate and the agreement pairs' labeled rate, which is
+    the same for every arm. The interval resamples both groups. With 20 agreement labels it is
+    wide, roughly ±8 to ±11 points when arms agree on 60 to 80% of pairs; the README states the
+    widths, and more agreement pairs can be labeled later in the same order.
+  - *Reporting:* per stratum and on the 300 as drawn, never as accuracy over all candidate
+    pairs. Reason accuracy comes with a confusion matrix on the labeled pairs, weighted the
+    same way, and per-reason rates come with their intervals, not as headlines.
+  - *Scope of the hosted run:* the retrieval scope stays title and abstract. If the paired 95%
+    interval for the best arm's gain over `single-small` includes zero, every candidate pair is
+    classified at `single-small`. Otherwise, the top N pairs per outcome in the panel's order
+    (combined design weight, then combined sample size) are classified at the cheapest arm
+    whose paired interval against the best arm includes zero, with N the largest that keeps
+    the dry run's estimate within the $5 classification budget; an outcome with fewer than N
+    pairs has all of them classified. The best arm is the one with the highest estimated
+    accuracy, and cost is measured per pair on the 300. The README states how many of the
+    candidate pairs were classified. With at most 50 labeled disagreements, "not significantly
+    worse" is a loose test, so the rule is likely to land on a cheap arm.
+  - *Prompt:* the classification prompt is tuned on the 40 dev pairs only and frozen before
+    any arm runs on the 300. It is settled when no error pattern shows on more than 2 dev pairs,
+    after at most two rounds, the rule extraction used.
 - **Matching findings:** the extraction eval pairs each gold finding with a model finding on
   the quote alone. One sentence can back several findings, so findings that share a sentence
   pair by the most subgroup and outcome words in common. Matching finds the same finding;
