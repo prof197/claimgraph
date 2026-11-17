@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 from claimgraph.batch import (
+    MAX_DROPPED_POLLS,
     POLL_SECONDS,
     BatchApi,
     BatchOutcome,
@@ -36,6 +37,29 @@ _GOOGLE_DONE = {
     "JOB_STATE_CANCELLED",
     "JOB_STATE_EXPIRED",
 }
+
+
+def _polled[T](
+    fetch: Callable[[], T],
+    batch_id: str,
+    transient: tuple[type[BaseException], ...],
+    on_poll: Callable[[str], None],
+    sleep: Callable[[float], None],
+    seconds: float,
+) -> T:
+    """One poll, tried again when the connection drops: the batch keeps running meanwhile."""
+    dropped = 0
+    while True:
+        try:
+            return fetch()
+        except transient as error:
+            dropped += 1
+            if dropped > MAX_DROPPED_POLLS:
+                raise
+            on_poll(f"batch {batch_id}: poll failed ({error}); trying again")
+            sleep(seconds)
+
+
 # The SDK's own extras on a response, which are not the API's answer.
 _GOOGLE_EXTRAS = {"sdk_http_response", "automatic_function_calling_history", "parsed"}
 
@@ -50,10 +74,17 @@ class OpenAIBatches:
         poll_seconds: float = POLL_SECONDS,
         on_poll: Callable[[str], None] = lambda _: None,
     ) -> None:
+        import openai
+
         self.client = client
         self.sleep = sleep
         self.poll_seconds = poll_seconds
         self.on_poll = on_poll
+        # A timeout is a dropped connection to the SDK.
+        self.transient: tuple[type[BaseException], ...] = (openai.APIConnectionError,)
+
+    def _poll[T](self, fetch: Callable[[], T], batch_id: str) -> T:
+        return _polled(fetch, batch_id, self.transient, self.on_poll, self.sleep, self.poll_seconds)
 
     def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
         lines = [
@@ -72,7 +103,7 @@ class OpenAIBatches:
 
     def collect(self, batch_id: str) -> BatchOutcome:
         while True:
-            batch = self.client.batches.retrieve(batch_id)
+            batch = self._poll(lambda: self.client.batches.retrieve(batch_id), batch_id)
             if batch.status in _OPENAI_DONE:
                 break
             counts = batch.request_counts
@@ -85,7 +116,8 @@ class OpenAIBatches:
         for file_id in (batch.output_file_id, batch.error_file_id):
             if file_id is None:
                 continue
-            for line in self.client.files.content(file_id).text.splitlines():
+            content = self._poll(lambda f=file_id: self.client.files.content(f), batch_id)
+            for line in content.text.splitlines():
                 if not line.strip():
                     continue
                 entry = json.loads(line)
@@ -110,10 +142,18 @@ class GoogleBatches:
         poll_seconds: float = POLL_SECONDS,
         on_poll: Callable[[str], None] = lambda _: None,
     ) -> None:
+        import httpx
+        from google.genai import errors
+
         self.client = client
         self.sleep = sleep
         self.poll_seconds = poll_seconds
         self.on_poll = on_poll
+        # A dropped connection, or the service's own 5xx while the batch runs on.
+        self.transient: tuple[type[BaseException], ...] = (httpx.TransportError, errors.ServerError)
+
+    def _poll[T](self, fetch: Callable[[], T], batch_id: str) -> T:
+        return _polled(fetch, batch_id, self.transient, self.on_poll, self.sleep, self.poll_seconds)
 
     def submit(self, requests: Mapping[str, Mapping[str, Any]]) -> str:
         models = {p["body"]["model"] for p in requests.values()}
@@ -134,7 +174,7 @@ class GoogleBatches:
 
     def collect(self, batch_id: str) -> BatchOutcome:
         while True:
-            job = self.client.batches.get(name=batch_id)
+            job = self._poll(lambda: self.client.batches.get(name=batch_id), batch_id)
             state = job.state.value if job.state is not None else "unknown"
             if state in _GOOGLE_DONE:
                 break

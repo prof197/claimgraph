@@ -371,3 +371,43 @@ def test_a_vendor_that_refuses_after_others_were_sent_leaves_them_pending(tmp_pa
         run_batched(["synthetic"], str, attempt, tmp_path, api)
 
     assert (tmp_path / "pending-batches.txt").read_text() == "anthropic=anthropic-batch\n"
+
+
+def test_a_timed_out_openai_poll_is_tried_again() -> None:
+    import httpx
+    import openai
+
+    fake = FakeOpenAI(["completed"])
+    calls = {"n": 0}
+    retrieve = fake.batches.retrieve
+
+    def flaky(batch_id: str) -> Any:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            request = cast(Any, httpx.Request("GET", "https://synthetic.test"))
+            raise openai.APITimeoutError(request=request)
+        return retrieve(batch_id)
+
+    fake.batches.retrieve = flaky
+    polls: list[str] = []
+    api = OpenAIBatches(cast(Any, fake), sleep=lambda _: None, on_poll=polls.append)
+
+    outcome = api.collect("batch_synthetic")
+
+    assert outcome.responses["key-ok"]["id"] == "resp_synthetic"
+    assert any("poll failed" in p for p in polls)
+
+
+def test_a_google_poll_that_keeps_failing_gives_up() -> None:
+    import httpx
+
+    fake = FakeGoogle()
+
+    def down(name: str) -> Any:
+        raise httpx.ConnectError("synthetic: connection refused")
+
+    fake.batches.get = down
+    api = GoogleBatches(cast(Any, fake), sleep=lambda _: None)
+
+    with pytest.raises(httpx.ConnectError):
+        api.collect("batches/synthetic")
