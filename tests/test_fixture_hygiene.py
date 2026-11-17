@@ -5,11 +5,15 @@ import os
 import re
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).parents[1]
 FIXTURE_DIRS = [ROOT / "tests" / "fixtures", ROOT / "replay"]
-SECRET_NAMES = ("NCBI_EMAIL", "NCBI_API_KEY", "ANTHROPIC_API_KEY")
+SECRET_NAMES = (
+    "NCBI_EMAIL",
+    "NCBI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+)
 # Request parameters as they would appear in a recorded URL or form body.
 IDENTITY_PARAM = re.compile(rb"(?<![A-Za-z_])(email|api_key|tool)=")
 
@@ -30,13 +34,14 @@ def local_secrets() -> list[str]:
     return sorted({v for v in values if v})
 
 
-@pytest.mark.parametrize("path", fixture_files(), ids=lambda p: p.name)
-def test_fixture_has_no_identity_parameters(path: Path) -> None:
-    assert not IDENTITY_PARAM.search(path.read_bytes())
+# One pass over every file per check: the model recordings number in the thousands.
 
 
-@pytest.mark.parametrize("path", fixture_files(), ids=lambda p: p.name)
-def test_fixture_has_no_local_identity_values(path: Path) -> None:
-    content = path.read_bytes()
+def test_no_fixture_has_identity_parameters() -> None:
+    assert [p.name for p in fixture_files() if IDENTITY_PARAM.search(p.read_bytes())] == []
 
-    assert not [v for v in local_secrets() if v.encode() in content]
+
+def test_no_fixture_has_local_identity_values() -> None:
+    secrets = [v.encode() for v in local_secrets()]
+
+    assert [p.name for p in fixture_files() if any(v in p.read_bytes() for v in secrets)] == []

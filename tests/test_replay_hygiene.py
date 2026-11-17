@@ -15,6 +15,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
 _PMID_FIELD = re.compile(r'"pmid"\s*:\s*"?(\d+)')
+# A whole number standing alone, as a PMID appears in text: the same matches as searching for
+# each known PMID between word boundaries, in one pass over a file.
+_NUMBER = re.compile(r"\b\d+\b")
 
 
 def _pair_pmids(gold_dir: Path, split: str) -> set[str]:
@@ -62,7 +65,7 @@ def non_gold_pmids_in_replay(replay_dir: Path, gold_dir: Path) -> set[str]:
     for path in (p for p in replay_dir.rglob("*") if p.is_file()):
         text = path.read_text(errors="replace")
         found |= set(_PMID_FIELD.findall(text)) - gold
-        found |= {p for p in outside if re.search(rf"\b{p}\b", text)}
+        found |= set(_NUMBER.findall(text)) & outside
     return found
 
 
