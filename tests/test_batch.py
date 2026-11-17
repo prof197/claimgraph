@@ -6,6 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+import anthropic
+import httpx
 import pytest
 from test_extract import MISQUOTED, finding, output, response
 from test_labels import ROOT, VITAMIN_D, synthetic_abstract
@@ -198,6 +200,39 @@ def test_the_api_submits_polls_and_sorts_the_results() -> None:
     assert sleeps == [30, 30]
     assert outcome.responses == {"a" * 64: VALID}
     assert outcome.failures == {"b" * 64: "errored: overloaded_error", "c" * 64: "expired"}
+
+
+class Dropping(FakeSdk):
+    """Polls that fail to connect `drops` times before answering."""
+
+    def __init__(self, polls: int, drops: int) -> None:
+        super().__init__(polls)
+        self.drops = drops
+        retrieve = self.messages.batches.retrieve
+
+        def flaky(batch_id: str) -> Any:
+            if self.drops:
+                self.drops -= 1
+                raise anthropic.APIConnectionError(
+                    request=cast(Any, httpx.Request("GET", "https://x"))
+                )
+            return retrieve(batch_id)
+
+        self.messages.batches.retrieve = flaky
+
+
+def test_a_dropped_connection_while_waiting_is_polled_again() -> None:
+    api = batch.AnthropicBatches(cast(Any, Dropping(polls=1, drops=2)), sleep=lambda _: None)
+
+    assert api.collect("msgbatch_synthetic").responses == {"a" * 64: VALID}
+
+
+def test_a_wait_gives_up_after_too_many_dropped_polls() -> None:
+    sdk = Dropping(polls=1, drops=batch.MAX_DROPPED_POLLS + 1)
+    api = batch.AnthropicBatches(cast(Any, sdk), sleep=lambda _: None)
+
+    with pytest.raises(anthropic.APIConnectionError):
+        api.collect("msgbatch_synthetic")
 
 
 def test_live_batches_need_an_api_key() -> None:

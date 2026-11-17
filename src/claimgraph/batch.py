@@ -27,6 +27,8 @@ from claimgraph.retrieve import Abstract, write_atomic
 
 MAX_ROUNDS = 3
 POLL_SECONDS = 30
+# Polls in a row that may fail to connect before a wait gives up.
+MAX_DROPPED_POLLS = 10
 
 
 class BatchOutcome(Record):
@@ -74,8 +76,19 @@ class AnthropicBatches:
         return self.client.messages.batches.create(requests=entries).id
 
     def collect(self, batch_id: str) -> BatchOutcome:
+        dropped = 0
         while True:
-            current = self.client.messages.batches.retrieve(batch_id)
+            try:
+                current = self.client.messages.batches.retrieve(batch_id)
+            except anthropic.APIConnectionError as error:
+                # A dropped connection while waiting loses nothing: the batch keeps running.
+                dropped += 1
+                if dropped > MAX_DROPPED_POLLS:
+                    raise
+                self.on_poll(f"batch {batch_id}: poll failed ({error}); trying again")
+                self.sleep(self.poll_seconds)
+                continue
+            dropped = 0
             if current.processing_status == "ended":
                 break
             counts = current.request_counts
