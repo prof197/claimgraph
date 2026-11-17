@@ -537,6 +537,17 @@ them, at whatever depth the run asks for.
   the contradiction panel and the eval. Its findings stay on the graph, since each may still pair
   with a vitamin D finding by another study. A combination product that includes vitamin D, and
   a genetic proxy for vitamin D level in a Mendelian randomization study, are on the question.
+- **Extraction finding, measured on the 300 eval pairs:** 89 pairs, 30%, hold one of 8
+  headline findings whose exposure is not vitamin D, 5% of the 151 headline findings the
+  pairs draw on. They are vitamin C taken or measured, cognitive impairment status, light
+  therapy, serum magnesium, ethnicity, a proprietary supplement that never names vitamin D,
+  and B12 with folic acid given against a placebo that carried the same vitamin D. A leaked
+  finding pairs with every study on its outcome that points the other way, so 5% of findings
+  become 30% of pairs. Every arm marks 84 to 88 of the 89 `off_question`. One more finding,
+  overweight combined with vitamin D status, is borderline, and the arms split on its two
+  pairs. The misreading `off_question` invites, a measured or self-reported vitamin D exposure
+  taken for another, appears only in `single-small`, on 5 of the 300 pairs, 1.7%. Extraction
+  should drop these findings itself; until it does, classification counts them.
 - The prompt was tuned on the 40 dev pairs in two rounds and then frozen. In the first, both
   single arms called pairs apparent for differences alone, against the rules, and stumbled on
   findings whose exposure was not vitamin D; the arms agreed on 22 verdicts and on 15 verdicts
