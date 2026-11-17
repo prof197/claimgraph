@@ -50,7 +50,11 @@ describe("the contradiction panel", () => {
     expect(link.textContent).toContain("n 18,000");
     expect(link.textContent).toContain("Likely reason: population");
     expect(link.textContent).toContain("Also differs: intervention");
-    expect(screen.getByText(/6 pairs on synthetic symptoms\. 8 of 16 candidate pairs were classified\./)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /^6 genuine contradictions on synthetic symptoms\..* Of 16 candidate pairs, the 8 whose studies are most alike were classified: 6 genuine and 2 that only looked contradictory \(listed below\)\.$/,
+      ),
+    ).toBeTruthy();
   });
 
   it("filtered by reason: a reason button shows only that group", async () => {
@@ -96,7 +100,11 @@ describe("the contradiction panel", () => {
   it("no genuine contradictions, with apparent ones: says so and still lists them", () => {
     render(<ContradictionPanel data={synthetic} outcome={outcomeOf(synthetic, "Synthetic remission")} />);
     expect(screen.getByText("No genuine contradictions on synthetic remission.")).toBeTruthy();
-    expect(screen.getByText("The classifier read 2 candidate pairs and judged none genuine. 2 of 6 candidate pairs were classified.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Of 6 candidate pairs, the 2 whose studies are most alike were classified, and none was genuine: 2 that only looked contradictory (listed below).",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Filter by likely reason" })).toBeNull();
     expect(screen.getByText("2 pairs looked contradictory but weren't")).toBeTruthy();
     expect(screen.getByText(/underpowered: n = 50/)).toBeTruthy();
@@ -107,6 +115,26 @@ describe("the contradiction panel", () => {
     expect(screen.getByText("No genuine contradictions on synthetic cases.")).toBeTruthy();
     expect(screen.getByText("Its 3 candidate pairs have not been classified yet.")).toBeTruthy();
     expect(screen.queryByText(/looked contradictory/)).toBeNull();
+  });
+
+  it("the count line says where every classified pair went, off the question included", () => {
+    const data = JSON.parse(JSON.stringify(synthetic)) as Export;
+    data.method.selection = null;
+    const outcome = { ...outcomeOf(data, "Synthetic symptoms"), classified_pairs: 11 };
+    render(<ContradictionPanel data={data} outcome={outcome} />);
+    expect(
+      screen.getByText(
+        /^.*\. 11 of 16 candidate pairs were classified: 6 genuine, 2 that only looked contradictory \(listed below\) and 3 off the question\.$/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("the count line, when every candidate pair was classified", () => {
+    const outcome = { ...symptoms, candidate_pairs: 8 };
+    render(<ContradictionPanel data={synthetic} outcome={outcome} />);
+    expect(
+      screen.getByText(/All 8 candidate pairs were classified: 6 genuine and 2 that only looked contradictory \(listed below\)\.$/),
+    ).toBeTruthy();
   });
 
   it("nothing to compare: a thin outcome whose studies all agree", () => {

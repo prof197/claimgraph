@@ -51,6 +51,7 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
   const [filter, setFilter] = useState<Reason | null>(null);
   const [limit, setLimit] = useState(FIRST_PAIRS);
   const headingId = useId();
+  const alike = data.method.selection != null;
 
   const groups = groupByReason(pairs);
   const shown = filter === null ? groups : groups.filter((g) => g.reason === filter);
@@ -63,12 +64,12 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
         <h2 id={headingId} ref={heading} tabIndex={-1} className={styles.h2}>
           Where studies disagree
         </h2>
-        <p className={styles.lead}>{introText(pairs, outcome)}</p>
+        <p className={styles.lead}>{introText(pairs, outcome, alike)}</p>
       </div>
 
       {pairs.length === 0 ? (
         <p className={styles.empty} data-state="no-genuine">
-          {emptyText(outcome)}
+          {emptyText(outcome, alike)}
         </p>
       ) : (
         <>
@@ -134,7 +135,7 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
   );
 }
 
-function introText(pairs: ContradictionEdge[], outcome: Outcome): string {
+function introText(pairs: ContradictionEdge[], outcome: Outcome, alike: boolean): string {
   if (pairs.length === 0) {
     return `No genuine contradictions on ${inSentence(outcome.name)}.`;
   }
@@ -146,26 +147,47 @@ function introText(pairs: ContradictionEdge[], outcome: Outcome): string {
       : benefitVsHarm > effectVsNone
         ? " Most pair a study that found a benefit with one that found harm."
         : "";
-  return `${plural(pairs.length, "pair", "pairs")} on ${inSentence(outcome.name)}.${most}${coverage(outcome)}`;
+  return `${plural(pairs.length, "genuine contradiction", "genuine contradictions")} on ${inSentence(outcome.name)}.${most} ${classifiedText(outcome, alike)}: ${verdictParts(outcome, pairs.length)}.`;
 }
 
-/** Says when the classifier read only some of the candidate pairs, so a short list is not
- * mistaken for a settled one. */
-function coverage(outcome: Outcome): string {
-  if (outcome.classified_pairs >= outcome.candidate_pairs) {
-    return "";
+/** Which candidate pairs the classifier read, so a short list is not mistaken for a settled
+ * one, and the reader knows the list is the most alike pairs when it is. */
+function classifiedText(outcome: Outcome, alike: boolean): string {
+  const classified = outcome.classified_pairs;
+  if (classified >= outcome.candidate_pairs) {
+    return outcome.candidate_pairs === 1
+      ? "Its one candidate pair was classified"
+      : `All ${formatCount(outcome.candidate_pairs)} candidate pairs were classified`;
   }
-  return ` ${formatCount(outcome.classified_pairs)} of ${plural(outcome.candidate_pairs, "candidate pair was", "candidate pairs were")} classified.`;
+  if (!alike) {
+    return `${formatCount(classified)} of ${plural(outcome.candidate_pairs, "candidate pair was", "candidate pairs were")} classified`;
+  }
+  const which = classified === 1 ? "the one whose studies are most alike was" : `the ${formatCount(classified)} whose studies are most alike were`;
+  return `Of ${plural(outcome.candidate_pairs, "candidate pair", "candidate pairs")}, ${which} classified`;
 }
 
-function emptyText(outcome: Outcome): string {
+/** Where every classified pair went: genuine, only apparent, or off the question. */
+function verdictParts(outcome: Outcome, genuine: number): string {
+  const offQuestion = Math.max(0, outcome.classified_pairs - genuine - outcome.apparent.length);
+  const parts = genuine > 0 ? [`${formatCount(genuine)} genuine`] : [];
+  if (outcome.apparent.length > 0) {
+    parts.push(`${formatCount(outcome.apparent.length)} that only looked contradictory (listed below)`);
+  }
+  if (offQuestion > 0) {
+    parts.push(`${formatCount(offQuestion)} off the question`);
+  }
+  const last = parts.pop() ?? "";
+  return parts.length > 0 ? `${parts.join(", ")} and ${last}` : last;
+}
+
+function emptyText(outcome: Outcome, alike: boolean): string {
   if (outcome.candidate_pairs === 0) {
     return "No two studies on it point different ways, so there was nothing to compare.";
   }
   if (outcome.classified_pairs === 0) {
     return `Its ${plural(outcome.candidate_pairs, "candidate pair has", "candidate pairs have")} not been classified yet.`;
   }
-  return `The classifier read ${plural(outcome.classified_pairs, "candidate pair", "candidate pairs")} and judged none genuine.${coverage(outcome)}`;
+  return `${classifiedText(outcome, alike)}, and none was genuine: ${verdictParts(outcome, 0)}.`;
 }
 
 /** What a side says about the field the pair's reason points at. */
