@@ -4,6 +4,8 @@
 # Reviewed: one outcome per kind in evals/gold/vitamin-d-depression/outcome_kinds.toml, labeled
 # by the rules in evals/gold/LABELING.md, with higher_is_better set by each kind's polarity.
 # Strings labeled out of domain are in the out_of_domain list; their findings are dropped.
+# A string whose instrument is scored the other way from its outcome has a polarity override,
+# after the outcomes; every stage reads its findings by the override.
 
 out_of_domain = [
   "adverse mental health (including depressive symptoms)",
@@ -582,3 +584,9 @@ members = [
   "improvement in depressive symptoms (BDI <11)",
   "treatment response (50% reduction in symptoms)",
 ]
+
+[[polarity_overrides]]
+string = "depression (15D dimension score)"
+higher_is_better = true
+reviewed = true
+why = "The 15D scores each dimension from 0 to 1, where 1 is no problem on it (Sintonen 2001)."

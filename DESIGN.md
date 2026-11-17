@@ -85,6 +85,7 @@ several outcomes, arms or subgroups.
 | Finding | `domain_outcome` | str | The entry of the question's outcome domain the finding is on |
 | Finding | `dimensions` | dict | One value per custom dimension, keyed by name |
 | NormalizedOutcome | `name`, `members`, `higher_is_better`, `reviewed` | str, list[str], bool, bool | Lives in the committed mapping file |
+| PolarityOverride | `string`, `higher_is_better`, `reviewed`, `why` | str, bool, bool, str | A member string scored the other way from its outcome; in the mapping file |
 | CandidatePair | `outcome`, `study_a`, `study_b`, `kind` | — | `kind` is `effect_vs_none` or `benefit_vs_harm` |
 | Classification | `pair_id`, `verdict`, `reason`, `also_differs`, `detail`, `rationale`, `arm` | — | `verdict` is `genuine`, `apparent` or `off_question`, which takes no reason; `detail` is a short specific, such as "duration: 8 weeks vs a median 5.3 years" |
 
@@ -149,7 +150,8 @@ mapping, so the Finding model stays static while the extraction model varies wit
 **Direction is derived, not extracted.** The model reports what the abstract says happened to
 the measure (scores went down). The reviewed mapping says whether down is good for that outcome.
 Benefit, no effect or harm is computed from the two, so the polarity judgment stays with the
-reviewer, in one file.
+reviewer, in one file. Polarity is per outcome by default, with reviewed exceptions for strings
+whose instrument is scored the other way.
 
 **Contradiction reasons** are fixed, taken from the Cochrane Handbook's two sources of
 heterogeneity: clinical diversity (participants, interventions, outcomes) and methodological
@@ -470,6 +472,19 @@ a person reviews the mapping before anything is published.
   `out_of_domain` list at the top of the mapping file. They count as mapped, so `mapping check`
   passes and a rerun never proposes them again; later stages leave their findings out and count
   them, as the extract stage counts findings outside the domain.
+- **Polarity exceptions.** Polarity is per outcome by default: lower is better for symptom
+  scores and case status, higher for remission and response. An instrument scored the other way
+  gets a reviewed per-string override in the mapping file, with what its scale means, and
+  compare, the summary strip, the graph and the classifier read that string's findings by it.
+  Labeling found the first: the 15D, a quality-of-life instrument whose depression dimension
+  runs from 0 to 1, 1 being no problem ([Sintonen 2001][sintonen]), was mapped into depressive
+  symptoms, so a trial reporting its score rose read as harm. A scan of every mapped string,
+  and of every finding that reads as harm on a lower-is-better outcome, found no other
+  instrument scored that way; strings worded as a change, such as "decline of depressive
+  symptoms", are extracted with the direction of the symptoms, so they read correctly. The
+  override moved the 15D trial's headline from harm to benefit and changed 286 of 27,945
+  candidate pairs: 178 benefit-against-harm pairs went, 2 came, and 108 kept their kind with
+  that side now read as benefit, leaving 27,769.
 - **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings
   were frozen after the re-proposal under the rules, as the extraction prompt was after its
   last gold run. A test pins the request's key, so any change shows; it changes only with the
@@ -548,6 +563,11 @@ them, at whatever depth the run asks for.
   pairs. The misreading `off_question` invites, a measured or self-reported vitamin D exposure
   taken for another, appears only in `single-small`, on 5 of the 300 pairs, 1.7%. Extraction
   should drop these findings itself; until it does, classification counts them.
+- **Pairs drawn before a polarity override:** 29 of the 300 eval pairs, 12 of them among the 70
+  labeled, set the 15D trial's finding, read then as harm, against a benefit. They stay in the
+  eval and are classified as drawn, by the outcome's polarity, so their recordings and the label
+  set stand; each label calls the pair apparent on the outcome measure, since both sides
+  improved. The corpus no longer has these pairs, and no dev pair holds the finding.
 - The prompt was tuned on the 40 dev pairs in two rounds and then frozen. In the first, both
   single arms called pairs apparent for differences alone, against the rules, and stumbled on
   findings whose exposure was not vitamin D; the arms agreed on 22 verdicts and on 15 verdicts
@@ -733,7 +753,8 @@ data is labeled by hand, from openly licensed articles only.
   inconsistent: 29 of the 114 first-pass pair verdicts disagreed with the per-string labels,
   mostly splits on scale or timing and merges of a cut-off with a score, and that is why the
   labeling unit changed. Polarity follows the kind too: lower is better for score and case
-  status, higher for remission and response, and the mapping review sets it so.
+  status, higher for remission and response, and the mapping review sets it so, with reviewed
+  exceptions for instruments scored the other way.
 - **Corrections found where a model disagrees:** checking a label only where a proposal
   disagrees with it can raise that proposal's score but never lower it, since a wrong label the
   proposal happens to agree with is never looked at. 20 of the 23 outcome corrections came that
@@ -1416,6 +1437,7 @@ publication types and animal-only studies, apply to every row.
 [epoc-designs]: https://epoc.cochrane.org/sites/epoc.cochrane.org/files/public/uploads/Resources-for-authors2017/what_study_designs_should_be_included_in_an_epoc_review.pdf
 [cebm-glossary]: https://www.cebm.ox.ac.uk/resources/ebm-tools/glossary
 [rief]: https://pubmed.ncbi.nlm.nih.gov/19246102/
+[sintonen]: https://pubmed.ncbi.nlm.nih.gov/11491191/
 [goodacre]: https://emj.bmj.com/content/32/7/507
 [grade-cdc]: https://www.cdc.gov/acip-grade-handbook/hcp/chapter-7-grade-criteria-determining-certainty-of-evidence/index.html
 [vital-dep]: https://pmc.ncbi.nlm.nih.gov/articles/PMC7403921/
