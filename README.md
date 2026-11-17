@@ -8,6 +8,8 @@ design. A static page shows the result.
 
 Research navigation demo, not medical advice.
 
+![The page on its synthetic test data: studies in benefit, no effect and harm bands by year, with one study's finding and its quoted sentence beside them](docs/page.png)
+
 **Status:** the pipeline runs end to end on one question, vitamin D and depression, and the
 hosted page shows its run: every kept abstract extracted, the outcome mapping reviewed, and the
 top candidate pairs of each outcome classified by a three-vendor council. Extraction, outcome
