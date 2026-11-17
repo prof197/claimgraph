@@ -40,6 +40,8 @@ class Dimension(Record):
 
     name: NonBlank
     label: NonBlank
+    # What the finding card calls it, where the full label would wrap; None to use the label.
+    short_label: NonBlank | None = None
     refines: Reason
     unit: NonBlank | None
     # Evaluated only when the gold labels cover it; otherwise the card says "not evaluated".

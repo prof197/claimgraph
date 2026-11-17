@@ -58,6 +58,8 @@ class Dimension(Record):
     refines: Reason
     options: list[NonBlank] | None = None
     unit: NonBlank | None = None
+    # A shorter name for the finding card's narrow label column; the prompts never see it.
+    short_label: NonBlank | None = None
 
     @model_validator(mode="after")
     def _fits_its_type(self) -> Self:

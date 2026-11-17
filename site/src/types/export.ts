@@ -51,6 +51,7 @@ export interface Question {
 export interface Dimension {
   name: string;
   label: string;
+  short_label?: string | null;
   refines: Reason;
   unit: string | null;
   evaluated: boolean;

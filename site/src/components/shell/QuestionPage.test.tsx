@@ -129,7 +129,8 @@ describe("the synthetic fixture", () => {
       row.querySelector("dt")?.textContent,
       row.querySelector("dd")?.textContent,
     ]);
-    expect(fields).toContainEqual(["Baseline synthetic status", "Not reportedCustomNot evaluated"]);
+    // The card uses a dimension's short label where it has one.
+    expect(fields).toContainEqual(["Baseline status", "Not reportedCustomNot evaluated"]);
     expect(fields).toContainEqual(["Synthetic dose", "50 mgCustom"]);
   });
 

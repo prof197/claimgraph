@@ -425,6 +425,7 @@ def _question(
             Dimension(
                 name=d.name,
                 label=dimension_label(d.name),
+                short_label=d.short_label,
                 refines=d.refines,
                 unit=d.unit,
                 evaluated=d.name in evaluated,

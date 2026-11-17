@@ -265,6 +265,7 @@ DIMENSIONS = [
     Dimension(
         name="baseline_synthetic_status",
         label="Baseline synthetic status",
+        short_label="Baseline status",
         refines=Reason.POPULATION,
         unit=None,
         evaluated=False,

@@ -81,7 +81,7 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
     ["Sample size", study.sample_size === null ? "Not reported" : number(study.sample_size)],
     ["Year", String(study.year)],
     ...data.question.dimensions.map((dim): [string, ReactNode] => [
-      dim.label,
+      dim.short_label ?? dim.label,
       <span className="shell-direction">
         {dimensionValue(finding.dimensions[dim.name], dim.unit)}
         <span className="shell-badge shell-badge--quiet">Custom</span>
