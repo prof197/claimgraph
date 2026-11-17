@@ -162,3 +162,56 @@ def test_a_first_stage_without_its_full_run_counts(tmp_path: Path) -> None:
 def test_a_question_with_no_runs_has_no_rows(tmp_path: Path) -> None:
     assert run_costs(tmp_path / "runs" / "none", tmp_path / "replay", PRICES) == []
     assert table([]).endswith("| All stages | 0 | $0.0000 |\n")
+
+
+def recording(directory: Path, key: str, model: str, usage: dict[str, int]) -> None:
+    response = {
+        "id": f"msg_{key}",
+        "model": model,
+        "stop_reason": "end_turn",
+        "content": [{"type": "text", "text": "{}"}],
+        "usage": usage,
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{key}.json").write_text(
+        json.dumps({"key": key, "request": {}, "response": response})
+    )
+
+
+def test_the_corpus_row_counts_pairs_a_later_run_dropped(tmp_path: Path) -> None:
+    run_dir = tmp_path / "runs" / "synthetic"
+    (run_dir / "classify").mkdir(parents=True)
+    kept = {"model": "synthetic-small", "usage": tokens(output=100_000)}
+    (run_dir / "classify" / "corpus-council.jsonl").write_text(
+        json.dumps({"pair_id": "kept", "calls": [kept]}) + "\n"
+    )
+    dev = {"model": "synthetic-small", "usage": tokens(input=1_000_000)}
+    (run_dir / "classify" / "dev-council.jsonl").write_text(
+        json.dumps({"pair_id": "dev", "calls": [dev]}) + "\n"
+    )
+    recordings = run_dir / "replay" / "classification" / "council"
+    recording(recordings, "kept", "synthetic-small", tokens(output=100_000))
+    # A pair the first run classified and a later exclusion dropped: paid for, not in results.
+    recording(recordings, "dropped", "synthetic-small", tokens(output=300_000))
+    recording(recordings, "dev", "synthetic-small", tokens(input=1_000_000))
+    (recordings / "shared.json").write_text('{"system": "synthetic"}')
+
+    costs = {c.run: c for c in run_costs(run_dir, tmp_path / "no-replay", PRICES)}
+
+    # Half of 400,000 output at $10 a million; the dev pair stays in its own row.
+    assert costs["corpus-council"].requests == 2
+    assert costs["corpus-council"].cost_usd == 2.0
+    assert costs["dev-council"].cost_usd == 0.5
+
+
+def test_the_corpus_row_falls_back_to_its_results_without_recordings(tmp_path: Path) -> None:
+    run_dir = tmp_path / "runs" / "synthetic"
+    (run_dir / "classify").mkdir(parents=True)
+    call = {"model": "synthetic-small", "usage": tokens(output=100_000)}
+    (run_dir / "classify" / "corpus-council.jsonl").write_text(
+        json.dumps({"pair_id": "kept", "calls": [call]}) + "\n"
+    )
+
+    (only,) = run_costs(run_dir, tmp_path / "no-replay", PRICES)
+
+    assert only.cost_usd == 0.5

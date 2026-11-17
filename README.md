@@ -405,7 +405,7 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | extract | dev-haiku | claude-haiku-5-5 | 50 | 33,951 | 7,153 | 350,497 | 35,659 | $0.0128 | 2026-11-13 |
 | normalize | sonnet proposal 60df41ed | claude-sonnet-5-5 | 1 | 11,157 | 0 | 0 | 12,900 | $0.1513 | 2026-11-16 |
 | normalize | sonnet proposal 67f6f870 | claude-sonnet-5-5 | 1 | 12,547 | 0 | 0 | 11,040 | $0.1355 | 2026-11-16 |
-| classify | corpus-council | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 748 | 782,030 | 81,728 | 1,315,752 | 119,742 | $1.5487 | 2026-11-16 |
+| classify | corpus-council | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 860 | 890,086 | 98,384 | 1,507,371 | 132,621 | $1.7515 | 2026-11-16 |
 | classify | dev-council-ranked | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 283 | 313,987 | 55,606 | 430,128 | 46,675 | $0.6384 | 2026-11-16 |
 | classify | dev-single-mid | claude-sonnet-5-5 | 40 | 24,390 | 2,697 | 105,183 | 6,565 | $0.0658 | 2026-11-16 |
 | classify | dev-single-mid.round1 | claude-sonnet-5-5 | 40 | 24,390 | 2,015 | 78,585 | 7,202 | $0.0668 | 2026-11-16 |
@@ -423,8 +423,8 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | retrieve | 1 | $0.0000 |
 | extract | 3 | $5.2760 |
 | normalize | 2 | $0.2868 |
-| classify | 12 | $14.5432 |
-| All stages | 18 | $20.1061 |
+| classify | 12 | $14.7461 |
+| All stages | 18 | $20.3089 |
 
 corpus-first200-sonnet's recordings are corpus-sonnet's, so the totals count them once.
 <!-- run-costs:end -->

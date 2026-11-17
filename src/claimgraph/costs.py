@@ -6,6 +6,7 @@ typed by hand. Retrieval calls no model, so it costs nothing to run.
 
 import json
 import re
+from collections import Counter
 from collections.abc import Sequence
 from datetime import date
 from enum import StrEnum
@@ -14,7 +15,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict
 
-from claimgraph.llm import Usage, parse_reply
+from claimgraph.llm import Usage, parse_reply, vendor_of
 from claimgraph.models import Record
 from claimgraph.prices import Prices, cost
 
@@ -176,20 +177,65 @@ def normalize_costs(replay_dir: Path, prices: Prices) -> list[RunCost]:
     return costs
 
 
+def _recorded_calls(replay_dir: Path) -> list[tuple[str, Usage]]:
+    """Every recorded reply in a directory, by model; files without a reply are shared parts."""
+    if not replay_dir.exists():
+        return []
+    calls: list[tuple[str, Usage]] = []
+    for path in sorted(replay_dir.glob("*.json")):
+        recording = cast(dict[str, Any], json.loads(path.read_text()))
+        if "response" not in recording:
+            continue
+        reply = parse_reply(recording["response"], vendor_of(recording["request"]))
+        calls.append((reply.model, reply.usage))
+    return calls
+
+
+def _without(
+    calls: list[tuple[str, Usage]], other: list[tuple[str, Usage]]
+) -> list[tuple[str, Usage]]:
+    """`calls` less one match for each of `other`, matched by model and exact usage."""
+    left = Counter((model, usage.model_dump_json()) for model, usage in other)
+    kept: list[tuple[str, Usage]] = []
+    for model, usage in calls:
+        key = (model, usage.model_dump_json())
+        if left[key] > 0:
+            left[key] -= 1
+        else:
+            kept.append((model, usage))
+    return kept
+
+
 def classify_costs(run_dir: Path, prices: Prices) -> list[RunCost]:
     """Each classification run, one results file per split and arm, at batch prices.
 
     The results keep each request's tokens but not its cost, so they are priced with the
-    current price file.
+    current price file. A corpus results file holds only the pairs of its last run, but a pair
+    dropped since, by a later exclusion, was still paid for; so the corpus row prices every
+    recording in its arm's directory, less the dev results that share that directory.
     """
     out = run_dir / "classify"
     if not out.exists():
         return []
-    costs: list[RunCost] = []
+    priced: dict[str, list[tuple[str, Usage]]] = {}
     for path in sorted(out.glob("*.jsonl")):
         results = [_Classified.model_validate_json(line) for line in path.read_text().splitlines()]
-        calls = [call for r in results for call in r.priced()]
-        costs.append(_run_cost(Stage.CLASSIFY, path.stem, calls, prices, batch=True))
+        priced[path.stem] = [call for r in results for call in r.priced()]
+    costs: list[RunCost] = []
+    for run, calls in priced.items():
+        split, _, arm = run.partition(".")[0].partition("-")
+        if split == "corpus":
+            dev = [
+                c
+                for name, cs in priced.items()
+                if name.partition(".")[0] == f"dev-{arm}"
+                for c in cs
+            ]
+            recorded = _without(_recorded_calls(run_dir / "replay" / "classification" / arm), dev)
+            # Every result of the last run is among the recordings, unless they were moved.
+            if len(_without(calls, recorded)) == 0:
+                calls = recorded
+        costs.append(_run_cost(Stage.CLASSIFY, run, calls, prices, batch=True))
     return costs
 
 
