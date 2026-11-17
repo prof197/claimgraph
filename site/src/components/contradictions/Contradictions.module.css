@@ -276,7 +276,7 @@
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 44px 32px 0;
+  padding: 44px 32px 64px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -502,6 +502,25 @@
 
 .table tbody th {
   font-weight: 600;
+}
+
+.studyHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* On a wide screen the field names and verdicts stay on one line; the findings' own text
+   takes the wrapping. A narrow screen scrolls the table sideways, so it keeps wrapping. */
+@media (min-width: 721px) {
+  .table tbody th:not(:has(.fieldName)),
+  .fieldName,
+  .table td:last-child,
+  .table thead th:first-child,
+  .table thead th:last-child {
+    white-space: nowrap;
+  }
 }
 
 .likely {

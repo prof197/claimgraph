@@ -264,7 +264,7 @@ function rows(found: Found, dimensions: Dimension[], studies: Map<string, Study>
       key: `dimension-${dimension.name}`,
       name: (
         <span className={styles.rowName}>
-          {dimension.label}
+          <span className={styles.fieldName}>{dimension.label}</span>
           <span className={styles.tag}>Custom</span>
           {!dimension.evaluated && <span className={styles.tag}>Not evaluated</span>}
         </span>
@@ -296,8 +296,14 @@ function SideBySide({ data, found, studies }: { data: Export; found: Found; stud
           <thead>
             <tr>
               <th scope="col">Field</th>
-              <th scope="col">{studyLabel(studies.get(fa.study), fa.study)}</th>
-              <th scope="col">{studyLabel(studies.get(fb.study), fb.study)}</th>
+              {[fa, fb].map((f) => (
+                <th key={f.id} scope="col">
+                  <span className={styles.studyHead}>
+                    <span className={`${styles.badge} ${styles[f.direction]}`}>{FOUND_LABEL[f.direction]}</span>
+                    {studyLabel(studies.get(f.study), f.study)}
+                  </span>
+                </th>
+              ))}
               <th scope="col">Same or different</th>
             </tr>
           </thead>
