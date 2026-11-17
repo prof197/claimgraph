@@ -1,5 +1,6 @@
 """The creatine-cognition CLI demo end to end at fixture scale: retrieve from recorded PubMed
-XML, extract and normalize from recorded responses and compare.
+XML, extract and normalize from recorded responses, compare, and estimate classification at
+every depth.
 
 Every record is synthetic, and nothing is sent: E-utilities is a mock transport, and each model
 output in tests/fixtures/creatine is recorded under the key of the current request before the
@@ -16,12 +17,15 @@ from typing import Any
 
 import httpx
 import pytest
+import typer
 from typer.testing import CliRunner, Result
 
-from claimgraph import cli, extract, gold, normalize
+from claimgraph import cli, contrast, extract, gold, normalize
 from claimgraph.config import load_config
 from claimgraph.extract import ExtractionResult
 from claimgraph.llm import ModelClient
+from claimgraph.models import Arm
+from claimgraph.prices import load_prices
 from claimgraph.retrieve import EutilsClient, NcbiIdentity, RateLimiter, split_articles
 
 ROOT = Path(__file__).parents[1]
@@ -277,6 +281,89 @@ def test_compare_finds_the_pairs_and_labels_the_mapping_unreviewed(demo: Demo) -
     assert "     2 pairs   3 studies  memory" in result.output
     assert "     1 pairs   2 studies  attention" in result.output
     assert "     0 pairs   2 studies  processing speed" in result.output
+
+
+# Classify, the dry run at every depth
+
+
+def test_every_depth_estimates_every_candidate_pair(demo: Demo) -> None:
+    through(demo, "compare")
+    mapping = normalize.load_mapping(demo.mappings / f"{QUESTION}.toml")
+    guide = (ROOT / "evals" / "gold" / "LABELING.md").read_text()
+
+    found = contrast.question_run(CONFIG, demo.run_dir, mapping, guide, load_prices())
+
+    assert [d.arm for d in found.depths] == list(Arm)
+    assert all(0 < d.typical_usd < d.ceiling_usd for d in found.depths)
+    assert all(d.measured_usd is None for d in found.depths)
+    by_arm = {d.arm: d.typical_usd for d in found.depths}
+    # The deeper arms send more per pair; the single small model is the cheapest.
+    assert by_arm[Arm.SINGLE_SMALL] == min(by_arm.values())
+    assert by_arm[Arm.SINGLE_SMALL] < by_arm[Arm.SINGLE_MID] < by_arm[Arm.COUNCIL_RANKED]
+
+
+# What the demo reports
+
+
+def contrast_command(demo: Demo, *args: str) -> Result:
+    """The contrast command on an app of its own, until the CLI mounts it."""
+    app = typer.Typer()
+    app.command()(contrast.contrast_command)
+    options = ["--runs-dir", str(demo.runs), "--mappings-dir", str(demo.mappings)]
+    return CliRunner().invoke(app, [QUESTION, *options, *args])
+
+
+README = "# Synthetic\n\n<!-- question-contrast:start -->\n<!-- question-contrast:end -->\n"
+
+
+def test_the_contrast_table_reports_the_run(demo: Demo) -> None:
+    through(demo, "compare")
+    readme = demo.runs.parent / "README.md"
+    readme.write_text(README)
+
+    result = contrast_command(demo, "--readme", str(readme))
+
+    assert result.exit_code == 0, result.output
+    block = readme.read_text()
+    for row in [
+        "|  | `creatine-cognition` |",
+        "| Question | Does creatine supplementation affect cognition? |",
+        "| Abstracts kept | 5 |",
+        "| Studies with a headline finding | 4 |",
+        "| Findings extracted | 7 |",
+        "| Outcomes | 3 |",
+        "| Candidate pairs | 3 |",
+        "| Outcome mapping | unreviewed |",
+    ]:
+        assert row + "\n" in block
+    assert re.search(r"\| Extraction, measured \| \$0\.\d+ \|", block)
+    for arm in Arm:
+        assert re.search(rf"\| `{arm.value}`[^|]*, estimated \| \$0\.\d+ \(at most \$", block)
+    assert "Unreviewed outcome mapping: `creatine-cognition`." in block
+    assert block.endswith("<!-- question-contrast:end -->\n")
+
+
+def test_the_contrast_table_is_the_same_on_a_rerun(demo: Demo) -> None:
+    through(demo, "compare")
+    readme = demo.runs.parent / "README.md"
+    readme.write_text(README)
+
+    first = contrast_command(demo, "--readme", str(readme))
+    written = readme.read_bytes()
+    second = contrast_command(demo, "--readme", str(readme))
+
+    assert first.exit_code == second.exit_code == 0, first.output
+    assert readme.read_bytes() == written
+    assert second.output == first.output
+
+
+def test_the_contrast_needs_a_compared_run(demo: Demo) -> None:
+    through(demo, "normalize")
+
+    result = contrast_command(demo)
+
+    assert result.exit_code == 1
+    assert "creatine-cognition: no complete run" in result.output
 
 
 def test_the_fixture_holds_every_searched_record() -> None:
