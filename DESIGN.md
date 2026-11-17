@@ -867,6 +867,13 @@ data is labeled by hand, from openly licensed articles only.
     accuracy, and cost is measured per pair on the 300. The README states how many of the
     candidate pairs were classified. With at most 50 labeled disagreements, "not significantly
     worse" is a loose test, so the rule is likely to land on a cheap arm.
+  - *Post-hoc sensitivity, committed before scoring:* the README and this file also report
+    every figure without the 29 eval pairs drawn before the 15D polarity override, labeled as
+    a post-hoc check. Those pairs test whether an arm catches a polarity error, read then as
+    harm against a benefit, that the corpus no longer has. The primary figure stays as
+    pre-registered: strict, on every scored pair. The scope rule is applied to the primary
+    figure. If the primary and the sensitivity figure would pick different arms, the build
+    stops for the owner's ruling, and the README reports both whichever way it goes.
   - *Prompt:* the classification prompt is tuned on the 40 dev pairs only and frozen before
     any arm runs on the 300. It is settled when no error pattern shows on more than 2 dev pairs,
     after at most two rounds, the rule extraction used.
