@@ -5,7 +5,9 @@
 # by the rules in evals/gold/LABELING.md, with higher_is_better set by each kind's polarity.
 # Strings labeled out of domain are in the out_of_domain list; their findings are dropped.
 # A string whose instrument is scored the other way from its outcome has a polarity override,
-# after the outcomes; every stage reads its findings by the override.
+# after the outcomes; every stage reads its findings by the override. A finding the review leaves
+# out has an excluded_findings entry with its reason; once reviewed, its finding is dropped from
+# the summary strip, the graph and the pairs, and counted.
 
 out_of_domain = [
   "adverse mental health (including depressive symptoms)",
@@ -590,3 +592,15 @@ string = "depression (15D dimension score)"
 higher_is_better = true
 reviewed = true
 why = "The 15D scores each dimension from 0 to 1, where 1 is no problem on it (Sintonen 2001)."
+
+[[excluded_findings]]
+finding_id = "39051261-1"
+reason = "direction_not_reported"
+reviewed = false
+why = "Vitamin D level is listed among variables related to depression risk (p = 0.006), with no direction; extraction recorded increased."
+
+[[excluded_findings]]
+finding_id = "40596345-1"
+reason = "direction_not_reported"
+reviewed = false
+why = "Serum 25(OH)D is reported as associated with depression severity, with no direction; extraction recorded increased."

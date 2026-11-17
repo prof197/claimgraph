@@ -86,6 +86,7 @@ several outcomes, arms or subgroups.
 | Finding | `dimensions` | dict | One value per custom dimension, keyed by name |
 | NormalizedOutcome | `name`, `members`, `higher_is_better`, `reviewed` | str, list[str], bool, bool | Lives in the committed mapping file |
 | PolarityOverride | `string`, `higher_is_better`, `reviewed`, `why` | str, bool, bool, str | A member string scored the other way from its outcome; in the mapping file |
+| ExcludedFinding | `finding_id`, `reason`, `reviewed`, `why` | str, enum, bool, str | One finding the review leaves out; `reason` is `direction_not_reported`; in the mapping file |
 | CandidatePair | `outcome`, `study_a`, `study_b`, `kind` | — | `kind` is `effect_vs_none` or `benefit_vs_harm` |
 | Classification | `pair_id`, `verdict`, `reason`, `also_differs`, `detail`, `rationale`, `arm` | — | `verdict` is `genuine`, `apparent` or `off_question`, which takes no reason; `detail` is a short specific, such as "duration: 8 weeks vs a median 5.3 years" |
 
@@ -485,6 +486,14 @@ a person reviews the mapping before anything is published.
   override moved the 15D trial's headline from harm to benefit and changed 286 of 27,945
   candidate pairs: 178 benefit-against-harm pairs went, 2 came, and 108 kept their kind with
   that side now read as benefit, leaving 27,769.
+- **Excluded findings.** A finding whose string is in the domain but whose result cannot be
+  read is left out one by one: an `excluded_findings` entry in the mapping file names it, a
+  reason from a closed set and what the abstract says. It applies once reviewed; then the
+  finding leaves the summary strip, the graph and the pairs, and the method section counts it by
+  reason. The hosted build refuses an unreviewed entry. The one reason so far is
+  `direction_not_reported`, below. The two vitamin D entries, 39051261-1 and 40596345-1, are
+  each their study's only finding; confirming them takes 2 studies off the strip and 472
+  candidate pairs out, leaving 27,297.
 - **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings
   were frozen after the re-proposal under the rules, as the extraction prompt was after its
   last gold run. A test pins the request's key, so any change shows; it changes only with the
@@ -1232,6 +1241,16 @@ These are expectations, to be replaced with measurements.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.
+- **A finding with no stated direction gets a guessed one:** an abstract can report that
+  vitamin D was "significantly associated" with depression, or list it among variables related
+  to depression risk, without saying which way. Extraction must still give an effect, and
+  guesses one. A scan of every finding that reads as harm on a lower-is-better outcome found 2
+  such findings among the 1,901 abstracts, 39051261-1 and 40596345-1, both recorded as
+  increased, so both read as harm. They go to the reviewed exclusion list as
+  `direction_not_reported`. The scan looked only where a guess reads as harm, so a guess that
+  reads as benefit would not have shown. Extraction should report such a finding as having no
+  stated direction instead; until it does, the review excludes them. 44 of the 300 eval pairs
+  hold one of the two, 16 of them labeled, and 5 of the 40 dev pairs; they stay as drawn.
 - **Mis-normalized outcomes:** over-merging, under-merging, or a polarity error that flips benefit
   and harm. The reviewed mapping and the normalization eval guard this.
 - **Design misclassification:** wrong weights. Design is scored in the extraction eval three

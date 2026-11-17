@@ -10,6 +10,8 @@ from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from itertools import combinations
 
+from pydantic import Field
+
 from claimgraph.extract import ExtractionResult
 from claimgraph.models import (
     DEFAULT_EXCLUDED_DESIGNS,
@@ -21,7 +23,7 @@ from claimgraph.models import (
     PairKind,
     Record,
 )
-from claimgraph.normalize import OutcomeMapping
+from claimgraph.normalize import ExclusionReason, OutcomeMapping
 
 
 class Direction(StrEnum):
@@ -116,6 +118,10 @@ class Candidates(Record):
     headlines: list[Headline]
     # Findings on strings the mapping drops as out of domain.
     out_of_domain: int
+    # Findings the review excluded one by one, by reason.
+    excluded_findings: dict[ExclusionReason, int] = Field(
+        default_factory=dict[ExclusionReason, int]
+    )
 
 
 def candidates(
@@ -131,6 +137,8 @@ def candidates(
     """
     outcome_of = {m: o for o in mapping.outcomes for m in o.members}
     dropped = set(mapping.out_of_domain)
+    excluded = mapping.excluded()
+    excluded_findings: dict[ExclusionReason, int] = defaultdict(int)
     keys = study_keys(trial_ids)
     found: dict[tuple[str, str], list[tuple[str, Finding]]] = defaultdict(list)
     out_of_domain = 0
@@ -142,6 +150,9 @@ def candidates(
         for finding in study.findings:
             if finding.outcome_reported in dropped:
                 out_of_domain += 1
+                continue
+            if finding.finding_id in excluded:
+                excluded_findings[excluded[finding.finding_id]] += 1
                 continue
             outcome = outcome_of.get(finding.outcome_reported)
             if outcome is None:
@@ -185,4 +196,10 @@ def candidates(
             )
         )
     blocks.sort(key=lambda b: (-b.pairs, b.outcome))
-    return Candidates(pairs=pairs, blocks=blocks, headlines=headlines, out_of_domain=out_of_domain)
+    return Candidates(
+        pairs=pairs,
+        blocks=blocks,
+        headlines=headlines,
+        out_of_domain=out_of_domain,
+        excluded_findings=dict(sorted(excluded_findings.items())),
+    )

@@ -165,7 +165,9 @@ def _compare(
         f"{len(found.pairs)} candidate pairs from {studies} studies on {len(found.blocks)} "
         f"outcomes; {found.out_of_domain} findings dropped as out of domain"
     )
-    if not all(o.reviewed for o in mapping.outcomes):
+    if found.excluded_findings:
+        typer.echo(f"{sum(found.excluded_findings.values())} findings excluded by the review")
+    if not mapping.reviewed:
         typer.echo("from an unreviewed mapping, which the hosted build refuses")
     for block in found.blocks:
         alone = f", {block.subgroup_only} with only subgroup results" if block.subgroup_only else ""
@@ -411,10 +413,17 @@ def mapping_check(
     for override in mapping.polarity_overrides:
         better = "higher is better" if override.higher_is_better else "lower is better"
         typer.echo(f"polarity override: {override.string!r}, {better}")
+    finding_ids = {f.finding_id for r in results if r.study is not None for f in r.study.findings}
+    for exclusion in mapping.excluded_findings:
+        state = "reviewed" if exclusion.reviewed else "unreviewed, not applied yet"
+        typer.echo(f"excluded finding: {exclusion.finding_id}, {exclusion.reason.value}, {state}")
     unused = normalize.unused_members(mapping, strings)
     if unused:
         typer.echo(f"{len(unused)} members no finding reports, kept")
     problems = normalize.check_mapping(mapping, strings)
+    unknown = [e.finding_id for e in mapping.excluded_findings if e.finding_id not in finding_ids]
+    if unknown:
+        problems.append(f"{len(unknown)} excluded findings are not in the run: {unknown[0]}")
     for problem in problems:
         typer.echo(problem, err=True)
     if problems:

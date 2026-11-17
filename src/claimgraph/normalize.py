@@ -10,7 +10,9 @@ outcome, so a wrong merge or split here changes which studies are compared.
 import json
 import os
 import tomllib
+from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self
 
@@ -28,7 +30,7 @@ from claimgraph.llm import (
     request_key,
     retry_request,
 )
-from claimgraph.models import NonBlank, NormalizedOutcome, Record
+from claimgraph.models import FindingId, NonBlank, NormalizedOutcome, Record
 from claimgraph.prices import Prices, model_prices
 
 # Room for one assignment per string, about 24 tokens each, for over 600 strings. The SDK
@@ -402,6 +404,20 @@ class PolarityOverride(Record):
     why: NonBlank
 
 
+class ExclusionReason(StrEnum):
+    # The abstract reports an association but not which way it goes, so extraction guessed.
+    DIRECTION_NOT_REPORTED = "direction_not_reported"
+
+
+class ExcludedFinding(Record):
+    """One finding the review leaves out, once reviewed; later stages drop it and count it."""
+
+    finding_id: FindingId
+    reason: ExclusionReason
+    reviewed: bool
+    why: NonBlank
+
+
 class OutcomeMapping(Record):
     outcomes: list[NormalizedOutcome]
     # Strings the review found measure nothing in the domain. They count as mapped, and later
@@ -409,6 +425,17 @@ class OutcomeMapping(Record):
     out_of_domain: list[NonBlank] = Field(default_factory=list[str])
     # Polarity is the outcome's, except for these strings.
     polarity_overrides: list[PolarityOverride] = Field(default_factory=list[PolarityOverride])
+    excluded_findings: list[ExcludedFinding] = Field(default_factory=list[ExcludedFinding])
+
+    @property
+    def reviewed(self) -> bool:
+        """Whether every outcome, override and exclusion is reviewed, as the hosted build needs."""
+        entries = [*self.outcomes, *self.polarity_overrides, *self.excluded_findings]
+        return all(e.reviewed for e in entries)
+
+    def excluded(self) -> dict[str, ExclusionReason]:
+        """The reviewed exclusions by finding; an unreviewed one does not apply yet."""
+        return {e.finding_id: e.reason for e in self.excluded_findings if e.reviewed}
 
     def polarity(self, overrides: bool = True) -> dict[str, bool]:
         """`higher_is_better` for each member string: its override's, else its outcome's."""
@@ -445,6 +472,11 @@ class OutcomeMapping(Record):
                     f"the polarity override {override.string!r} agrees with {outcome.name!r}"
                 )
             overridden.add(override.string)
+        repeated = [
+            i for i, n in Counter(e.finding_id for e in self.excluded_findings).items() if n > 1
+        ]
+        if repeated:
+            raise ValueError(f"{repeated[0]!r} is excluded twice")
         return self
 
 
@@ -487,6 +519,7 @@ class _MappingFile(Record):
     outcomes: list[NormalizedOutcome]
     out_of_domain: list[NonBlank] = Field(default_factory=list[str])
     polarity_overrides: list[PolarityOverride] = Field(default_factory=list[PolarityOverride])
+    excluded_findings: list[ExcludedFinding] = Field(default_factory=list[ExcludedFinding])
 
 
 def read_mapping(text: str) -> OutcomeMapping:
@@ -515,6 +548,7 @@ def read_mapping(text: str) -> OutcomeMapping:
         outcomes=list(merged.values()),
         out_of_domain=parsed.out_of_domain,
         polarity_overrides=parsed.polarity_overrides,
+        excluded_findings=parsed.excluded_findings,
     )
 
 
@@ -541,6 +575,12 @@ def check_mapping(mapping: OutcomeMapping, strings: Sequence[str]) -> list[str]:
         problems.append(
             f"{len(overrides)} of {len(mapping.polarity_overrides)} polarity overrides "
             f"unreviewed: {_shown(overrides)}"
+        )
+    exclusions = [e.finding_id for e in mapping.excluded_findings if not e.reviewed]
+    if exclusions:
+        problems.append(
+            f"{len(exclusions)} of {len(mapping.excluded_findings)} excluded findings "
+            f"unreviewed: {_shown(exclusions)}"
         )
     missing = unmapped(mapping, strings)
     if missing:

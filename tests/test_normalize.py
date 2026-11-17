@@ -792,6 +792,39 @@ def test_a_polarity_override_is_on_a_member_and_differs_from_its_outcome(
         normalize.OutcomeMapping(outcomes=DROPPED.outcomes, polarity_overrides=[override])
 
 
+# A finding the review leaves out
+
+
+EXCLUSION = """
+[[excluded_findings]]
+finding_id = "999000001-1"
+reason = "direction_not_reported"
+reviewed = false
+why = "Synthetic: associated, with no direction."
+"""
+
+
+def test_an_excluded_finding_applies_only_once_reviewed() -> None:
+    text = normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain)
+
+    pending = normalize.read_mapping(text + EXCLUSION)
+    confirmed = normalize.read_mapping(text + EXCLUSION.replace("false", "true"))
+
+    assert pending.excluded() == {} and not pending.reviewed
+    assert normalize.check_mapping(pending, STRINGS) == [
+        "1 of 1 excluded findings unreviewed: 999000001-1"
+    ]
+    assert confirmed.excluded() == {"999000001-1": normalize.ExclusionReason.DIRECTION_NOT_REPORTED}
+    assert confirmed.reviewed
+
+
+def test_a_finding_is_excluded_once() -> None:
+    text = normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain)
+
+    with pytest.raises(ValueError, match="excluded twice"):
+        normalize.read_mapping(text + EXCLUSION + EXCLUSION)
+
+
 def test_the_outcome_rules_give_no_labeled_string_its_kind() -> None:
     # The rules' examples are invented. A quoted phrase that is a labeled string, or any labeled
     # string of three words or more, would hand the model that string's kind, the named hard

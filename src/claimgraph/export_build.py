@@ -152,6 +152,10 @@ def _drops(
         ("findings whose quote was not verbatim", extracted.quotes_dropped),
         ("findings returned for a review", extracted.review_findings_dropped),
         ("findings on outcomes the mapping review left out of the domain", found.out_of_domain),
+        *(
+            (f"findings the review excluded: {reason.value.replace('_', ' ')}", count)
+            for reason, count in found.excluded_findings.items()
+        ),
     ]
     if designs:
         rows.append((f"findings from designs the question excludes: {designs}", excluded))
@@ -228,6 +232,7 @@ def _corpus(
     """Papers in PMID order, so a trial's findings and its lead come from its earliest paper."""
     keys = compare.study_keys({p: a.trial_ids for p, a in abstracts.items()})
     outcome_of = {m: o.name for o in mapping.outcomes for m in o.members}
+    excluded_findings = mapping.excluded()
     findings: dict[tuple[str, str], list[Finding]] = defaultdict(list)
     papers: dict[str, list[Paper]] = defaultdict(list)
     reviews: list[Review] = []
@@ -243,8 +248,13 @@ def _corpus(
             reviews.append(_review(abstract, study))
         else:
             key = keys.get(result.pmid, result.pmid)
-            # Strings out of the domain have no outcome; the comparison counts their findings.
-            mapped = [f for f in study.findings if f.outcome_reported in outcome_of]
+            # Strings out of the domain have no outcome, and the comparison counts their findings
+            # and the ones the review excluded.
+            mapped = [
+                f
+                for f in study.findings
+                if f.outcome_reported in outcome_of and f.finding_id not in excluded_findings
+            ]
             for finding in mapped:
                 findings[(outcome_of[finding.outcome_reported], key)].append(finding)
             if mapped:
@@ -410,7 +420,7 @@ def _question(
         title=config.title,
         retrieved=retrieved.searched_at.date(),
         abstracts=abstracts,
-        mapping_reviewed=all(o.reviewed for o in mapping.outcomes),
+        mapping_reviewed=mapping.reviewed,
         dimensions=[
             Dimension(
                 name=d.name,

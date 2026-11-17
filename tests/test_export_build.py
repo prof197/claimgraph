@@ -38,7 +38,7 @@ from claimgraph.models import (
     Verdict,
 )
 from claimgraph.normalization_eval import MergeCounts, NormalizationScores
-from claimgraph.normalize import OutcomeMapping
+from claimgraph.normalize import ExcludedFinding, ExclusionReason, OutcomeMapping
 from claimgraph.retrieve import (
     Abstract,
     AbstractSection,
@@ -443,6 +443,34 @@ def test_the_method_counts_drops_and_costs(tmp_path: Path) -> None:
     assert drops["findings from designs the question excludes: case report, animal, in vitro"] == 1
     assert [(c.stage, c.dollars) for c in method.costs] == [("extract", 0.25)]
     assert method.evals == []
+
+
+@pytest.mark.parametrize("reviewed", [True, False])
+def test_a_reviewed_exclusion_leaves_the_graph_and_is_counted(
+    tmp_path: Path, reviewed: bool
+) -> None:
+    # 104's only finding is a subgroup result, so excluding it leaves the pairs as they are.
+    exclusion = ExcludedFinding(
+        finding_id="999000104-1",
+        reason=ExclusionReason.DIRECTION_NOT_REPORTED,
+        reviewed=reviewed,
+        why="Synthetic: associated, with no direction.",
+    )
+    mapping = MAPPING.model_copy(update={"excluded_findings": [exclusion]})
+    run_dir = tmp_path / "run" / CONFIG.id
+    write_run(run_dir, False)
+
+    export = export_build.build_export(
+        CONFIG, run_dir, mapping, CLASSIFIED_PAIRS, tmp_path / "gold" / CONFIG.id
+    )
+
+    drops = {d.what: d.count for d in export.method.drops}
+    shown = {n.id for n in findings_of(export)}
+    assert ("999000104-1" in shown) is not reviewed
+    assert drops.get("findings the review excluded: direction not reported") == (
+        1 if reviewed else None
+    )
+    assert export.question.mapping_reviewed is reviewed
 
 
 def test_an_off_question_pair_is_counted_as_a_drop_and_left_off_the_panel(tmp_path: Path) -> None:

@@ -168,6 +168,31 @@ def test_a_string_scored_the_other_way_reads_by_its_override() -> None:
     assert {h.direction for h in found.headlines} == {Direction.BENEFIT}
 
 
+def test_a_reviewed_exclusion_drops_its_finding_and_counts_it() -> None:
+    papers = [
+        paper("999000001", ("synthetic mood score", Effect.INCREASED)),
+        paper("999000002", ("synthetic low mood", Effect.DECREASED)),
+    ]
+    ids = trial_ids("999000001", "999000002")
+
+    def excluding(reviewed: bool) -> normalize.OutcomeMapping:
+        exclusion = normalize.ExcludedFinding(
+            finding_id="999000001-1",
+            reason=normalize.ExclusionReason.DIRECTION_NOT_REPORTED,
+            reviewed=reviewed,
+            why="Synthetic: associated, with no direction.",
+        )
+        return MAPPING.model_copy(update={"excluded_findings": [exclusion]})
+
+    pending = compare.candidates(papers, ids, excluding(False))
+    found = compare.candidates(papers, ids, excluding(True))
+
+    assert len(pending.pairs) == 1 and pending.excluded_findings == {}
+    assert found.pairs == []
+    assert [h.study for h in found.headlines] == ["999000002"]
+    assert found.excluded_findings == {normalize.ExclusionReason.DIRECTION_NOT_REPORTED: 1}
+
+
 def test_a_trial_never_pairs_with_itself_and_its_earliest_paper_leads() -> None:
     found = compare.candidates(
         [
