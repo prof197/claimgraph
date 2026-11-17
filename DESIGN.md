@@ -799,6 +799,10 @@ data is labeled by hand, from openly licensed articles only.
   - *What is labeled:* every eval pair where any two arms differ on the verdict or the primary
     reason, capped at 50 by a seeded draw proportional to the strata; and 20 pairs where every
     arm agrees, drawn at random with a seed, in an order that later labels can extend.
+    `gold contradiction-pairs label-set` replays every arm and writes the set, committed as
+    `contradiction_label_set.json`; on the 300, 104 pairs disagree, in 9 strata, and 196
+    agree, so 70 are labeled. The labeling page shows only those, mixed in one order, and never
+    an arm's answer or which group a pair came from.
   - *Why that is enough for the ablation:* on a pair where all arms agree, every arm is right
     or every arm is wrong, so it adds nothing to any paired difference. The difference between
     two arms is the disagreement pairs' share of the 300 times their mean difference in

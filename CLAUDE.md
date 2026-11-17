@@ -44,6 +44,7 @@ uv run claimgraph gold outcome-kinds check vitamin-d-depression     # validate t
 uv run claimgraph gold outcome-kinds compare vitamin-d-depression   # kinds against entered pairs
 uv run --env-file .env claimgraph gold contradiction-pairs sample vitamin-d-depression
                                           # draw the eval and dev pairs; checks licences
+uv run claimgraph gold contradiction-pairs label-set vitamin-d-depression # from the arms' answers
 uv run claimgraph gold contradiction-pairs template vitamin-d-depression  # the pairs to label
 uv run claimgraph gold contradiction-pairs review vitamin-d-depression    # label pairs on 127.0.0.1
 uv run claimgraph gold contradiction-pairs check vitamin-d-depression     # validate the pair labels

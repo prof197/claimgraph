@@ -173,9 +173,7 @@ def test_the_check_names_every_problem_of_a_bad_file() -> None:
     assert report.problems[0].startswith("pair 1: reason:")
     assert report.problems[1].startswith("pair 2:")
     assert "names the reason the conflict dissolves" in report.problems[1]
-    assert report.problems[2] == (
-        f"pair 3: {OUTCOME}|999000101|999000104 is not an eval pair of the draw"
-    )
+    assert report.problems[2] == (f"pair 3: {OUTCOME}|999000101|999000104 is not a pair to label")
     assert report.problems[3] == f"1 drawn pairs are not in the file: {EVAL[1]}"
 
 
@@ -413,7 +411,7 @@ def test_the_check_command_passes_a_completed_file_and_fails_a_bad_one(tmp_path:
 
     assert done == (0, "3 of 3 pairs labeled: 2 genuine, 1 apparent, 0 off_question\n")
     assert bad[0] == 1
-    assert "is not an eval pair of the draw" in bad[1]
+    assert "is not a pair to label" in bad[1]
 
 
 def test_the_template_command_writes_once(tmp_path: Path) -> None:

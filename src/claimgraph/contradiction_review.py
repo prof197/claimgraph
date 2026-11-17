@@ -20,7 +20,7 @@ from typing import Annotated, Any, Literal, Self, cast
 import typer
 from pydantic import Field, ValidationError, field_validator, model_validator
 
-from claimgraph import extract, gold, pair_sample, paths
+from claimgraph import extract, gold, label_set, pair_sample, paths
 from claimgraph.config import NOT_REPORTED, QuestionConfig, load_config, resolve_question
 from claimgraph.extract import ExtractionResult
 from claimgraph.kind_review import guide_section
@@ -128,20 +128,21 @@ def write(path: Path, question: str, drafts: Sequence[PairDraft]) -> None:
     write_atomic(path, render(question, drafts).encode())
 
 
-def template(sample: PairSample) -> list[PairDraft]:
-    """The eval pairs, blank, in one shuffled order, so the draw's strata do not run in blocks."""
-    pairs = list(sample.eval)
+def template(sample: PairSample, to_label: Sequence[DrawnPair] | None = None) -> list[PairDraft]:
+    """The pairs to label, every eval pair unless given, blank, in one shuffled order, so the
+    strata and the label set's groups do not run in blocks."""
+    pairs = list(sample.eval if to_label is None else to_label)
     random.Random(sample.seed).shuffle(pairs)
     return [PairDraft(outcome=p.outcome, study_a=p.study_a, study_b=p.study_b) for p in pairs]
 
 
 def write_template(out_dir: Path, sample: PairSample) -> Path:
-    """Write the label file with every eval pair and no labels; never over one that exists."""
+    """Write the label file with the pairs to label and no labels; never over one that exists."""
     path = out_dir / LABEL_FILE
     if path.exists():
         raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    write(path, sample.question, template(sample))
+    write(path, sample.question, template(sample, label_set.to_label(sample, out_dir)))
     return path
 
 
@@ -204,8 +205,9 @@ class Report(Record):
 
 
 def check(sample: PairSample, path: Path) -> Report:
-    """Check the label file entry by entry against the eval pairs; blank pairs are counted."""
-    drawn = {p.pair_id for p in sample.eval}
+    """Check the label file entry by entry against the pairs to label; blank pairs are counted."""
+    to_label = label_set.to_label(sample, path.parent)
+    drawn = {p.pair_id for p in to_label}
     verdicts: Counter[Verdict] = Counter()
     unlabeled = 0
     problems: list[str] = []
@@ -235,7 +237,7 @@ def check(sample: PairSample, path: Path) -> Report:
             continue
         seen.add(draft.pair_id)
         if draft.pair_id not in drawn:
-            problems.append(f"pair {n}: {draft.pair_id} is not an eval pair of the draw")
+            problems.append(f"pair {n}: {draft.pair_id} is not a pair to label")
             continue
         if not draft.labeled:
             unlabeled += 1
@@ -244,7 +246,7 @@ def check(sample: PairSample, path: Path) -> Report:
             problems += [f"pair {n}: {m}" for m in found]
         else:
             verdicts[Verdict(draft.verdict)] += 1
-    if missing := [p.pair_id for p in sample.eval if p.pair_id not in seen]:
+    if missing := [p.pair_id for p in to_label if p.pair_id not in seen]:
         listed = "; ".join(missing[:5])
         more = f" and {len(missing) - 5} more" if len(missing) > 5 else ""
         problems.append(f"{len(missing)} drawn pairs are not in the file: {listed}{more}")
@@ -338,13 +340,14 @@ class ContradictionSession:
         self.sample = pair_sample.read_sample(out_dir / pair_sample.SAMPLE_FILE)
         findings = {f.finding_id: (r, f) for r in results if r.study for f in r.study.findings}
         years = {a.pmid: a.year for a in abstracts}
-        self.drawn = {p.pair_id: p for p in self.sample.eval}
+        to_label = label_set.to_label(self.sample, out_dir)
+        self.drawn = {p.pair_id: p for p in to_label}
         self.sides = {
             p.pair_id: (
                 self._side(p.study_a, p.finding_a, findings, years),
                 self._side(p.study_b, p.finding_b, findings, years),
             )
-            for p in self.sample.eval
+            for p in to_label
         }
         # The server answers requests on threads; each save reads, edits and rewrites the file.
         self._lock = threading.Lock()
@@ -385,9 +388,9 @@ class ContradictionSession:
         """The label file, which must hold exactly the eval pairs, as its template does."""
         drafts = load(self.path)
         if stray := [d.pair_id for d in drafts if d.pair_id not in self.drawn]:
-            raise ValueError(f"not an eval pair of the draw: {stray[0]}")
+            raise ValueError(f"not a pair to label: {stray[0]}")
         if len(drafts) != len(self.drawn):
-            raise ValueError(f"{len(self.drawn) - len(drafts)} eval pairs are not in the file")
+            raise ValueError(f"{len(self.drawn) - len(drafts)} pairs to label are not in the file")
         return drafts
 
     def state(self) -> PageState:
@@ -498,7 +501,8 @@ def _sample(out_dir: Path) -> PairSample:
 
 @app.command("template")
 def template_command(question: Question, gold_dir: GoldDir = Path("evals/gold")) -> None:
-    """Write the label file: every eval pair, shuffled, unlabeled. Never overwrites."""
+    """Write the label file: the label set's pairs, or every eval pair without one, shuffled,
+    unlabeled. Never overwrites."""
     config = load_config(resolve_question(question))
     out_dir = gold_dir / config.id
     try:

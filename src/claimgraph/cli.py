@@ -21,6 +21,7 @@ from claimgraph import (
     extract,
     gold,
     kind_review,
+    label_set,
     labels,
     models,
     normalization_eval,
@@ -1310,3 +1311,65 @@ def classify_command(
             err=True,
         )
         raise typer.Exit(1)
+
+
+@contradiction_app.command("label-set")
+def contradiction_label_set(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_root: Annotated[
+        Path, typer.Option(help="Where the committed eval recordings live.")
+    ] = Path("replay"),
+    model: Model = extract.DEFAULT_MODEL,
+) -> None:
+    """Choose the eval pairs to label from every arm's recorded answers, as pre-registered.
+
+    Replays each arm on the eval pairs, sends nothing, and writes the label set beside the
+    draw: the disagreement pairs drawn by strata up to the cap, and the agreement pairs in a
+    seeded order. The labeling page then shows only those pairs.
+    """
+    config = load_config(resolve_question(question))
+    run_dir = runs_dir / config.id
+    out_dir = gold_dir / config.id
+    sample = pair_sample.read_sample(out_dir / pair_sample.SAMPLE_FILE)
+    results = _corpus_results(run_dir, model)
+    findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
+    studies = {
+        r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
+    }
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    items = classify.pair_inputs(sample.eval, findings, studies, mapping)
+    guide = (gold_dir / "LABELING.md").read_text()
+    answers: dict[models.Arm, dict[str, models.PairClassification]] = {}
+    for arm in models.Arm:
+        replay_dir = classification_replay(Split.EVAL, arm, replay_root / config.id, run_dir)
+        run = batch.run_batched(
+            items,
+            lambda item: item.pair.pair_id,
+            arms.attempt(arm, config, guide, arms.SELF_CONSISTENCY_K),
+            replay_dir,
+            None,
+            max_rounds=arms.ROUNDS.get(arm, batch.MAX_ROUNDS),
+        )
+        if run.missing:
+            typer.echo(f"{arm.value}: {len(run.missing)} eval pairs not recorded", err=True)
+            raise typer.Exit(1)
+        unanswered = [r.pair_id for r in run.results if r.classification is None]
+        if unanswered:
+            typer.echo(f"{arm.value}: no valid answer for {unanswered[0]}", err=True)
+            raise typer.Exit(1)
+        answers[arm] = {r.pair_id: r.classification for r in run.results if r.classification}
+    found = label_set.build(sample, answers, sample.seed)
+    path = out_dir / label_set.LABEL_SET_FILE
+    label_set.write(path, found)
+    typer.echo(
+        f"{sum(found.disagreement_strata.values())} disagreement pairs in "
+        f"{len(found.disagreement_strata)} strata, {len(found.disagreement)} drawn; "
+        f"{len(found.agreement_order)} agreement pairs, the first {found.agreement_labeled} "
+        f"to label: {len(found.pair_ids)} pairs"
+    )
+    typer.echo(f"wrote {path}")
