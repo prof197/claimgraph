@@ -104,11 +104,24 @@ the 15D is scored higher-is-better, which the outcome mapping now records as a p
 override; the rules were unchanged.
 
 After labeling, an AI coding assistant checked the labels against the written rules, and the
-maintainer accepted the correction below before the contradiction eval was first scored.
+maintainer accepted each correction below. `vitamin-d-depression/contradiction_corrections.toml`
+records them. The first was made before the contradiction eval was first scored. The other 5
+were found after, in a check of every labeled Mendelian randomization pair against the rule
+that such a study against a trial or an observational study differs by `design_or_bias`; every
+arm already gave that reason on all 5, so they raise every arm alike and move no paired
+difference. Only the primary reason changed; each pair's `also_differs` is as labeled. The
+README reports reason accuracy before and after them. Agreement pairs where the arms disagree
+with a label for other reasons were not revisited: correcting only where models disagree can
+only raise their scores.
 
 | Pair | Was | Now | Rule | Found |
 |---|---|---|---|---|
 | 36032243 × 39125485 | `apparent`, `outcome_measure` | `off_question` | A supplement whose fields never name vitamin D is off the question, and that is checked first | The rules check, before scoring |
+| 31100827 × 42465826 | `genuine`, `population` | `genuine`, `design_or_bias` | Mendelian randomization against a trial or an observational study is `design_or_bias` | The Mendelian randomization check, after scoring |
+| 31100827 × NCT03766074 | `genuine`, `intervention` | `genuine`, `design_or_bias` | The same | The same |
+| 24945632 × 30558284 | `genuine`, `intervention` | `genuine`, `design_or_bias` | The same | The same |
+| 31100827 × 33013260 | `genuine`, `intervention` | `genuine`, `design_or_bias` | The same | The same |
+| 30157761 × 31100827 | `genuine`, `population` | `genuine`, `design_or_bias` | The same | The same |
 
 ## Licence
 
