@@ -362,6 +362,30 @@ Creatine and cognition runs on the same code with its own config, from the CLI o
 hosted page. The table sets it beside vitamin D and depression.
 
 <!-- question-contrast:start -->
+|  | `vitamin-d-depression` | `creatine-cognition` |
+| --- | ---: | ---: |
+| Question | Does vitamin D affect depression? | Does creatine supplementation affect cognition? |
+| Abstracts kept | 1,901 | 188 |
+| Studies with a headline finding | 443 | 34 |
+| Findings extracted | 815 | 83 |
+| Outcomes | 4 | 15 |
+| Candidate pairs | 27,297 | 60 |
+| Outcome mapping | unreviewed | unreviewed |
+| Extraction, measured | $5.26 | $0.51 |
+| `single-small`, estimated | $5.74 (at most $38.81) | $0.012 (at most $0.085) |
+| `single-small`, measured | $2.62 (from 40 dev pairs) | n/a |
+| `single-mid`, estimated | $114.80 (at most $776.30) | $0.25 (at most $1.70) |
+| `single-mid`, measured | $44.93 (from 40 dev pairs) | n/a |
+| `self-consistency` (k = 6), estimated | $647.06 (at most $4,672.62) | $1.39 (at most $10.21) |
+| `self-moa`, estimated | $445.52 (at most $3,143.38) | $0.96 (at most $6.87) |
+| `council`, estimated | $717.91 (at most $3,142.22) | $1.56 (at most $6.87) |
+| `council`, measured | $220.54 (from 189 corpus pairs) | n/a |
+| `council-ranked`, estimated | $1,328.91 (at most $5,507.52) | $2.89 (at most $12.04) |
+| `council-ranked`, measured | $435.64 (from 40 dev pairs) | n/a |
+
+Each depth's estimate is the classify dry run's for every candidate pair, as if none were recorded: typical output and no cache reads at batch prices, with the most it could cost in brackets. A measured row scales a current run's spend per pair, cache reads included, to every candidate pair. Prices checked 2026-11-16.
+
+Unreviewed outcome mapping: `vitamin-d-depression`, `creatine-cognition`. Some of its outcomes, polarity overrides or exclusions are the model's or the reviewer's proposal, not yet confirmed, so its counts can change; the CLI demo runs on it, and the hosted build refuses it.
 <!-- question-contrast:end -->
 
 ## Cost
