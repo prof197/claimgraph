@@ -272,7 +272,7 @@ def _finding_nodes(
     config: QuestionConfig,
 ) -> list[FindingNode]:
     """Tab by tab and study by study, so a pair's study a comes before its study b."""
-    polarity = {o.name: o.higher_is_better for o in mapping.outcomes}
+    polarity = mapping.polarity()
     return [
         FindingNode(
             kind="finding",
@@ -280,7 +280,7 @@ def _finding_nodes(
             outcome=outcome,
             study=key,
             pmid=finding.pmid,
-            direction=compare.direction(finding.effect, polarity[outcome]),
+            direction=compare.direction(finding.effect, polarity[finding.outcome_reported]),
             headline=headline.get((outcome, key)) == finding.finding_id,
             claim=finding.claim,
             quote=finding.quote,

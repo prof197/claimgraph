@@ -31,7 +31,7 @@ class Direction(StrEnum):
 
 
 def direction(effect: Effect, higher_is_better: bool) -> Direction:
-    """Benefit or harm: the effect with more of the exposure, read by the outcome's polarity."""
+    """Benefit or harm: the effect with more of the exposure, read by the string's polarity."""
     if effect is Effect.NO_CHANGE:
         return Direction.NONE
     better = (effect is Effect.INCREASED) == higher_is_better
@@ -148,7 +148,7 @@ def candidates(
                 raise ValueError(f"{finding.outcome_reported!r} is not in the mapping")
             key = keys.get(result.pmid, result.pmid)
             found[(outcome.name, key)].append((result.pmid, finding))
-    polarity = {o.name: o.higher_is_better for o in mapping.outcomes}
+    polarity = mapping.polarity()
     headlines: list[Headline] = []
     subgroup_only: dict[str, int] = defaultdict(int)
     for (outcome, key), papers in sorted(found.items()):
@@ -163,7 +163,7 @@ def candidates(
                 study=key,
                 pmid=pmid,
                 finding_id=lead.finding_id,
-                direction=direction(lead.effect, polarity[outcome]),
+                direction=direction(lead.effect, polarity[lead.outcome_reported]),
             )
         )
     pairs: list[CandidatePair] = []

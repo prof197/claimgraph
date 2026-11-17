@@ -89,6 +89,9 @@ class PairSide(Record):
     design: Design
     sample_size: int | None
     finding: Finding
+    # The string's polarity, which differs from the outcome's for an instrument scored the
+    # other way.
+    higher_is_better: bool
 
 
 class PairInput(Record):
@@ -127,19 +130,30 @@ def pair_inputs(
     findings: Mapping[str, Finding],
     studies: Mapping[str, tuple[Design, int | None]],
     mapping: OutcomeMapping,
+    overrides: bool = True,
 ) -> list[PairInput]:
-    """Each pair with both headline findings; `studies` maps a PMID to its design and size."""
-    polarity = {o.name: o.higher_is_better for o in mapping.outcomes}
+    """Each pair with both headline findings; `studies` maps a PMID to its design and size.
+
+    Without `overrides`, each side reads by its outcome's polarity, as the pairs drawn before
+    the mapping had polarity overrides were classified.
+    """
+    outcome_polarity = {o.name: o.higher_is_better for o in mapping.outcomes}
+    polarity = mapping.polarity(overrides)
 
     def side(finding_id: str) -> PairSide:
         finding = findings[finding_id]
         design, size = studies[finding.pmid]
-        return PairSide(design=design, sample_size=size, finding=finding)
+        return PairSide(
+            design=design,
+            sample_size=size,
+            finding=finding,
+            higher_is_better=polarity[finding.outcome_reported],
+        )
 
     return [
         PairInput(
             pair=p,
-            higher_is_better=polarity[p.outcome],
+            higher_is_better=outcome_polarity[p.outcome],
             a=side(p.finding_a),
             b=side(p.finding_b),
         )
@@ -191,9 +205,9 @@ Custom fields the question adds to each finding. Each refines one reason and nev
 """
 
 
-def _side(label: str, side: PairSide, higher_is_better: bool) -> str:
+def _side(label: str, side: PairSide) -> str:
     f = side.finding
-    found = _DIRECTION_NAMES[direction(f.effect, higher_is_better).value]
+    found = _DIRECTION_NAMES[direction(f.effect, side.higher_is_better).value]
     size = "not reported" if side.sample_size is None else f"{side.sample_size:,}"
     lines = [
         f"## Study {label}",
@@ -216,8 +230,8 @@ def user_message(item: PairInput) -> str:
     return "\n\n".join(
         [
             f"Outcome: {item.pair.outcome} ({better} is better)",
-            _side("A", item.a, item.higher_is_better),
-            _side("B", item.b, item.higher_is_better),
+            _side("A", item.a),
+            _side("B", item.b),
         ]
     )
 

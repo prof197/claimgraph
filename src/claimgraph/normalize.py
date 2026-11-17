@@ -392,11 +392,30 @@ def estimate(
 # The mapping file
 
 
+class PolarityOverride(Record):
+    """A string whose instrument is scored the other way from its outcome."""
+
+    string: NonBlank
+    higher_is_better: bool
+    reviewed: bool
+    # How the instrument's authors score it, so the next reviewer can check the exception.
+    why: NonBlank
+
+
 class OutcomeMapping(Record):
     outcomes: list[NormalizedOutcome]
     # Strings the review found measure nothing in the domain. They count as mapped, and later
     # stages drop their findings and count them, so a rerun never proposes them again.
     out_of_domain: list[NonBlank] = Field(default_factory=list[str])
+    # Polarity is the outcome's, except for these strings.
+    polarity_overrides: list[PolarityOverride] = Field(default_factory=list[PolarityOverride])
+
+    def polarity(self, overrides: bool = True) -> dict[str, bool]:
+        """`higher_is_better` for each member string: its override's, else its outcome's."""
+        found = {m: o.higher_is_better for o in self.outcomes for m in o.members}
+        if overrides:
+            found |= {p.string: p.higher_is_better for p in self.polarity_overrides}
+        return found
 
     @model_validator(mode="after")
     def _each_string_in_one_outcome(self) -> Self:
@@ -413,6 +432,19 @@ class OutcomeMapping(Record):
             if string in dropped:
                 raise ValueError(f"{string!r} is listed out of domain twice")
             dropped.add(string)
+        outcome_of = {m: o for o in self.outcomes for m in o.members}
+        overridden: set[str] = set()
+        for override in self.polarity_overrides:
+            outcome = outcome_of.get(override.string)
+            if outcome is None:
+                raise ValueError(f"the polarity override {override.string!r} is not a member")
+            if override.string in overridden:
+                raise ValueError(f"{override.string!r} has two polarity overrides")
+            if override.higher_is_better == outcome.higher_is_better:
+                raise ValueError(
+                    f"the polarity override {override.string!r} agrees with {outcome.name!r}"
+                )
+            overridden.add(override.string)
         return self
 
 
@@ -454,6 +486,7 @@ def mapping_toml(
 class _MappingFile(Record):
     outcomes: list[NormalizedOutcome]
     out_of_domain: list[NonBlank] = Field(default_factory=list[str])
+    polarity_overrides: list[PolarityOverride] = Field(default_factory=list[PolarityOverride])
 
 
 def read_mapping(text: str) -> OutcomeMapping:
@@ -478,7 +511,11 @@ def read_mapping(text: str) -> OutcomeMapping:
             higher_is_better=first.higher_is_better,
             reviewed=first.reviewed and table.reviewed,
         )
-    return OutcomeMapping(outcomes=list(merged.values()), out_of_domain=parsed.out_of_domain)
+    return OutcomeMapping(
+        outcomes=list(merged.values()),
+        out_of_domain=parsed.out_of_domain,
+        polarity_overrides=parsed.polarity_overrides,
+    )
 
 
 def load_mapping(path: Path) -> OutcomeMapping:
@@ -498,6 +535,12 @@ def check_mapping(mapping: OutcomeMapping, strings: Sequence[str]) -> list[str]:
         problems.append(
             f"{len(unreviewed)} of {len(mapping.outcomes)} outcomes unreviewed: "
             f"{_shown(unreviewed)}"
+        )
+    overrides = [p.string for p in mapping.polarity_overrides if not p.reviewed]
+    if overrides:
+        problems.append(
+            f"{len(overrides)} of {len(mapping.polarity_overrides)} polarity overrides "
+            f"unreviewed: {_shown(overrides)}"
         )
     missing = unmapped(mapping, strings)
     if missing:

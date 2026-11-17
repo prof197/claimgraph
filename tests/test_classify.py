@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_compare import MAPPING, paper
+from test_compare import MAPPING, SCORED_UP, paper
 from test_extract import Scripted, reply, response
 from test_labeling_guide import runs
 
@@ -12,6 +12,7 @@ from claimgraph.classify import InvalidOutput, PairInput
 from claimgraph.config import load_config
 from claimgraph.llm import Mode, ModelClient, request_key
 from claimgraph.models import Arm, Design, Effect, PairKind, Reason, Verdict
+from claimgraph.normalize import OutcomeMapping
 from claimgraph.pair_sample import Combination, DrawnPair
 from claimgraph.prices import load_prices
 
@@ -20,8 +21,10 @@ CONFIG = load_config(ROOT / "questions" / "vitamin-d-depression.toml")
 GUIDE = (ROOT / "evals" / "gold" / "LABELING.md").read_text()
 
 
-def item() -> PairInput:
-    a = paper("999000001", ("synthetic mood score", Effect.DECREASED, True, False))
+def item(
+    effect: Effect = Effect.DECREASED, mapping: OutcomeMapping = MAPPING, overrides: bool = True
+) -> PairInput:
+    a = paper("999000001", ("synthetic mood score", effect, True, False))
     b = paper(
         "999000002", ("synthetic low mood", Effect.NO_CHANGE, True, False), design=Design.COHORT
     )
@@ -36,7 +39,7 @@ def item() -> PairInput:
         finding_b="999000002-1",
     )
     studies = {"999000001": (Design.RCT, 120), "999000002": (Design.COHORT, None)}
-    (made,) = classify.pair_inputs([pair], findings, studies, MAPPING)
+    (made,) = classify.pair_inputs([pair], findings, studies, mapping, overrides)
     return made
 
 
@@ -88,6 +91,17 @@ def test_the_pair_shows_both_sides_by_letter_with_what_each_found() -> None:
     assert "Design: cohort study\nSample size: not reported" in message
     # The studies are judged on their fields, not their identity.
     assert "999000001" not in message
+
+
+def test_a_side_scored_the_other_way_reads_by_its_override_unless_drawn_before() -> None:
+    message = classify.user_message(item(Effect.INCREASED, SCORED_UP))
+    drawn = classify.user_message(item(Effect.INCREASED, SCORED_UP, overrides=False))
+
+    # The outcome keeps its polarity; only the side on the overridden string reads the other way.
+    assert "Outcome: synthetic symptoms (lower is better)" in message
+    assert "## Study A\nFound: benefit" in message
+    assert "## Study A\nFound: harm" in drawn
+    assert drawn == classify.user_message(item(Effect.INCREASED))
 
 
 def test_the_rationale_comes_first_and_titles_are_left_out() -> None:

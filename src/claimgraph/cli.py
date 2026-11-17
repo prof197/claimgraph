@@ -408,6 +408,9 @@ def mapping_check(
             f"{len(mapping.out_of_domain)} strings out of domain, dropping "
             f"{normalize.dropped_findings(results, mapping)} findings"
         )
+    for override in mapping.polarity_overrides:
+        better = "higher is better" if override.higher_is_better else "lower is better"
+        typer.echo(f"polarity override: {override.string!r}, {better}")
     unused = normalize.unused_members(mapping, strings)
     if unused:
         typer.echo(f"{len(unused)} members no finding reports, kept")
@@ -1246,7 +1249,9 @@ def classify_command(
     else:
         pairs = sample.eval if split is Split.EVAL else sample.dev
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
-    items = classify.pair_inputs(pairs, findings, studies, mapping)
+    # The drawn eval and dev pairs were recorded before the mapping had polarity overrides, so
+    # they are classified as drawn: their recordings and the label set stand.
+    items = classify.pair_inputs(pairs, findings, studies, mapping, overrides=split is Split.CORPUS)
     guide = (gold_dir / "LABELING.md").read_text()
     replay_dir = classification_replay(split, arm, replay_root / config.id, run_dir)
     prices = load_prices(prices_file)
@@ -1262,7 +1267,7 @@ def classify_command(
     if dry_run:
         estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)
         typer.echo(classify.describe_estimate(estimate))
-        dev_items = classify.pair_inputs(sample.dev, findings, studies, mapping)
+        dev_items = classify.pair_inputs(sample.dev, findings, studies, mapping, overrides=False)
         dev_replay = classification_replay(Split.DEV, arm, replay_root / config.id, run_dir)
         dev_out = run_dir / "classify" / f"{Split.DEV.value}-{arm.value}.jsonl"
         # The dev run measures the current prompt only when every dev request is recorded.
@@ -1342,7 +1347,7 @@ def contradiction_label_set(
         r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
     }
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
-    items = classify.pair_inputs(sample.eval, findings, studies, mapping)
+    items = classify.pair_inputs(sample.eval, findings, studies, mapping, overrides=False)
     guide = (gold_dir / "LABELING.md").read_text()
     answers: dict[models.Arm, dict[str, models.PairClassification]] = {}
     for arm in models.Arm:

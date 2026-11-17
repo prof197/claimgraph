@@ -137,6 +137,37 @@ def test_studies_pair_when_their_headlines_point_different_ways() -> None:
     assert [(b.outcome, b.studies, b.pairs) for b in found.blocks] == [("synthetic symptoms", 4, 5)]
 
 
+# Synthetic: a mood score scored from 0 to 1, 1 being well.
+SCORED_UP = normalize.OutcomeMapping(
+    outcomes=MAPPING.outcomes,
+    out_of_domain=MAPPING.out_of_domain,
+    polarity_overrides=[
+        normalize.PolarityOverride(
+            string="synthetic mood score",
+            higher_is_better=True,
+            reviewed=True,
+            why="Synthetic: scored from 0 to 1, 1 being well.",
+        )
+    ],
+)
+
+
+def test_a_string_scored_the_other_way_reads_by_its_override() -> None:
+    papers = [
+        paper("999000001", ("synthetic mood score", Effect.INCREASED)),
+        paper("999000002", ("synthetic low mood", Effect.DECREASED)),
+    ]
+    ids = trial_ids("999000001", "999000002")
+
+    # Both improved: benefit against harm by the outcome's polarity, no pair by the override.
+    assert [p.kind for p in compare.candidates(papers, ids, MAPPING).pairs] == [
+        PairKind.BENEFIT_VS_HARM
+    ]
+    found = compare.candidates(papers, ids, SCORED_UP)
+    assert found.pairs == []
+    assert {h.direction for h in found.headlines} == {Direction.BENEFIT}
+
+
 def test_a_trial_never_pairs_with_itself_and_its_earliest_paper_leads() -> None:
     found = compare.candidates(
         [

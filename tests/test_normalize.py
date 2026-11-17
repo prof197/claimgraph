@@ -742,6 +742,56 @@ def test_a_rerun_does_not_propose_out_of_domain_strings_again(tmp_path: Path) ->
     assert "every outcome string is mapped; nothing to propose" in result.output
 
 
+# A string scored the other way from its outcome
+
+
+OVERRIDE = """
+[[polarity_overrides]]
+string = "synthetic mood score"
+higher_is_better = true
+reviewed = false
+why = "Synthetic: scored from 0 to 1, 1 being well."
+"""
+
+
+def test_a_polarity_override_reads_back_and_changes_one_string_only() -> None:
+    text = normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain)
+
+    mapping = normalize.read_mapping(text + OVERRIDE)
+
+    assert mapping.polarity() == {"synthetic low mood": False, "synthetic mood score": True}
+    assert mapping.polarity(overrides=False) == {
+        "synthetic low mood": False,
+        "synthetic mood score": False,
+    }
+
+
+def test_mapping_check_refuses_an_unreviewed_polarity_override() -> None:
+    text = normalize.mapping_toml(DROPPED.outcomes, ["Synthetic."], DROPPED.out_of_domain)
+
+    problems = normalize.check_mapping(normalize.read_mapping(text + OVERRIDE), STRINGS)
+
+    assert problems == ["1 of 1 polarity overrides unreviewed: synthetic mood score"]
+
+
+@pytest.mark.parametrize(
+    ("string", "higher_is_better", "match"),
+    [
+        ("synthetic anything", True, "is not a member"),
+        ("synthetic mood score", False, "agrees with"),
+    ],
+)
+def test_a_polarity_override_is_on_a_member_and_differs_from_its_outcome(
+    string: str, higher_is_better: bool, match: str
+) -> None:
+    override = normalize.PolarityOverride(
+        string=string, higher_is_better=higher_is_better, reviewed=True, why="Synthetic."
+    )
+
+    with pytest.raises(ValueError, match=match):
+        normalize.OutcomeMapping(outcomes=DROPPED.outcomes, polarity_overrides=[override])
+
+
 def test_the_outcome_rules_give_no_labeled_string_its_kind() -> None:
     # The rules' examples are invented. A quoted phrase that is a labeled string, or any labeled
     # string of three words or more, would hand the model that string's kind, the named hard
