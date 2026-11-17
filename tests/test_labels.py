@@ -786,3 +786,17 @@ def test_an_off_question_pair_keeps_its_blank_reason(tmp_path: Path) -> None:
     (label,) = load_contradiction_pairs(path)
 
     assert (label.verdict, label.reason) == (Verdict.OFF_QUESTION, None)
+
+
+def test_the_label_check_counts_a_part_labeled_contradiction_file_clean(tmp_path: Path) -> None:
+    path = tmp_path / "contradiction_pairs.toml"
+    path.write_text(
+        '[[pair]]\noutcome = "synthetic"\nstudy_a = "999000001"\nstudy_b = "999000002"\n'
+        'verdict = "genuine"\nreason = "population"\n\n'
+        '[[pair]]\noutcome = "synthetic"\nstudy_a = "999000001"\nstudy_b = "999000003"\n'
+        'verdict = ""\nreason = ""\nalso_differs = []\n'
+    )
+
+    assert len(load_contradiction_pairs(path, labeled_only=True)) == 1
+    with pytest.raises(ValueError):
+        load_contradiction_pairs(path)

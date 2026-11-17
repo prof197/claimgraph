@@ -274,10 +274,22 @@ def check_outcome_pairs(out_dir: Path) -> OutcomePairReport:
     )
 
 
-def load_contradiction_pairs(path: Path) -> list[ContradictionLabel]:
-    pairs = _ContradictionPairs.model_validate(_read_toml(path)).pair
+def load_contradiction_pairs(path: Path, labeled_only: bool = False) -> list[ContradictionLabel]:
+    """The pair labels. With `labeled_only`, entries the template left blank are skipped rather
+    than refused, so a file part-way through labeling checks clean."""
+    data = _read_toml(path)
+    if labeled_only:
+        raw: Any = data.get("pair", [])
+        if isinstance(raw, list):
+            entries = cast(list[Any], raw)
+            data = data | {"pair": [e for e in entries if not _blank(e)]}
+    pairs = _ContradictionPairs.model_validate(data).pair
     _no_repeats([p.pair_id for p in pairs])
     return pairs
+
+
+def _blank(entry: object) -> bool:
+    return isinstance(entry, dict) and cast(dict[str, Any], entry).get("verdict") == ""
 
 
 def _no_repeats(keys: list[str]) -> None:
@@ -384,7 +396,7 @@ def check_labels(out_dir: Path, config: QuestionConfig) -> LabelReport:
         problems[outcome_pairs.LABEL_FILE] = found
     if (out_dir / "contradiction_pairs.toml").exists():
         try:
-            load_contradiction_pairs(out_dir / "contradiction_pairs.toml")
+            load_contradiction_pairs(out_dir / "contradiction_pairs.toml", labeled_only=True)
         except (tomllib.TOMLDecodeError, ValueError) as error:
             problems["contradiction_pairs.toml"] = _messages(error)
     named = {p.stem for p in files}
