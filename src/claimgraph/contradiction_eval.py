@@ -13,14 +13,19 @@ agreement pair every arm is equally right or wrong.
 """
 
 import random
+import tomllib
 from collections import Counter, defaultdict
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from operator import mul
+from pathlib import Path
+
+from pydantic import Field, field_validator
 
 from claimgraph.label_set import LabelSet, stratum
 from claimgraph.labels import ContradictionLabel
-from claimgraph.models import Arm, PairClassification, Record, Verdict
+from claimgraph.models import Arm, NonBlank, PairClassification, Reason, Record, Verdict
 from claimgraph.pair_sample import DrawnPair
 
 BOOTSTRAP_ROUNDS = 10_000
@@ -28,6 +33,7 @@ AGREEMENT = "agreement"
 OFF_QUESTION = Verdict.OFF_QUESTION.value
 # The README block that eval contradictions --readme writes.
 README_BLOCK = "contradiction-eval"
+CORRECTIONS_FILE = "contradiction_corrections.toml"
 
 Rule = Callable[[PairClassification, ContradictionLabel], bool]
 
@@ -46,16 +52,16 @@ def _correct_lenient(answer: PairClassification, label: ContradictionLabel) -> b
     return answer.verdict == label.verdict and _lenient_reason(answer, label)
 
 
-def _reason(answer: PairClassification, label: ContradictionLabel) -> bool:
-    return answer.reason is not None and answer.reason == label.reason
+def _verdict(answer: PairClassification, label: ContradictionLabel) -> bool:
+    return answer.verdict == label.verdict
 
 
-# Correct is the pre-registered figure the paired differences use; the rest sit beside it.
+# Correct, the verdict with the exact primary reason, is the pre-registered figure the paired
+# differences use; the rest sit beside it.
 RULES: dict[str, Rule] = {
+    "verdict": _verdict,
     "correct": _correct,
     "correct_lenient": _correct_lenient,
-    "reason": _reason,
-    "reason_lenient": _lenient_reason,
 }
 
 
@@ -88,10 +94,9 @@ class Interval(Record):
 
 class ArmScore(Record):
     arm: Arm
+    verdict: Interval
     correct: Interval
     correct_lenient: Interval
-    reason: Interval
-    reason_lenient: Interval
     precision_genuine: Interval
     # Of the pairs in scope, how many the arm called off_question.
     called_off_question: int
@@ -279,10 +284,7 @@ def score(
             correct_lenient=_interval(
                 point[(arm, "correct_lenient")], draws[(arm, "correct_lenient")]
             ),
-            reason=_interval(point[(arm, "reason")], draws[(arm, "reason")]),
-            reason_lenient=_interval(
-                point[(arm, "reason_lenient")], draws[(arm, "reason_lenient")]
-            ),
+            verdict=_interval(point[(arm, "verdict")], draws[(arm, "verdict")]),
             precision_genuine=_interval(
                 point[(arm, "precision_genuine")], draws[(arm, "precision_genuine")]
             ),
@@ -410,22 +412,21 @@ def scope_line(figures: Figures) -> str:
 def tables(figures: Figures) -> str:
     """The arms table, the paired differences and the scope rule's pick, for one set of pairs."""
     lines = [
-        "| Arm | Correct | Correct, lenient | Reason | Reason, lenient | Precision on genuine "
+        "| Arm | Precision on genuine | Verdict | Reason, strict | Reason, lenient "
         "| Called off question | Cost per pair | Billed tokens per pair |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for a in figures.arms:
         lines.append(
-            f"| {a.arm.value} | {_share_with(a.correct)} | {_share_with(a.correct_lenient)} "
-            f"| {_share_with(a.reason)} | {_share_with(a.reason_lenient)} "
-            f"| {_share_with(a.precision_genuine)} | {a.called_off_question} "
-            f"| ${a.usd_per_pair:.4f} | {a.billed_per_pair:,.0f} |"
+            f"| {a.arm.value} | {_share_with(a.precision_genuine)} | {_share_with(a.verdict)} "
+            f"| {_share_with(a.correct)} | {_share_with(a.correct_lenient)} "
+            f"| {a.called_off_question} | ${a.usd_per_pair:.4f} | {a.billed_per_pair:,.0f} |"
         )
     best = figures.scope.best.value
     lines += [
         "",
-        f"Paired differences in correct, strict, in points: against single-small and against "
-        f"{best}, the best arm.",
+        f"Paired differences in reason accuracy, strict, in points: against single-small and "
+        f"against {best}, the best arm.",
         "",
         f"| Arm | Against single-small | Against {best} |",
         "| --- | ---: | ---: |",
@@ -472,21 +473,133 @@ def details(figures: Figures) -> str:
     return "\n".join(lines) + "\n"
 
 
+class Found(StrEnum):
+    BEFORE_SCORING = "before_scoring"
+    AFTER_SCORING = "after_scoring"
+
+
+class Correction(Record):
+    """One accepted change to a contradiction label, and what it was."""
+
+    outcome: NonBlank
+    study_a: NonBlank
+    study_b: NonBlank
+    was_verdict: Verdict
+    was_reason: Reason | None
+    was_also_differs: list[Reason]
+    found: Found
+    rule: NonBlank
+
+    @field_validator("was_reason", mode="before")
+    @classmethod
+    def _blank_reason_is_absent(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @property
+    def pair_id(self) -> str:
+        return f"{self.outcome}|{self.study_a}|{self.study_b}"
+
+
+class _Corrections(Record):
+    correction: list[Correction] = Field(default_factory=list[Correction])
+
+
+def load_corrections(path: Path) -> list[Correction]:
+    if not path.exists():
+        return []
+    return _Corrections.model_validate(tomllib.loads(path.read_text())).correction
+
+
+def before(
+    labels: Sequence[ContradictionLabel], corrections: Sequence[Correction], found: Found
+) -> list[ContradictionLabel]:
+    """The labels as they were before the corrections found at `found`."""
+    undo = {c.pair_id: c for c in corrections if c.found is found}
+    return [
+        label.model_copy(
+            update={
+                "verdict": undo[label.pair_id].was_verdict,
+                "reason": undo[label.pair_id].was_reason,
+                "also_differs": undo[label.pair_id].was_also_differs,
+            }
+        )
+        if label.pair_id in undo
+        else label
+        for label in labels
+    ]
+
+
+class HostedPick(Record):
+    arm: Arm
+    every_pair: bool
+    why: NonBlank
+
+
+def hosted_pick(primary: Figures, sensitivity: Figures) -> HostedPick:
+    """The arm the hosted page classifies at.
+
+    When the two figures agree, their pick. When they don't, the owner's ruling: single-small
+    for every pair, unless its precision on genuine without the post-hoc pairs is clearly below
+    the primary pick's, their intervals not overlapping, and then the primary pick.
+    """
+    if primary.scope.arm == sensitivity.scope.arm:
+        return HostedPick(
+            arm=primary.scope.arm,
+            every_pair=primary.scope.every_pair,
+            why="both figures pick it",
+        )
+    by_arm = {a.arm: a.precision_genuine for a in sensitivity.arms}
+    small, picked = by_arm[Arm.SINGLE_SMALL], by_arm[primary.scope.arm]
+    clearly_below = small.high is not None and picked.low is not None and small.high < picked.low
+    shown = (
+        f"without those pairs, single-small's precision on genuine is {_share_with(small)} and "
+        f"{primary.scope.arm.value}'s {_share_with(picked)}"
+    )
+    if clearly_below:
+        return HostedPick(
+            arm=primary.scope.arm,
+            every_pair=primary.scope.every_pair,
+            why=f"{shown}; the intervals do not overlap",
+        )
+    return HostedPick(arm=Arm.SINGLE_SMALL, every_pair=True, why=f"{shown}; the intervals overlap")
+
+
 def readme(
-    primary: Figures, sensitivity: Figures, left_out: int, rounds: int = BOOTSTRAP_ROUNDS
+    primary: Figures,
+    sensitivity: Figures,
+    earlier: Figures,
+    corrected: int,
+    left_out: int,
+    rounds: int = BOOTSTRAP_ROUNDS,
 ) -> str:
-    """The README block: the pre-registered figures, then the post-hoc check."""
+    """The README block: the pre-registered figures, the post-hoc check, and the ruling."""
     lines = [
         f"Six arms on the {primary.pairs} eval pairs, scored from the committed recordings "
         f"against {primary.labeled} hand labels: the drawn disagreement pairs, weighted by the "
         "inverse of their chance of being drawn, and the first agreement pairs, weighted for "
         f"the rest. {primary.off_question_labels} labeled pairs are off the question and left "
         f"out, so the figures cover an estimated {primary.on_question:.0f} pairs on it. "
-        f"Correct means the verdict and the primary reason both match; lenient also accepts "
-        "a reason the label lists under also_differs. 95% intervals from "
-        f"{rounds:,} bootstrap rounds.",
+        "Precision on genuine and verdict accuracy judge the verdict alone. Reason accuracy, "
+        "strict, needs the verdict and the label's primary reason exactly; lenient also accepts "
+        "a reason the label lists under also_differs. Strict rates are low because the labeled "
+        "pairs are the hardest ones, the disagreements, weighted up to stand for their strata, "
+        f"and an exact reason match is required. 95% intervals from {rounds:,} bootstrap rounds.",
         "",
         tables(primary).rstrip("\n"),
+        "",
+        f"Reason accuracy before and after the {corrected} corrections made after scoring. Each "
+        "applied a written rule on a pair where every arm agreed, so it moves every arm alike "
+        "and no paired difference.",
+        "",
+        "| Arm | Strict, before | Strict, after | Lenient, before | Lenient, after |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for old, new in zip(earlier.arms, primary.arms, strict=True):
+        lines.append(
+            f"| {new.arm.value} | {_pct(old.correct.estimate)} | {_pct(new.correct.estimate)} "
+            f"| {_pct(old.correct_lenient.estimate)} | {_pct(new.correct_lenient.estimate)} |"
+        )
+    lines += [
         "",
         details(primary).rstrip("\n"),
         "",
@@ -498,11 +611,18 @@ def readme(
         "",
         tables(sensitivity).rstrip("\n"),
     ]
+    pick = hosted_pick(primary, sensitivity)
+    scope = "every candidate pair" if pick.every_pair else "the top pairs per outcome"
     if primary.scope.arm != sensitivity.scope.arm:
         lines += [
             "",
-            f"The two figures pick different arms: {primary.scope.arm.value} on the "
+            f"**Ruling:** the two figures pick different arms, {primary.scope.arm.value} on the "
             f"pre-registered figure and {sensitivity.scope.arm.value} without those pairs. The "
-            "scope rule is applied to the pre-registered figure.",
+            "pre-registered figure picks it only because of the 15D pairs, a data error the "
+            "corpus no longer has, and without them no arm separates from single-small. So the "
+            "owner ruled: single-small for every pair, unless its precision on genuine without "
+            f"those pairs is clearly below {primary.scope.arm.value}'s. {pick.why[0].upper()}"
+            f"{pick.why[1:]}.",
         ]
+    lines += ["", f"The hosted page classifies {scope} at {pick.arm.value}."]
     return "\n".join(lines) + "\n"

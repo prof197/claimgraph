@@ -1011,8 +1011,8 @@ def eval_contradictions(
     without the eval pairs drawn before a polarity override.
 
     Replays the arms' recorded answers on the eval pairs, so nothing is sent; the requests are
-    built from the run's extraction, so it must be present. Exits with status 2 when the two
-    figures would have the scope rule pick different arms.
+    built from the run's extraction, so it must be present. When the two figures would have the
+    scope rule pick different arms, the owner's ruling settles the hosted pick.
     """
     config = load_config(resolve_question(question))
     out_dir = gold_dir / config.id
@@ -1034,22 +1034,20 @@ def eval_contradictions(
         if any(findings[f].outcome_reported in overridden for f in (p.finding_a, p.finding_b))
     }
     answers = _answers(runs)
+    corrections = contradiction_eval.load_corrections(out_dir / contradiction_eval.CORRECTIONS_FILE)
+    after = contradiction_eval.Found.AFTER_SCORING
+    earlier = contradiction_eval.before(labeled, corrections, after)
     primary = contradiction_eval.score(sample.eval, found, labeled, answers, costs)
     sensitivity = contradiction_eval.score(
         sample.eval, found, labeled, answers, costs, left_out=left_out
     )
-    block = contradiction_eval.readme(primary, sensitivity, len(left_out))
+    first = contradiction_eval.score(sample.eval, found, earlier, answers, costs)
+    corrected = sum(c.found is after for c in corrections)
+    block = contradiction_eval.readme(primary, sensitivity, first, corrected, len(left_out))
     if readme is not None:
         text = relabel.replace_block(readme.read_text(), contradiction_eval.README_BLOCK, block)
         readme.write_text(text)
     typer.echo(block, nl=False)
-    if primary.scope.arm != sensitivity.scope.arm:
-        typer.echo(
-            f"the scope rule picks {primary.scope.arm.value} on the pre-registered figure and "
-            f"{sensitivity.scope.arm.value} without the {len(left_out)} pairs: the owner rules",
-            err=True,
-        )
-        raise typer.Exit(2)
 
 
 @eval_app.command("models")

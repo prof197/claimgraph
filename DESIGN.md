@@ -493,7 +493,7 @@ a person reviews the mapping before anything is published.
   reason. The hosted build refuses an unreviewed entry. The one reason so far is
   `direction_not_reported`, below. The two vitamin D entries, 39051261-1 and 40596345-1, are
   each their study's only finding; confirming them takes 2 studies off the strip and 472
-  candidate pairs out, leaving 27,297.
+  candidate pairs out, leaving 27,297. The owner confirmed both.
 - **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings
   were frozen after the re-proposal under the rules, as the extraction prompt was after its
   last gold run. A test pins the request's key, so any change shows; it changes only with the
@@ -874,6 +874,21 @@ data is labeled by hand, from openly licensed articles only.
     pre-registered: strict, on every scored pair. The scope rule is applied to the primary
     figure. If the primary and the sensitivity figure would pick different arms, the build
     stops for the owner's ruling, and the README reports both whichever way it goes.
+  - *The ruling on the two figures:* they picked different arms: council for the top pairs on
+    the pre-registered figure, single-small for every pair without the 29 pairs. The owner
+    ruled that the pre-registered figure picks council only because of the 15D pairs, a data
+    error the corpus no longer has, and that without them no arm separates from single-small.
+    So the hosted page uses single-small for every pair, unless single-small's precision on
+    genuine without those pairs is clearly below council's, their intervals not overlapping,
+    and then council for the top pairs per outcome, as the pre-registered figure says. They do
+    not overlap: 84.1% (79.0% to 87.6%) against 93.2% (88.7% to 97.3%), so council classifies
+    the top pairs. `eval contradictions` applies the ruling and the README reports both figures.
+  - *Corrections after scoring:* 5 agreement labels contradicted the written Mendelian
+    randomization rule, which predates them, and every arm gave the rule's reason on all 5. The
+    owner accepted them, so every arm's reason accuracy rises alike and no paired difference
+    moves; the README shows the rates before and after. Agreement labels the arms dispute for
+    other reasons stay as labeled, since correcting only where models disagree can only raise
+    their scores.
   - *How the scorer weights:* each group of the label set, a disagreement stratum or the
     agreement pairs, stands for all of its pairs, so a labeled pair weighs its group's pairs
     over its group's labeled pairs; for a disagreement pair that is the inverse of its chance of

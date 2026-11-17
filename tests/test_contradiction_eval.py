@@ -1,11 +1,13 @@
 """Scoring the arms against the contradiction labels, on synthetic pairs."""
 
+from pathlib import Path
+
 import pytest
 from test_label_set import answer, pair, sample
 
 from claimgraph import contradiction_eval, label_set
 from claimgraph.contradiction_eval import Difference, Interval
-from claimgraph.labels import ContradictionLabel
+from claimgraph.labels import ContradictionLabel, load_contradiction_pairs
 from claimgraph.models import Arm, PairClassification, Reason, Verdict
 from claimgraph.pair_sample import DrawnPair
 
@@ -150,8 +152,7 @@ def test_the_scope_rule_takes_single_small_unless_the_gain_is_clear(
             arm=a,
             correct=Interval(estimate=0.5, low=0.4, high=0.6),
             correct_lenient=Interval(estimate=0.5, low=0.4, high=0.6),
-            reason=Interval(estimate=0.5, low=0.4, high=0.6),
-            reason_lenient=Interval(estimate=0.5, low=0.4, high=0.6),
+            verdict=Interval(estimate=0.5, low=0.4, high=0.6),
             precision_genuine=Interval(estimate=0.5, low=0.4, high=0.6),
             called_off_question=0,
             usd_per_pair=usd,
@@ -170,5 +171,86 @@ def test_the_scope_rule_takes_single_small_unless_the_gain_is_clear(
     pick = contradiction_eval.scope_pick(
         scores, Arm.COUNCIL, difference(Arm.COUNCIL, Arm.SINGLE_SMALL, *gain), against_best
     )
+
+    assert (pick.arm, pick.every_pair) == (arm, every_pair)
+
+
+def test_labels_before_a_correction_are_its_was_values(tmp_path: Path) -> None:
+    p = pair(1)
+    (tmp_path / "corrections.toml").write_text(
+        f"""
+[[correction]]
+outcome = "{p.outcome}"
+study_a = "{p.study_a}"
+study_b = "{p.study_b}"
+was_verdict = "genuine"
+was_reason = "population"
+was_also_differs = []
+found = "after_scoring"
+rule = "Synthetic rule."
+"""
+    )
+    corrections = contradiction_eval.load_corrections(tmp_path / "corrections.toml")
+    now = [label(p, reason=Reason.DESIGN_OR_BIAS)]
+
+    after = contradiction_eval.Found.AFTER_SCORING
+    assert contradiction_eval.before(now, corrections, after)[0].reason is Reason.POPULATION
+    assert (
+        contradiction_eval.before(now, corrections, contradiction_eval.Found.BEFORE_SCORING) == now
+    )
+
+
+def test_the_committed_corrections_match_the_labels() -> None:
+    root = Path(__file__).parents[1] / "evals" / "gold" / "vitamin-d-depression"
+    corrections = contradiction_eval.load_corrections(root / contradiction_eval.CORRECTIONS_FILE)
+    labeled = {p.pair_id: p for p in load_contradiction_pairs(root / "contradiction_pairs.toml")}
+
+    # Each correction names a labeled pair and changed it.
+    for c in corrections:
+        now = labeled[c.pair_id]
+        assert (now.verdict, now.reason) != (c.was_verdict, c.was_reason)
+
+
+def scores_with(
+    small: tuple[float, float], council: tuple[float, float]
+) -> list[contradiction_eval.ArmScore]:
+    def one(arm: Arm, low: float, high: float) -> contradiction_eval.ArmScore:
+        middle = Interval(estimate=(low + high) / 2, low=low, high=high)
+        return contradiction_eval.ArmScore(
+            arm=arm,
+            verdict=middle,
+            correct=middle,
+            correct_lenient=middle,
+            precision_genuine=middle,
+            called_off_question=0,
+            usd_per_pair=0.0,
+            billed_per_pair=0.0,
+        )
+
+    return [one(Arm.SINGLE_SMALL, *small), one(Arm.COUNCIL, *council)]
+
+
+@pytest.mark.parametrize(
+    ("small", "arm", "every_pair"),
+    [((0.79, 0.876), Arm.COUNCIL, False), ((0.79, 0.90), Arm.SINGLE_SMALL, True)],
+)
+def test_the_ruling_keeps_single_small_unless_its_precision_is_clearly_below(
+    small: tuple[float, float], arm: Arm, every_pair: bool
+) -> None:
+    pairs, found, answers = setup({0, 1, 2, 3}, set())
+    figures = contradiction_eval.score(
+        pairs, found, [label(p) for p in pairs], answers, COSTS, rounds=ROUNDS
+    )
+    primary = figures.model_copy(
+        update={"scope": figures.scope.model_copy(update={"arm": Arm.COUNCIL, "every_pair": False})}
+    )
+    sensitivity = figures.model_copy(
+        update={
+            "arms": scores_with(small, (0.887, 0.97)),
+            "scope": figures.scope.model_copy(update={"arm": Arm.SINGLE_SMALL, "every_pair": True}),
+        }
+    )
+
+    pick = contradiction_eval.hosted_pick(primary, sensitivity)
 
     assert (pick.arm, pick.every_pair) == (arm, every_pair)
