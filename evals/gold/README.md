@@ -94,6 +94,15 @@ corrections its own disagreements turned up.
 | depression/mental disorder status (patients versus healthy individuals) | `case_status` | `out_of_domain` | It bundles depression with other conditions | The rules proposal's disagreements, after scoring |
 | subjective improvement | `response` | `out_of_domain` | It names no depression measure, and "improvement" is a score word, not response | The rules proposal's disagreements, after scoring |
 
+### Contradiction pairs
+
+The maintainer labeled the 70 pairs of `vitamin-d-depression/contradiction_label_set.json`
+following the contradiction section of [LABELING.md](LABELING.md), on the labeling page, which
+shows no arm's answer. For the 12 pairs that hold the 15D finding of 39125485, the maintainer
+discussed how the rules applied with an AI assistant before labeling. The discussion found that
+the 15D is scored higher-is-better, which the outcome mapping now records as a polarity
+override; the rules were unchanged.
+
 ## Licence
 
 The code in this repository is MIT-licensed. The abstract texts in `gold.jsonl` are not: they
