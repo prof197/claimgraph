@@ -381,7 +381,7 @@ hosted page. The table sets it beside vitamin D and depression.
 | `self-consistency` (k = 6), estimated | $586.80 (at most $4,239.34) | $1.39 (at most $10.21) |
 | `self-moa`, estimated | $404.04 (at most $2,851.91) | $0.96 (at most $6.87) |
 | `council`, estimated | $651.21 (at most $2,850.85) | $1.56 (at most $6.87) |
-| `council`, measured | $205.14 (from 187 corpus pairs) | n/a |
+| `council`, measured | $196.63 (from 221 corpus pairs) | n/a |
 | `council-ranked`, estimated | $1,205.47 (at most $4,996.83) | $2.89 (at most $12.04) |
 | `council-ranked`, measured | $395.31 (from 40 dev pairs) | n/a |
 
@@ -439,6 +439,17 @@ track are listed in [DESIGN.md](DESIGN.md#failure-modes).
 
 Known limitation: retracted papers are excluded using the retraction status in each cached
 record, which is only as current as the last fetch. Published runs refresh the cache first.
+
+Known limitation: papers on the same trial or dataset can be paired as a contradiction, since
+they match on everything the most-alike selection compares. Papers that share a trial
+registration are merged into one study first, but an unregistered trial or a shared survey is
+not. Of the 221 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
+against Huang 2025, Guo 2025 and Chen 2025, all on NHANES, from different cycles and so
+different people. Found by string matching; see DESIGN.md.
+
+Known limitation: the classify dry run's estimate runs high. For the council run on the most
+alike pairs it estimated $5.75, and the run measured $1.74, about a third of it. The measured
+rows in the comparison above scale real spend, and are the better guide.
 
 ## Outcomes
 

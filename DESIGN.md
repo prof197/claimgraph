@@ -1446,9 +1446,21 @@ classified under the old rule keep their recordings, and the 2 the new rule sele
 without cost; the rest leave the page, so it shows one selection rule. The accuracy the
 README reports is still the stratified 300's, drawn to stand for every candidate pair.
 Council on the 219 new pairs cost $1.74. Of the 221, 176 are genuine, 29 apparent and 16 off
-the question, against none apparent under the old rule; population is the reason for 141, the
-outcome measure for 28, design or bias for 16, the intervention for 11, the comparator for 7,
-and 2 are unclear.
+the question, against none apparent under the old rule; population is the reason for 141 of
+the 205 on the question, the outcome measure for 28, design or bias for 16, the intervention for
+11, the comparator for 7, and 2 are unclear. Population leading is expected once design,
+measure, baseline status and size are held close, since it is most of what is left to differ.
+But it is also council's weakest call on the stratified 300: of the 15 labeled pairs it gave
+population, the label's primary reason is population in 4, a weighted precision of 44% (6% to
+73%), and population is the primary or an also-differs reason in 8, 59% (27% to 86%). Its
+misses were mostly pairs labeled design or bias, or comparator. So the 141 says the population
+differs in most of these pairs, not that it is the main reason in each.
+
+Two papers on the same trial or dataset match on every field, so the selection was checked for
+them by string matching, without a model. Papers sharing a trial registration are already one
+study. No classified pair includes a review, and no pair names the same trial; 3 of the 221
+pair Zhao 2010 with a later paper on the same survey, NHANES, from different cycles and so
+different people (Huang 2025, Guo 2025, Chen 2025).
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
