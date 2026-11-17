@@ -596,7 +596,7 @@ them, at whatever depth the run asks for.
 | `self-consistency` | Sonnet 5.5, k samples, majority vote; k set so billed tokens match `council-ranked` |
 | `self-moa` | Sonnet 5.5, three samples, as many as the council's members, then Sonnet 5.5 synthesizes them |
 | `council` | Sonnet 5.5, GPT-6.1 Sol and Gemini 4 Argon answer; Sonnet 5.5 chairs and synthesizes |
-| `council-ranked` | As `council`, with anonymized peer ranking before synthesis, following [llm-council][llm-council] |
+| `council-ranked` | As `council`, with anonymized peer ranking before synthesis, following [llm-council][llm-council] by Andrej Karpathy |
 
 Claude models are the default everywhere outside the council arms. The council's other vendors
 and models were chosen after a price check on 2026-11-16, from each vendor's own pricing page:
