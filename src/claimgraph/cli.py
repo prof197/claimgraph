@@ -77,6 +77,7 @@ class Stage(StrEnum):
     EXTRACT = "extract"
     NORMALIZE = "normalize"
     COMPARE = "compare"
+    CLASSIFY = "classify"
 
 
 Model = Annotated[extract.ModelChoice, typer.Option(help="The extraction model.")]
@@ -122,11 +123,25 @@ def run(
     mappings_dir: Annotated[
         Path, typer.Option(help="Where the outcome mappings are written.")
     ] = Path("mappings"),
+    depth: Annotated[
+        models.Arm | None,
+        typer.Option(help="Classify the candidate pairs at this arm after compare."),
+    ] = None,
+    top: Annotated[
+        int | None,
+        typer.Option(
+            min=1, help="With --depth, only the first N pairs of each outcome in the panel's order."
+        ),
+    ] = None,
 ) -> None:
-    """Run the pipeline for one question: retrieve, extract, propose the outcome mapping, compare.
+    """Run the pipeline for one question: retrieve, extract, propose the outcome mapping, compare,
+    and with --depth classify the candidate pairs at that arm.
 
     Model calls replay recorded responses by default and exit with status 1 if any is missing.
     """
+    if stage is Stage.CLASSIFY and depth is None:
+        typer.echo("--stage classify takes --depth", err=True)
+        raise typer.Exit(1)
     config = load_config(resolve_question(question))
     run_dir = runs_dir / config.id
     if stage in (None, Stage.RETRIEVE):
@@ -138,6 +153,20 @@ def run(
     # A dry run has extracted and mapped nothing yet to compare.
     if stage is Stage.COMPARE or (stage is None and not dry_run):
         _compare(config, run_dir, model, mappings_dir)
+    # Arm names double as depth names. A whole-run dry run has no pairs yet to price.
+    if depth is not None and (stage is Stage.CLASSIFY or (stage is None and not dry_run)):
+        classify_command(
+            question,
+            split=Split.CORPUS,
+            arm=depth,
+            dry_run=dry_run,
+            live=live,
+            top=top,
+            runs_dir=runs_dir,
+            mappings_dir=mappings_dir,
+            prices_file=prices_file,
+            model=model,
+        )
 
 
 def _compare(

@@ -1219,9 +1219,11 @@ and none for invalid output. Cache reads were 13.6M of the 14.9M input tokens.
 
 A small Typer CLI drives every stage, and each pipeline step is one module.
 
-- `claimgraph run QUESTION [--depth ARM] [--dry-run] [--replay | --live]`. QUESTION is a config
-  path or id; a config, not free text, keeps runs reproducible. `--stage` runs one stage,
-  `--dev` extracts the dev sample, and `--model` picks the extraction model.
+- `claimgraph run QUESTION [--stage STAGE] [--depth ARM [--top N]] [--dry-run] [--live]`.
+  QUESTION is a config path or id; a config, not free text, keeps runs reproducible. `--stage`
+  runs one stage, `--dev` extracts the dev sample, and `--model` picks the extraction model.
+  `--depth` classifies the candidate pairs after compare at one arm, `--top` only the first N
+  of each outcome in the panel's order; `--stage classify --depth ARM` runs that step alone.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
   unmapped. A member no finding reports does not fail it: the name is kept, since a later run
   may report it again. It counts the findings the `out_of_domain` list drops.

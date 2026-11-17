@@ -27,6 +27,8 @@ uv run --env-file .env claimgraph run vitamin-d-depression --stage normalize --l
                                           # propose the outcome mapping, unreviewed (costs money)
 uv run claimgraph mapping check vitamin-d-depression   # every outcome reviewed, every string mapped
 uv run claimgraph run vitamin-d-depression --stage compare  # candidate pairs and block sizes
+uv run claimgraph run vitamin-d-depression --stage classify --depth council --top 93 --dry-run
+                                          # the hosted classification; sends nothing
 uv run claimgraph export stub vitamin-d-depression    # stub contradictions, no model
 uv run claimgraph export build vitamin-d-depression --stub  # the page's export from a run
 uv run claimgraph export publish vitamin-d-depression  # build, upload to the public release with

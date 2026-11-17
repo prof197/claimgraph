@@ -391,3 +391,28 @@ def test_the_classify_dry_run_needs_no_drawn_pairs(demo: Demo, arm: Arm) -> None
     assert result.exit_code == 0, result.output
     assert "Nothing was sent." in result.output
     assert re.search(r"3 (unrecorded|unfinished) pairs", result.output)
+
+
+def test_a_depth_classifies_the_pairs_at_that_arm(demo: Demo) -> None:
+    through(demo, "compare")
+
+    priced = demo.invoke(
+        "run",
+        QUESTION,
+        "--stage",
+        "classify",
+        "--depth",
+        "council",
+        "--dry-run",
+        "--runs-dir",
+        str(demo.runs),
+        "--mappings-dir",
+        str(demo.mappings),
+    )
+    missing = demo.invoke("run", QUESTION, "--stage", "classify", "--runs-dir", str(demo.runs))
+
+    assert priced.exit_code == 0, priced.output
+    assert "council: 3 unfinished pairs" in priced.output
+    assert "Nothing was sent." in priced.output
+    assert missing.exit_code == 1
+    assert "--stage classify takes --depth" in missing.output
