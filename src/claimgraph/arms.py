@@ -66,8 +66,8 @@ CHAIR = SONNET
 # Self-MoA proposes as many answers as the council does, from one model.
 SELF_MOA_SAMPLES = len(COUNCIL)
 # Matched to council-ranked's billed tokens per pair, hidden reasoning included, as measured
-# on the eval pairs; None until that run is made.
-SELF_CONSISTENCY_K: int | None = None
+# on the 300 eval pairs: 20,995 against single-mid's 3,469, a ratio of 6.05.
+SELF_CONSISTENCY_K: int | None = 6
 type Letter = Literal["A", "B", "C", "D", "E", "F", "G", "H"]
 LETTERS: tuple[Letter, ...] = ("A", "B", "C", "D", "E", "F", "G", "H")
 MULTI_ARMS = (Arm.COUNCIL, Arm.COUNCIL_RANKED, Arm.SELF_CONSISTENCY, Arm.SELF_MOA)

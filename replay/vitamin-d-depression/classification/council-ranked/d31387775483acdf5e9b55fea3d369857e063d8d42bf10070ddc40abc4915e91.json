@@ -1,0 +1,200 @@
+{
+ "key": "d31387775483acdf5e9b55fea3d369857e063d8d42bf10070ddc40abc4915e91",
+ "request": {
+  "body": {
+   "input": [
+    {
+     "content": "Outcome: Depressive symptoms (lower is better)\n\n## Study A\nFound: benefit\nClaim: Perceived depression scores improved significantly more in the TRI 360TM multi-ingredient supplement group than in the placebo group.\nSentence: \"All assessed perception scorings on psychological symptoms like fatigue, mental stress, sleep disturbance, anxiety, depression, emotional trauma, mood changes, self-confidence, willpower, and motivation were very significantly (p ≤ 0.0001) improved in TRI 360TM participants than placebo control group.\"\nMeasured as: depression perception scoring\nPopulation: Adults aged 20-45 years with one or more psychological symptoms\nIntervention: TRI 360TM proprietary nutraceutical combination capsules twice a day, up to 180 days\nComparator: Placebo\nDesign: randomized controlled trial\nSample size: 84\nbaseline_vitamin_d_status: not_reported\n\n## Study B\nFound: no effect\nClaim: Vitamin D supplementation did not change depressive symptoms (HAMD-17) compared with control in patients with low vitamin D.\nSentence: \"The HAMD-17, RSAS, and RPAS scores did not change significantly between VD and control groups from baseline to endpoint (all p > .05).\"\nMeasured as: depressive symptoms (HAMD-17)\nPopulation: Patients with depression and anxiety with low serum 25(OH)D levels\nIntervention: Daily vitamin D supplementation for 6 months\nComparator: Control group\nDesign: randomized controlled trial\nSample size: not reported\nbaseline_vitamin_d_status: not_reported",
+     "role": "user"
+    }
+   ],
+   "max_output_tokens": 2048,
+   "model": "gpt-6.1-sol",
+   "store": false
+  },
+  "shared": "7c79e0c3dcf74b29842ff1dc56d060b9a6824e034d4d8d54a1eaa9a4a8947841",
+  "vendor": "openai"
+ },
+ "response": {
+  "access_programs": {
+   "cyber": "standard"
+  },
+  "background": false,
+  "billing": {
+   "payer": "developer"
+  },
+  "completed_at": 1794872715,
+  "created_at": 1794872704,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "id": "resp_0de8d001db8c8aa7016afb957ffb3887d2afb470790591292e",
+  "image": {
+   "context_compression": "disabled"
+  },
+  "incomplete_details": null,
+  "input_transformations": [],
+  "instructions": "You judge a pair of studies whose findings on one outcome point different ways, for a map of the evidence on one question.\n\nQuestion: Does vitamin D affect depression?\n\nEach study is shown by its headline finding on the outcome: the claim, the sentence it was taken from, what was measured, who was enrolled, what they got and what it was compared with, the design and the sample size. Judge from these fields alone, not from your own knowledge of the studies. First check that both findings bear on the question; a pair where one does not is off_question. Otherwise decide whether the disagreement is genuine or apparent, and name the reason, by the rules below. Return one JSON object that follows the schema.\n\n## Rules\n\n**`verdict`** is about the results, not whether a reason was found:\n\n- `off_question`: one finding's exposure is not vitamin D, so the pair is not a vitamin D\n  comparison. The finding is an extraction failure: such pairs are left out of the panel and\n  the eval, and counted. This covers an exposure that is another condition or trait, such as a\n  skin disease or a genetic liability to poor sleep; a gene variant studied for its own\n  association, a vitamin D receptor variant included; and a contrast in which both groups get\n  the same vitamin D and differ only in something else. An `off_question` pair takes no reason\n  and no `also_differs`; `detail` can name the exposure. Two exposures are not off the question:\n  a combination product that includes vitamin D is a normal pair, with a difference in\n  co-treatment under `intervention`; and a genetic proxy for vitamin D level in a Mendelian\n  randomization study is a normal finding, so its difference with a trial or an observational\n  study is `design_or_bias`.\n- `genuine`: the two results really point different ways. Differences between the studies are\n  what a genuine pair's reason names, not grounds for calling it apparent: different\n  populations, doses, comparators, instruments or designs are the likely reason the results\n  differ. An observational association against a null trial, or against a Mendelian\n  randomization study, is genuine, with reason `design_or_bias`.\n- `apparent`: on a close read, they don't conflict, and only in two cases. Either the null study\n  could not rule out the effect, because the abstract calls it a pilot, a feasibility study or\n  underpowered, or its confidence interval includes the other study's effect; or the two\n  findings don't measure the same thing despite the shared outcome, such as mood rated as one\n  item of a wider symptom checklist against a full depression scale. A different instrument,\n  cut-off or timing for the same thing is a genuine pair with reason `outcome_measure`. There is\n  no sample-size cutoff for underpowered: use the abstract's own signals.\n\n**`reason`**: for a genuine pair, the difference most likely to explain it, or `unclear` when\nnone stands out. An apparent pair still gets a reason, never `unclear`: the one that dissolves\nthe conflict. An `off_question` pair gets none; in the file, its reason stays `\"\"`. A null that could not rule out the effect is `design_or_bias`; findings that\nmeasure different things are `outcome_measure`.\n\n| Reason | Covers |\n|---|---|\n| `population` | Who was enrolled, including baseline vitamin D status |\n| `intervention` | Dose, duration, route, form, co-treatment |\n| `comparator` | Placebo, active treatment, usual care |\n| `outcome_measure` | Definition, instrument or timing, within one normalized outcome |\n| `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; a null that could not rule out the effect |\n| `unclear` | For a genuine pair only: no difference stands out |\n\nOne invented example for each reason. None comes from a real abstract.\n\n- `population`, genuine. *Example: Study X enrolled outpatients with diagnosed major depression\n  and found that symptom scores fell; Study Y enrolled healthy retirees and found no change.*\n- `intervention`, genuine. *Example: Study X gave a large weekly dose for six weeks; Study Y gave\n  a small daily dose for four years; only Study X found a benefit.*\n- `comparator`, genuine. *Example: Study X compared the supplement with a dummy pill and found a\n  benefit; Study Y compared it with an established antidepressant and found no difference.*\n- `outcome_measure`, genuine. *Example: both map to depressive symptoms, but Study X rated a\n  long clinician interview after three months and Study Y a two-question screen after five\n  years.*\n- `design_or_bias`, apparent. *Example: Study Y found no effect in 22 people, and its own\n  abstract calls it an underpowered pilot; detail \"underpowered: n = 22\".*\n- `unclear`, genuine. *Example: two placebo-controlled trials in similar adults, with similar\n  doses and the same rating scale, point different ways, and neither abstract suggests why.*\n\nAnd one for the verdict that takes no reason:\n\n- `off_question`. *Example: Study Y tests whether a genetic tendency to migraine raises the\n  risk of depression, and measures no vitamin D; detail \"exposure: migraine liability\".*\n\n**`also_differs`** (optional): other differences present, never the primary reason again and\nnever `unclear`. **`detail`** (optional): a short specific, such as \"duration: 8 weeks vs a\nmedian 5.3 years\", or for an apparent pair what dissolves the conflict, such as \"underpowered:\nn = 40\". **`note`** (optional): anything else.\n\n## Dimensions\n\nCustom fields the question adds to each finding. Each refines one reason and never adds one.\n\n- baseline_vitamin_d_status refines population. Values: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported.\n",
+  "max_output_tokens": 2048,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "gpt-6.1-sol",
+  "moderation": null,
+  "object": "response",
+  "output": [
+   {
+    "content": [],
+    "encrypted_content": "gAAAAABq-5WLeepAeZkHbw7YN4iCYxt3dpb4x2oEUhPqh8RrlyshktzfCeRISzNxtkck-1qKJ5bw2aRqkrO0twpdZxeb45CvC39mDlh8yiBXqscF49_Eqg5m1AI3AWs0zv3XLi2WE0YA2AdQtLuzc9-47EaC1QGV27YMdfDCnpvbH_93IJd9x_fLkuPetThWkta_PAJcISB1_yWdR12L057z9Bb-0rEHAnIG_pheiab_fu-WeRn6MGNLrgAfRpjkHaitQ3wevG0MegXF6Lijefdxk4AL8nyhfN5UUy901vxyFf4H_jr_l5_HUlIUJ8wTkNKnTuKLcqFuV5MMq1pa4X08lQu5XfXWjteeFvOXGvX-ULFmvxwxXc-Bslwj_Deqyr_k__YMDdBm17C1VNqarrKGnoQJ1lHiIPXTOmbpbMXWwssQs3Aj9vU7CFjuq8RmAwx4jdJB7mBHN0AszYm67JyIdZ2ikyDhB4eOsxTMfNjxAx17iln0nZgWRevrb-9pgIGDagkTb5asN2Y4IqCQ3obqq6_YG8w1T4R4AbW8gzMkddWkh85YvWc71yZLJsOkaFk6oukH8ETDmcR8SOBidLJ008pucv6GFde-QtWJ3pZP5cqYJZKk4PXqL_2b5o9vFRAGWdeDmLORvuYoYVTg7EO59_kh319QwGXY3anfmOa_0tffx_ePYDQShWMQ40zN8nIgTiDvQEPNB9ABl9CmoSACStOXILXrpDcecHlkwi-xOPwrrkemGeoABKJch41lOANokPT_uxaipJxpRg3rNlgJKwUqa0-zaRxfpidoKQzttxk-7Q05cpMFLJdfTHvfmjgK6TYQWRTTBw4tKjpT4WoDDNl_tAH4r5tlVFJ4qKfrncFNhk2Wzlp3J4fG7_UFvakyjHIOUIHk0veS13VyXhEEtnxCjztXNjiL7sfKs40on5h-29qoC2rLDkH3rJ2zIxDJLjDbNcpi4Nc_TB1K3rvphTsfTwv-8rMuhmi0rl19X6u9HHG63tptoRJDPECOxFNxjoEKcm4PM-03caM_3RgkjA0bWZvf1f4D5gR_468nX9vLt3voxifgWo7kpIwXTNMUXXCQqfar6fS-FgkDoU7lgdmbqA_bHL0Jv4h-7JTptVr7MgTdvZ1VAYuEx7bULkgm6XNU8mEi7tD7ewhhHyhHqlVw-1bfYVSJ6k_4f1_Psj2FJQqWgSE1o6M5IJbSwWRqcgRQs4Po2WNU287UhzZ9VbyZ4vWc47bZSFiMsAnIlJUcEdepe0CMBI2bRGefarV6XOTClUUPt6i1x7uor9snFdVFcpe3TynDlQewDLmc62DFSG4LeiEtcMLHNH2obWXJBoDxHBVCNBv0ISjz6TgSXFTf1zINM-RdrfeYZZA5MZE3TpbHtIFOFmvM7OdHMEJzkB9jWmpeUhQQXO30WH5Hmj4q8cKdf20hPdXFQ7jWhD9Iw1g7PKUXnOudYXQmYXImLATBA11VCuFaGFRrF0wPL-7H67WYBAEy3m91se_ELZBFet3pep4CDmUfb5QU6iwWZicNhIaZdrwdJQOyZ0Dd3vTEygbCwpxTRJvwy2Yc0_cxbgrQg8Onr-9dtx2EvdPPBQ2vnHpB3UPFnrZ9iynqHMdMepXhs9nn6ppJ8wCKzVjidT3Xc5E4u6WVlfhn0upzLHjXap0IOsAfcYzk8e_z-a8bVzEvQK-q1POhh1RuB7dfIR-53FJM1AwFCuhfhuaojVAydkYaMDFZCAN6aHyg8A5Pwj2PDzyDGiva-TlP5mVDluK_Gq3C3OMFwzCdom_2abo_InTsH9ikiScbUzbA1DYmaT-Dr5Yy3z-GwyUBXY44-e40g0lR9pBbbNdmo2rYzt_s6XN4BhdSvLMgRviB6ZG4rXL3PtpbT4lsQVYH6aP79XumPEMDXa7FNGRAANGFx62Ux3oMO9U-MO9Wm82ZQ6I9Wr9vpxOWZreWhywfvMRW-jBgn_VP_5DZUU9Mxykej87AEqpSdjdiFRYjji-gEOAm82hDzIwWM9zI-mcP05rWUsRsso-Lk-coVu6cUeh9kL8VVaLBqfnwQt8JQapSHus_DiovG4KCOLV0RplX9NXB_3x-773vl8Zf79_77YaEJNZI0lqKtU1MIfy8K68LrLgY9XTF_fBXU-NKuFxdXb-iFsLoMIwH1Oc39ozgJcG6I4K9pvQheN013bTYupLJMvzUiS4AIzLl-czwD7viSKU8TaupzTwfyiYlB6K4VTLxqQgR4LoUTjgDM2ZxhVyeFwx-pFtWYtBlBbPXUGnFKkISA9zBGYiF3o0niPrvZC2Sac-S3VAbkkE83d95d_b1FBUSvhKs5Xs7t448tPIqP1L5xgwPKvCtiuHGBEMzRZwpeHZ2VUdSr8IDZ5MSqNU6_XI77uGUqCDkzHAyn2xjXBCesCPqmCHKcVI8_FmdDYGlZjULIGtr-29Mgwq-zf_pNIoeK_tcRXemIIe_s_vlTmIZWJnmAyQZkEiaR4HwH79t0WuIYlZDbpIhTDc6u2QqFPqpFTIhpkkSJTAPIunP0V1tMm7Gg5oA8OQsjPzqnqLMl07qFUHthE6bQL8ZrRCOYSYbLf0__NsVksIH0-JE6NGTA62IzHLh2Ehyt2UA-oRNA3JmdFjd_aAwHqpbXC4BreFUl18dcYw2Zet81wsLigI2oGuLrx-vXm8j3gYoptVNH4qpdHBxT16VcVbOtp0iAY3jv0ZX103jk8oTwcRLOcF4ZWr64psKf6sTcb0CWuxHZ6yocrrq268mRbkERKF6IdWt9iaN878J_IY7Fku_4I3la0whW0U77XVkGpEsOQkrgqdj5eDOOW5YgKL2UvszG0CurPTJWNeqevAcCObIArDr7Y-8XLqMnZoAEXSgHIMwlbnxJMqlllK7G1I6gWxhCP8PiQwhvgingTQsr4NZMhYcxVlhP2gI4Txhm2y-7re1Rwi-7SB8WMqi-npRj9Pe_GbBZDjKsIfCfHBWSqn_JGheUbwoDmWYbxs1H5jUXPsq_PIMYTUVQRoqTZl8z0EUw-1Z1exf14escF-PUehc8T-ImOxf0rVTxnAj3dVPtHbSbj4lKOcCYx2TzPr8hQV510dakwYOGNXTBMnxjUNVJlH35477HUl-CH54L9r_o-c7p2sCylU7KJA7UM68ry1PVvi8f2nmEVaMVK4P24_jEKZ84FUUbiloo28YHzQ69kb_jBUI7MpZdZt0sr7c9BgT9EL_DghKLotLeHAGxg4owo1L0Hy6_Is=",
+    "id": "rs_0de8d001db8c8aa7016afb9586fa2887d2b8ca79fb6dddbd7e",
+    "summary": [],
+    "type": "reasoning"
+   },
+   {
+    "content": [
+     {
+      "annotations": [],
+      "logprobs": [],
+      "text": "{\"rationale\":\"Study A reports depression as a perception rating among a broad set of psychological symptoms, whereas Study B measures depressive symptom severity with the full HAMD-17 scale.\",\"verdict\":\"apparent\",\"reason\":\"outcome_measure\",\"also_differs\":[\"population\",\"intervention\"],\"detail\":\"Depression perception scoring within a broad symptom assessment versus a full HAMD-17 depression scale.\"}",
+      "type": "output_text"
+     }
+    ],
+    "id": "msg_0de8d001db8c8aa7016afb9589691887d2949555ec9450dda6",
+    "phase": "final_answer",
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+   }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+   "context": "all_turns",
+   "effort": "low",
+   "mode": "standard",
+   "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+   "format": {
+    "description": null,
+    "name": "classification",
+    "schema": {
+     "additionalProperties": false,
+     "description": "What the model returns for one pair. The rationale comes first, so the judgment follows\nfrom it.",
+     "properties": {
+      "also_differs": {
+       "description": "Other differences present; never the primary reason again, never unclear; empty when off_question.",
+       "items": {
+        "description": "Why two studies disagree: Cochrane's clinical and methodological heterogeneity.",
+        "enum": [
+         "population",
+         "intervention",
+         "comparator",
+         "outcome_measure",
+         "design_or_bias",
+         "unclear"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "detail": {
+       "description": "A short specific, such as 'duration: 8 weeks vs a median 5.3 years'; for an apparent pair, what dissolves the conflict, such as 'underpowered: n = 40'; for an off_question pair, the exposure that is not the question's.",
+       "type": "string"
+      },
+      "rationale": {
+       "description": "One short sentence explaining the judgment, naming the deciding difference.",
+       "type": "string"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "description": "Why two studies disagree: Cochrane's clinical and methodological heterogeneity.",
+         "enum": [
+          "population",
+          "intervention",
+          "comparator",
+          "outcome_measure",
+          "design_or_bias",
+          "unclear"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The primary reason, by the rules; null exactly when off_question."
+      },
+      "verdict": {
+       "description": "genuine, apparent or off_question, by the rules.",
+       "enum": [
+        "genuine",
+        "apparent",
+        "off_question"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "rationale",
+      "verdict",
+      "reason",
+      "also_differs",
+      "detail"
+     ],
+     "type": "object"
+    },
+    "strict": true,
+    "type": "json_schema"
+   },
+   "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+   "image_gen": {
+    "input_tokens": 0,
+    "input_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "output_tokens": 0,
+    "output_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "total_tokens": 0
+   },
+   "web_search": {
+    "num_requests": 0
+   }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+   "input_tokens": 1919,
+   "input_tokens_details": {
+    "cache_write_tokens": 0,
+    "cache_write_tokens_details": {
+     "ttl_12h_tokens": 0,
+     "ttl_30m_tokens": 0
+    },
+    "cached_tokens": 0
+   },
+   "output_tokens": 138,
+   "output_tokens_details": {
+    "reasoning_tokens": 49
+   },
+   "total_tokens": 2057
+  },
+  "user": null
+ }
+}

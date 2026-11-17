@@ -579,7 +579,8 @@ exactly in an optional `council` extra, and only `vendors.py` imports them, duri
   and the chair synthesizes the rest; a pair whose chair is invalid twice is unclassified.
 - **Matching k:** self-consistency's k is council-ranked's billed tokens per pair, every input,
   cache and output token at any rate, hidden reasoning included, over one single-mid sample's,
-  rounded. It is measured on council-ranked's run on the 300, before self-consistency runs.
+  rounded. It is measured on council-ranked's run on the 300, before self-consistency runs:
+  20,995 billed tokens per pair against single-mid's 3,469, so k is 6.
   Samples differ as repeated calls do, since current models take no sampling parameters; ties
   in the vote go to the earlier sample.
 

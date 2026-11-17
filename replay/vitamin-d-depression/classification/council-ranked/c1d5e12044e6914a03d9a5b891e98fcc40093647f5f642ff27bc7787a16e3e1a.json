@@ -1,0 +1,165 @@
+{
+ "key": "c1d5e12044e6914a03d9a5b891e98fcc40093647f5f642ff27bc7787a16e3e1a",
+ "request": {
+  "body": {
+   "input": [
+    {
+     "content": "Outcome: Depressive symptoms (lower is better)\n\n## Study A\nFound: harm\nClaim: In PD patients given vitamin D3, folic acid and B12 for 6 months, the 15D depression dimension score significantly increased (improved) from baseline.\nSentence: \"After the intervention, the mean score of speech, mental function, discomfort and symptoms, depression, and QoL significantly increased (p < 0.05 for all).\"\nMeasured as: depression (15D dimension score)\nPopulation: Levodopa-treated Parkinson's disease patients in Romania, mean age 71 years\nIntervention: Daily tablet with 800 IU vitamin D3, 1000 µg folic acid, 15 µg vitamin B12 for 6 months\nComparator: None (single-arm, baseline vs 6 months)\nDesign: case series\nSample size: not reported\nbaseline_vitamin_d_status: not_reported\n\n## Study B\nFound: benefit\nClaim: Depressive symptom severity on the MADRS fell significantly from baseline to 12 weeks after a multicomponent personalized dietary program that included vitamin D3 supplementation.\nSentence: \"At the endpoint, a significant reduction in depressive symptom severity was observed on the MADRS (from 15.52 ± 12.01 to 13.20 ± 11.66 points; p < 0.001) and HADS (from 17.00 ± 7.58 to 14.88 ± 7.82 points; p = 0.004).\"\nMeasured as: depressive symptom severity (MADRS)\nPopulation: 25 female patients with bipolar disorder or recurrent depression, mean age 31.3 years\nIntervention: 12-week personalized dietary modification and nutrition education with targeted supplementation of omega-3, vitamin D3, magnesium and sodium butyrate\nComparator: none (single-arm, before vs after)\nDesign: case series\nSample size: 25\nbaseline_vitamin_d_status: not_reported\n\n## Responses\n\n### Response A\n```json\n{\n \"rationale\": \"The conflict is apparent because both studies actually found an improvement in depression, with Study A using a quality-of-life dimension (15D) where a higher score means less depression (mislabeled as harm under the 'lower is better' outcome) while Study B used a clinical symptom scale (MADRS) where a lower score means less depression.\",\n \"verdict\": \"apparent\",\n \"reason\": \"outcome_measure\",\n \"also_differs\": [\n  \"population\",\n  \"intervention\"\n ],\n \"detail\": \"15D depression quality-of-life dimension (higher is better, improved in Study A) vs MADRS symptom scale (lower is better, improved in Study B)\"\n}\n```\n\n### Response B\n```json\n{\n \"rationale\": \"Both findings describe improvement, with Study A’s higher 15D depression dimension score incorrectly labeled as harm rather than benefit.\",\n \"verdict\": \"apparent\",\n \"reason\": \"outcome_measure\",\n \"also_differs\": [\n  \"population\",\n  \"intervention\"\n ],\n \"detail\": \"Scoring direction: higher 15D depression scores indicate improvement, whereas lower MADRS scores indicate improvement.\"\n}\n```\n\n### Response C\n```json\n{\n \"rationale\": \"Study A's 15D depression dimension rose, which is an improvement, yet it is labelled harm; with no comparator and no depression-specific scale, this pair does not show vitamin D results that truly conflict.\",\n \"verdict\": \"apparent\",\n \"reason\": \"outcome_measure\",\n \"also_differs\": [\n  \"population\",\n  \"intervention\"\n ],\n \"detail\": \"15D single depression dimension (QoL instrument, higher = better) vs MADRS depression severity (lower = better); both single-arm with no control, so neither isolates vitamin D\"\n}\n```",
+     "role": "user"
+    }
+   ],
+   "max_output_tokens": 2048,
+   "model": "gpt-6.1-sol",
+   "store": false
+  },
+  "shared": "a60e9adefb4d6d6d837e1511f63839dccfc8f83a44a2d56ced1f23d14db85e3c",
+  "vendor": "openai"
+ },
+ "response": {
+  "access_programs": {
+   "cyber": "standard"
+  },
+  "background": false,
+  "billing": {
+   "payer": "developer"
+  },
+  "completed_at": 1794875535,
+  "created_at": 1794875525,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "id": "resp_09b4f78f841afbb2016afba085af5887d189c01ae9cb5994c8",
+  "image": {
+   "context_compression": "disabled"
+  },
+  "incomplete_details": null,
+  "input_transformations": [],
+  "instructions": "You judge a pair of studies whose findings on one outcome point different ways, for a map of the evidence on one question.\n\nQuestion: Does vitamin D affect depression?\n\nEach study is shown by its headline finding on the outcome: the claim, the sentence it was taken from, what was measured, who was enrolled, what they got and what it was compared with, the design and the sample size. Judge from these fields alone, not from your own knowledge of the studies. First check that both findings bear on the question; a pair where one does not is off_question. Otherwise decide whether the disagreement is genuine or apparent, and name the reason, by the rules below. Return one JSON object that follows the schema.\n\n## Rules\n\n**`verdict`** is about the results, not whether a reason was found:\n\n- `off_question`: one finding's exposure is not vitamin D, so the pair is not a vitamin D\n  comparison. The finding is an extraction failure: such pairs are left out of the panel and\n  the eval, and counted. This covers an exposure that is another condition or trait, such as a\n  skin disease or a genetic liability to poor sleep; a gene variant studied for its own\n  association, a vitamin D receptor variant included; and a contrast in which both groups get\n  the same vitamin D and differ only in something else. An `off_question` pair takes no reason\n  and no `also_differs`; `detail` can name the exposure. Two exposures are not off the question:\n  a combination product that includes vitamin D is a normal pair, with a difference in\n  co-treatment under `intervention`; and a genetic proxy for vitamin D level in a Mendelian\n  randomization study is a normal finding, so its difference with a trial or an observational\n  study is `design_or_bias`.\n- `genuine`: the two results really point different ways. Differences between the studies are\n  what a genuine pair's reason names, not grounds for calling it apparent: different\n  populations, doses, comparators, instruments or designs are the likely reason the results\n  differ. An observational association against a null trial, or against a Mendelian\n  randomization study, is genuine, with reason `design_or_bias`.\n- `apparent`: on a close read, they don't conflict, and only in two cases. Either the null study\n  could not rule out the effect, because the abstract calls it a pilot, a feasibility study or\n  underpowered, or its confidence interval includes the other study's effect; or the two\n  findings don't measure the same thing despite the shared outcome, such as mood rated as one\n  item of a wider symptom checklist against a full depression scale. A different instrument,\n  cut-off or timing for the same thing is a genuine pair with reason `outcome_measure`. There is\n  no sample-size cutoff for underpowered: use the abstract's own signals.\n\n**`reason`**: for a genuine pair, the difference most likely to explain it, or `unclear` when\nnone stands out. An apparent pair still gets a reason, never `unclear`: the one that dissolves\nthe conflict. An `off_question` pair gets none; in the file, its reason stays `\"\"`. A null that could not rule out the effect is `design_or_bias`; findings that\nmeasure different things are `outcome_measure`.\n\n| Reason | Covers |\n|---|---|\n| `population` | Who was enrolled, including baseline vitamin D status |\n| `intervention` | Dose, duration, route, form, co-treatment |\n| `comparator` | Placebo, active treatment, usual care |\n| `outcome_measure` | Definition, instrument or timing, within one normalized outcome |\n| `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; a null that could not rule out the effect |\n| `unclear` | For a genuine pair only: no difference stands out |\n\nOne invented example for each reason. None comes from a real abstract.\n\n- `population`, genuine. *Example: Study X enrolled outpatients with diagnosed major depression\n  and found that symptom scores fell; Study Y enrolled healthy retirees and found no change.*\n- `intervention`, genuine. *Example: Study X gave a large weekly dose for six weeks; Study Y gave\n  a small daily dose for four years; only Study X found a benefit.*\n- `comparator`, genuine. *Example: Study X compared the supplement with a dummy pill and found a\n  benefit; Study Y compared it with an established antidepressant and found no difference.*\n- `outcome_measure`, genuine. *Example: both map to depressive symptoms, but Study X rated a\n  long clinician interview after three months and Study Y a two-question screen after five\n  years.*\n- `design_or_bias`, apparent. *Example: Study Y found no effect in 22 people, and its own\n  abstract calls it an underpowered pilot; detail \"underpowered: n = 22\".*\n- `unclear`, genuine. *Example: two placebo-controlled trials in similar adults, with similar\n  doses and the same rating scale, point different ways, and neither abstract suggests why.*\n\nAnd one for the verdict that takes no reason:\n\n- `off_question`. *Example: Study Y tests whether a genetic tendency to migraine raises the\n  risk of depression, and measures no vitamin D; detail \"exposure: migraine liability\".*\n\n**`also_differs`** (optional): other differences present, never the primary reason again and\nnever `unclear`. **`detail`** (optional): a short specific, such as \"duration: 8 weeks vs a\nmedian 5.3 years\", or for an apparent pair what dissolves the conflict, such as \"underpowered:\nn = 40\". **`note`** (optional): anything else.\n\n## Dimensions\n\nCustom fields the question adds to each finding. Each refines one reason and never adds one.\n\n- baseline_vitamin_d_status refines population. Values: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported.\n\n\n## Your role\n\nYou review anonymous answers to the pair below, each from a different model, under the same rules. Weigh each response against the rules and the studies' fields, then rank every response once, best first.\n",
+  "max_output_tokens": 2048,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "gpt-6.1-sol",
+  "moderation": null,
+  "object": "response",
+  "output": [
+   {
+    "content": [],
+    "encrypted_content": "gAAAAABq-6CPUoB8YzfGvhlvNer_WhkqNIw_G_a_1-831XdSlzFMCO62tnu4boyrGNQZ65DIStJ6WCpffX4Us61kzgBb6NGoPXCLsk4eKC2itUDZ_egJolR64Eji3M92-ynh7HAO39dyMtCe4oxMPetDp2Tr2zMPRrXKWnej---pgGq4zSJA0m7PDR4GFguJzRySJmrIGCVo3bpL_MKTYMsAITHjsSxQHzwcvdwkiueKluDEHNU83gpRH27ndAGPHfiXv4u-JuK4wO6krflHeSI15Xt73XgrlEO0oypFqvD79YYOkzFrX70hu5wSIYRv_AQZ1-dGYZYWcKzsLtlg7B0pASlPAcIeYtgoQ--gNrWbQ3bUQZ5jelF3wczZ0IeSS0YPD1rspzrlYsQtkZfawSbiaqT2x5kj5iGl6094xnpTXdiZESqee8uCSctWTAj5ibdYhVRandtOxQu21R5EKgw5-_C4FKEcNqHJjkiiGYaDjH56RSsMgGURYNES0CjH7iKDPGOxs08DhDZwupxir7Gy8cLRrkYNhNUwhaAfWqJHUxtLR6iLOWrTIXfxuvb1kE9wo8lFhcJoj94-AMFRUNSXdv7maELTrJ-rOjaLz_fO0nV3oQWKkvhioHj8ZIx7nhaDj85jTSx5hzpV4RpY0iaMkMEzV7JjpEEKZdBf50hbjFp7pJP_pNCAWrRvo22cqhvWAbkbQlwORdyXJKg167kYsOjCgyRMc6bvoQLWv0Wdat7ImPeOLwWonQKd9-TEUcdWfpI40D7gLJfoR0nr0ZoPBzMnVfX86dGQhFM1YvYFDp86FV_Xf3fQ3INYTJEjuVnA2XprdGL_L0ZekEUXB3URlmb7ojGVdo91OOhg5iDz5-ZghHjOqmpm-6EmAX-p2owoYoSTp0cM8xrJbxcJ666Ck96kX91Xxl2khXBxpj9c4nIb6v9TN7r-mN9pY3mB_u84rnS-u8WJrMhAikq7ED4UinLvJwr5EU4PXCW9fFr7xkjYFSRmVgWDNpIi7bMPHDgTjQ6QZ6MZ-js--Wx7uixVM8_ILk1jYYSzOdhx1Y0FIl7cxxWsM-qOPxF5fa5NQ7byY6ZmgzNGYq5r8vFbpxnKhmROXRpnoXlnSKKYHCrthbD6uCgLIpPQk40hMdM-bYrZK6gkjrB1JCbh61lEsD9WqRYA_a0_8edj6XEG2TOEAvro5DNG3oDeYsMKFBPo1No5qJ2wMclK8NhfCkPwfSPRuXnQFT2pqHT633hm_4ILquQ3pijugZTQ3FlIB4hy7Afa5DR5EAsApU8RTA8ftzg3DfOqROUx9mxLMVgiycLL2J3u0uAfXO4T9NdewGrmdMGj0SPc8o1EMwAjBsa9GF7aXZnGA-aX3NqqXTvVTqQLx-8QGr-PjMNsDoaI_kmSifY_W2UgHBCY8gzc3ekobAhxWigo4KTe3sPrtnAsX6JA9Vknc_a7H-eTiawK-tVQ15097kKf9-cdu0NS-mHGMQ1R62P6tEJBjOBVxVzeEhTLNW0BpxaTFp-JQ8ovz7GFpRNaprOt8CnCoqH0nV2fpfQLwaS3e9lHk2ooZcSdYQlVqxJ3GjophW3CfbSoh5FbJbLbmsokTOt_-fGoDfNBF7D5FRImN1G1C7yFDiG2QsAnVohN7m8GaRrmfnT8sbIxoPeEJa-2GquUk3PDeHUaTn2w7J4qDIc6p9X9CyOip-cTYMjIK6BPogV112l3baFSrbkH8lPQ9tizwPBzabeD34Sk3nnR0BViJ7FAeaGGT41jA8C3coM_ndjK2Fq7d81NTFrnOM3X4eJCX5ZWOvAabZpf0hJRnWITQDtYjO13euAFR85YDC34gMT3wivVNSHL_ZJXF2SRYJ3MuIs7LqXi9pgf3YQIJJFvsqAyDsBtoRWjernp_ojef3EE3CUXLzyWKlhkhi68YUh3Dgs8yRd1IJcJ_2_tZwFT3i8iYKby2JZTFKWPJyV6qKayS96ZjgG4u0As7MkHWSnI7zsLMLoR11SYju5xP0eFj0P-OpS2_6dPR1bBHdQ3ZELtyyhaubm_IaD9yOrBJojTkoB9_5ZdjwDd9xE7azhaSI3HvyMNlOeFZDomXQ5WcCRsc35rz9vgennYn7cI8T4-sm4C5sem_p6Eyw-_dq9c29GbgvzbOcSD7m_9Vlcj-9_SJJrjrxcWEqZtzm7NPw_kds0jLlQYeGZ0JB-yRlwmt5C3JrbUso7vEshNNVT-eiCHh48wQ1Hke7-2_90wOsP3NqMlOEoWQUGUMr-dvzvbGXwzrdO56s1uxNlS7vz0qKBIiPbQfQGB0hHsFTjXrts9tLm8M_TRCXSaV8Dc1tuy4nqTdNYepXzslcgPtcGarVWxKG__DDclZCW7PNtjPYk3sehHPtHt5iNDpu_Ee2YnQnQolaXGj9sQgzdQOT3oaAmlPV5jlvBWMzFIKDGzsfiyi8RRVOgxw5S6wh6MRlGe2E_95GTCPW3G9CNZOP-jbPKm5KGj8d4Xv46ESAXJApDD9Ks-HGl0dyL0B5Xc2O-9c_XOuz0rkOvwMmYOzSPN5edYgXNcak1gM7ZlOLvUK6gvHVcWcnjGvvmY_hlPPiDdOb3z68lnY2sIuXDxQE2Yg0UFcNb8IbjtnasGAHrmDf3hMN_DR-anX4mbb3Ndg1KscrYUUOMkOOFI4ks6yrKXifrDmbkJUbkU-uDJoUzcBNM5ysy6_NzVyvcGqgLIr8Y0qooWorPsDiwPXCWY9nGXBrlbvpWpTli5lh_4oBl_kHjor1Bgqc6Ok8dCiWLqDdCgPL5kGDNPUTNXRg717_XjkYp34AjjZgbcS3GEhZAY9KC4I26WJMk98wwrYoN2xm5kk9ervWau7B6wXmYKQXwHIo6Rxt3ui6B2cyaYf4IulGG5b3tgWvuB9t_2Hs6JQy6L2AlH8XE_AqcxRJ-iESEbWLhC4G-8DvNAt1gNi_SSkAtuA3-2JAqDt0iV3sVpmhhxmGCJNqvx7rTAFabMHfLZCRcaXeVG4I_JqxwNgE3kdQPydeAxddej0Sms5xVrhX7zRG1moMZP3foHcPZCTXdnophqVrh6D9PwsaB3fHyoxJEmoNlgtt5CLmw2dMGfCTvmg_ggNHjJbIjGsv9t2Mhab08WAI6EaYqso3zf_GH2bRDVh-q6Jz-DFvxE4Ucu2XT_6th0fGNcrZUzrASpTkMLy7fgyOZEvy7nRos60BKpPp0L-SRo19-TeI1nUd5P53wvlQeSe4hFhHKJWMktNL9-dhWql23iApexWi4CQSK2wgYr9mi0-UXKpz_5NIWs8wXW8RKe_Eho-wvVyYxe6ZROJM8UHK7IgLItZpwgzbA8GCcsVN6d7zs5ehegKqH0ls95oHa88icLNy9OvDd6kYDiK3z8V4OkA5rI9JkmYwe28z5W-iCj6SEYbyfB3Or1S1fFTc-yL7SRl4hf1sj0Y1dhomlhciQvL0j-Q_igqtC07qQzYSIx6yaNRzIKbyt_8USZoXlCof4U66ApucAN-c8MJOgac6LTIci47SbNglTpqmB07PsWvJrZLJoNzM9mv-OVBcDEbJ_wKPN1BVS__n1Xa_JlxqyFWzIWac5dtA5z_hGULjztLsZqMmk9Ps3GWwiLw461FBGWyZbEQgxTkCd_k3LPlTcD9Wm7X4a8GVRWKcYKqh3CNhSoSP8LCBUa-2G2HR2qXbYxXqs6BGJG_1PFjZwL2XDrwOjKWrrsE5mLTLRyoGwMSZ7kpkTiA8siNrTj1HQibn5uW84FJmMTPGRK1ft-sYAeDTwxfJ8kxFZtMmRVDdADIFOL-4qxIxKv0tz2imsD1_LKitz0_G2JmE1k8njj26Ft2YpinnCEeYgmT6OMZ8IG9lbG04ZZPPpH6gR8uD_cEBIyTORjxmWi_KfO8WxwvO0oox42I8wf5yxyjJcuTToJjTDG2Hvou7LFIuaZvIadCAqvj2vP8b0O4namuA1W2nIRbsCV0eZk7g4YZpD4COrtg9rdMgb9etQIb4BJeuCkf3ax6Baxe3POQjj-4wtDdEQS6bU3plUULXu8kNoXufuhTJQHzbNJM7J9_bz4d2IjK1FJVZ7L8FV97Fkm_XQBFGheDCzwnKBAPZKHXJNshLVscXzNXOs3Eyo_jmbs6JPu8NnxLtllX5c11SZG5U7pzocqHxhU9-JcE6jNJpmqcilcZINMGvM4O1snTjUfCxvzIYHCqySS6vB8S0XTJI6RUAuqq8qBr2DkSmwr0JJHI3TikLyh4WkJk4hGfsrQ7ZKHKodMSHhYIpftzpmc-h8BF2NRZwxn71JRJR4vSdC29SixSqOnrws1ltOR8plo_r_6_TPsjz6xv5f1O12y6CC1dEWDC2AAHUecnSE_6t3q9yEgi-7qP5FinZfCk7GbqXCdaG4u4isgoPR4ZlENuAJCipPGPEtSe5tbX6HCJ-W4nkQRWG02ND1w5woYZOplTkOD37y8o_6A_FCjh6qaYgIe0rxsjh6a5qP9IP9IYsyggbo5Imyf8ibD3QksAGTVPMWi30mmFB4J7Q0TmkMCJa0RDBl_AgY5SC0PrFgcvx_Widi9Nd8mIjbKpHOzmZPE8rYOf9By7DwvG84bKlG1rgUEYw20pAjAxvBpC-ixW4UvnObbd3KakWNayPnIVa915l1f874mPFiTjHxrPGXUgcpnRntOqvXYWzYxlV9RFIWXSELD_2Vc2cB9q1wWmtu8IbjG6NYr2i2XTmnpu_8vTdV7TgJ57r4SC6WdwTx3BCqM5DJ1aCsOJnKBDfloSLf9XSCgGn_6Z93KmtasDtBvUHsb86k0RzX2_3CpXlke8cHdUzgQwxOh9soiOnCdqISBqUo_H4V1oSSdqWnKDWx_jnBEELHnjMZeKN_sBm0zpikKlWEiDUYEp_LGIlbwY0IPFSfeBaA8n6KkG39LTnYft5Fxd_YNZ4LYeAUw9btGxMQ_wZYgeoPAtRu7CBufJtGjU46my4VqQSqET5FSsyi24VsoGneCk1acvLiDMBLXi1g7t3SxN4o6j9e_SGwZfJE7y2ga6Gof9YORkdvySPyckz3SJ8cFHc09FzOh2B1v_lTVoKKGcHCQTQ304OqmFmUakYsr2L6bBl-2jHEwqeXcR65XSGudg140cfdvUDAEo1HipUU3DCIvyq3wj6ejflP4WKH8A0hJDHt7V7i_buB8viR33iTqZhlZ8zKd6SZpeKmCEp8FmQSub0ZdQpOcAyU-cr26zYil06VpXOJWmS75dvr7I1fBh6kmFOM7dnyEmioxmfSL145GcfumB_IYa5-r3bJdtWGJFwp2NcSfcJAgHfxgGI5lh1tIksYYTinhj9xNpel_-TUozhwLswnMK8Ubf-AU9M73c8qO01xQ-rjyp0O72wo5jFpKIJEx_n9BwL821QXxamzxpsDLLgiQ0JmJVRvaFQtRBrdZgtkywRBSTiitCMpTcVSd5NXIGmVOa-WrjNGB2ipUKqTmkxOERCHZZ1GCk3X9oOsnk-YRzUeGr__9_ztELnP2WKRGB9KDZaVXYoY-mfJXhnkZTmA1JT7-4US6883GQbNzInZBXVtBIgU=",
+    "id": "rs_09b4f78f841afbb2016afba086942c87d1b0cca472d162b9f9",
+    "summary": [],
+    "type": "reasoning"
+   },
+   {
+    "content": [
+     {
+      "annotations": [],
+      "logprobs": [],
+      "text": "{\"evaluation\":\"A is strongest: it identifies the improvement mislabeled as harm and distinguishes a quality-of-life depression dimension from a full depression severity scale, supporting an apparent outcome-measure conflict. B correctly explains the scoring-direction error, but does less to connect its judgment to the permitted distinction between what the measures assess. C also identifies that distinction, but weakens its reasoning by invoking the absence of controls and inability to isolate vitamin D; neither feature dissolves a disagreement under the rules, and combination interventions remain eligible.\",\"ranking\":[\"A\",\"B\",\"C\"]}",
+      "type": "output_text"
+     }
+    ],
+    "id": "msg_09b4f78f841afbb2016afba08ca51487d19713b313f30994d5",
+    "phase": "final_answer",
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+   }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+   "context": "all_turns",
+   "effort": "low",
+   "mode": "standard",
+   "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+   "format": {
+    "description": null,
+    "name": "ranking",
+    "schema": {
+     "additionalProperties": false,
+     "description": "A member's review of the anonymized answers, best first.",
+     "properties": {
+      "evaluation": {
+       "description": "A few sentences weighing each response against the rules and the fields.",
+       "type": "string"
+      },
+      "ranking": {
+       "description": "Every response's letter once, best first.",
+       "items": {
+        "enum": [
+         "A",
+         "B",
+         "C",
+         "D",
+         "E",
+         "F",
+         "G",
+         "H"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "evaluation",
+      "ranking"
+     ],
+     "type": "object"
+    },
+    "strict": true,
+    "type": "json_schema"
+   },
+   "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+   "image_gen": {
+    "input_tokens": 0,
+    "input_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "output_tokens": 0,
+    "output_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "total_tokens": 0
+   },
+   "web_search": {
+    "num_requests": 0
+   }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+   "input_tokens": 2229,
+   "input_tokens_details": {
+    "cache_write_tokens": 798,
+    "cache_write_tokens_details": {
+     "ttl_12h_tokens": 0,
+     "ttl_30m_tokens": 798
+    },
+    "cached_tokens": 1428
+   },
+   "output_tokens": 342,
+   "output_tokens_details": {
+    "reasoning_tokens": 221
+   },
+   "total_tokens": 2571
+  },
+  "user": null
+ }
+}

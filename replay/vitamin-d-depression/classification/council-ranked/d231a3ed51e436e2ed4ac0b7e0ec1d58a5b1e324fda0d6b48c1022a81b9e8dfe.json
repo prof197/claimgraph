@@ -1,0 +1,200 @@
+{
+ "key": "d231a3ed51e436e2ed4ac0b7e0ec1d58a5b1e324fda0d6b48c1022a81b9e8dfe",
+ "request": {
+  "body": {
+   "input": [
+    {
+     "content": "Outcome: Depression cases (lower is better)\n\n## Study A\nFound: no effect\nClaim: Genetically determined 25(OH)D was not causally associated with depression in Mendelian randomization analysis.\nSentence: \"Although a selection of nine outcomes were reported in previous Mendelian-randomization studies or umbrella reviews to be associated with vitamin D, our MR analysis, with substantial study power (>80% power to detect an association with an odds ratio >1.2 for per standard deviation increase of log-transformed 25[OH]D), was unable to support an interpretation of causal association.\"\nMeasured as: depression\nPopulation: 339,256 individuals of White British origin from UK Biobank\nIntervention: Genetically determined 25(OH)D level (polygenic risk score, Mendelian randomization)\nComparator: Lower genetically determined 25(OH)D levels\nDesign: other primary study\nSample size: 339,256\nbaseline_vitamin_d_status: not_reported\n\n## Study B\nFound: benefit\nClaim: Among women supplemented with 800 IU vitamin D, those who remained vitamin D deficient before delivery had a significantly higher incidence of depression than those who reached insufficiency.\nSentence: \"The incidence of depression in patients in vitamin D deficiency group following vitamin D supplementation was significantly higher than insufficiency group and reached statistical significance (P < 0.001).\"\nMeasured as: incidence of prenatal depression\nPopulation: Pregnant women diagnosed with vitamin D deficiency at 12-14 weeks of gestation, single tertiary hospital in Chengdu, China\nIntervention: Vitamin D 800 IU daily from 14 weeks of gestation\nComparator: Women who achieved vitamin D insufficiency after supplementation versus those who remained deficient\nDesign: cohort study\nSample size: 1,365\nbaseline_vitamin_d_status: below_20_ng_ml",
+     "role": "user"
+    }
+   ],
+   "max_output_tokens": 2048,
+   "model": "gpt-6.1-sol",
+   "store": false
+  },
+  "shared": "7c79e0c3dcf74b29842ff1dc56d060b9a6824e034d4d8d54a1eaa9a4a8947841",
+  "vendor": "openai"
+ },
+ "response": {
+  "access_programs": {
+   "cyber": "standard"
+  },
+  "background": false,
+  "billing": {
+   "payer": "developer"
+  },
+  "completed_at": 1794872776,
+  "created_at": 1794872771,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "id": "resp_0bcd87fc51f58905016afb95c310ec87d2a887794e37dbc774",
+  "image": {
+   "context_compression": "disabled"
+  },
+  "incomplete_details": null,
+  "input_transformations": [],
+  "instructions": "You judge a pair of studies whose findings on one outcome point different ways, for a map of the evidence on one question.\n\nQuestion: Does vitamin D affect depression?\n\nEach study is shown by its headline finding on the outcome: the claim, the sentence it was taken from, what was measured, who was enrolled, what they got and what it was compared with, the design and the sample size. Judge from these fields alone, not from your own knowledge of the studies. First check that both findings bear on the question; a pair where one does not is off_question. Otherwise decide whether the disagreement is genuine or apparent, and name the reason, by the rules below. Return one JSON object that follows the schema.\n\n## Rules\n\n**`verdict`** is about the results, not whether a reason was found:\n\n- `off_question`: one finding's exposure is not vitamin D, so the pair is not a vitamin D\n  comparison. The finding is an extraction failure: such pairs are left out of the panel and\n  the eval, and counted. This covers an exposure that is another condition or trait, such as a\n  skin disease or a genetic liability to poor sleep; a gene variant studied for its own\n  association, a vitamin D receptor variant included; and a contrast in which both groups get\n  the same vitamin D and differ only in something else. An `off_question` pair takes no reason\n  and no `also_differs`; `detail` can name the exposure. Two exposures are not off the question:\n  a combination product that includes vitamin D is a normal pair, with a difference in\n  co-treatment under `intervention`; and a genetic proxy for vitamin D level in a Mendelian\n  randomization study is a normal finding, so its difference with a trial or an observational\n  study is `design_or_bias`.\n- `genuine`: the two results really point different ways. Differences between the studies are\n  what a genuine pair's reason names, not grounds for calling it apparent: different\n  populations, doses, comparators, instruments or designs are the likely reason the results\n  differ. An observational association against a null trial, or against a Mendelian\n  randomization study, is genuine, with reason `design_or_bias`.\n- `apparent`: on a close read, they don't conflict, and only in two cases. Either the null study\n  could not rule out the effect, because the abstract calls it a pilot, a feasibility study or\n  underpowered, or its confidence interval includes the other study's effect; or the two\n  findings don't measure the same thing despite the shared outcome, such as mood rated as one\n  item of a wider symptom checklist against a full depression scale. A different instrument,\n  cut-off or timing for the same thing is a genuine pair with reason `outcome_measure`. There is\n  no sample-size cutoff for underpowered: use the abstract's own signals.\n\n**`reason`**: for a genuine pair, the difference most likely to explain it, or `unclear` when\nnone stands out. An apparent pair still gets a reason, never `unclear`: the one that dissolves\nthe conflict. An `off_question` pair gets none; in the file, its reason stays `\"\"`. A null that could not rule out the effect is `design_or_bias`; findings that\nmeasure different things are `outcome_measure`.\n\n| Reason | Covers |\n|---|---|\n| `population` | Who was enrolled, including baseline vitamin D status |\n| `intervention` | Dose, duration, route, form, co-treatment |\n| `comparator` | Placebo, active treatment, usual care |\n| `outcome_measure` | Definition, instrument or timing, within one normalized outcome |\n| `design_or_bias` | Study type; bias the abstract reports, such as open-label or high dropout; a null that could not rule out the effect |\n| `unclear` | For a genuine pair only: no difference stands out |\n\nOne invented example for each reason. None comes from a real abstract.\n\n- `population`, genuine. *Example: Study X enrolled outpatients with diagnosed major depression\n  and found that symptom scores fell; Study Y enrolled healthy retirees and found no change.*\n- `intervention`, genuine. *Example: Study X gave a large weekly dose for six weeks; Study Y gave\n  a small daily dose for four years; only Study X found a benefit.*\n- `comparator`, genuine. *Example: Study X compared the supplement with a dummy pill and found a\n  benefit; Study Y compared it with an established antidepressant and found no difference.*\n- `outcome_measure`, genuine. *Example: both map to depressive symptoms, but Study X rated a\n  long clinician interview after three months and Study Y a two-question screen after five\n  years.*\n- `design_or_bias`, apparent. *Example: Study Y found no effect in 22 people, and its own\n  abstract calls it an underpowered pilot; detail \"underpowered: n = 22\".*\n- `unclear`, genuine. *Example: two placebo-controlled trials in similar adults, with similar\n  doses and the same rating scale, point different ways, and neither abstract suggests why.*\n\nAnd one for the verdict that takes no reason:\n\n- `off_question`. *Example: Study Y tests whether a genetic tendency to migraine raises the\n  risk of depression, and measures no vitamin D; detail \"exposure: migraine liability\".*\n\n**`also_differs`** (optional): other differences present, never the primary reason again and\nnever `unclear`. **`detail`** (optional): a short specific, such as \"duration: 8 weeks vs a\nmedian 5.3 years\", or for an apparent pair what dissolves the conflict, such as \"underpowered:\nn = 40\". **`note`** (optional): anything else.\n\n## Dimensions\n\nCustom fields the question adds to each finding. Each refines one reason and never adds one.\n\n- baseline_vitamin_d_status refines population. Values: below_20_ng_ml, at_or_above_20_ng_ml, mixed, not_reported.\n",
+  "max_output_tokens": 2048,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "gpt-6.1-sol",
+  "moderation": null,
+  "object": "response",
+  "output": [
+   {
+    "content": [],
+    "encrypted_content": "gAAAAABq-5XIWlX3Uw2kW_MAoENh8wapHr_wtru3oJfETN-HayFyq-ZfpbbZ4COHMCXm7SQ3pjhvriaXibiXDOwqdWiGA9O2UMfoByh4mnw_684xah9YV2PDDrCjfu0b4rPL9dAdj7JWof960yubhnLN0Jw5r653oE5xJhto8Z9xkgTMHgzW4sOmDkmu8Jy-PihnnwOzMlqHW09z6VSUpDxir5YTm-33tTZMWB3apXpHxC51VQUYRGbEy00B3Z8A-I6WldrB_zgDpR_LPGM1w1o5DvTpp4J-Cm4UG-e3sutf2DjHyavJA4yhuEcpCnMUNI5veLN0oByvmA31OsXPFApAh3zYrvb1eFokKjSrCutp3Le_Pwz8_WbtekhTX_M0iaczuCzvaSwvjITfRJgAR43PmNv5HzE9Ko29Tj7JVPFcY-DaGLPEyRoYX9KODppLzC-LxXuzuTs1GyfPXglRvKJokBs4dIgPzU5G2D4m4Lg_gs49LU8oApxENV4GlOw75BNhZrGincC3ffK3vTm8pVyxGGtpaVxvgs8CKChLvOriXjd8cnDD6YAtMCKJq8_o5tT9svWS3ptjVqgOvEmQ-FFifzfvGJed0SgFovVgLvs9a8ep54lrmjOTPhSa4EEgHs8vDYi6OhAfticIQmul0VdWNs7FVCIbj-LtQgmkH83c5x3kO0aFHFDHSkCrsmjVH4f7JU6Wq3Kgm3oBGKjFFadQiihT14R-7J5hiw23s69f3GevsoVW_H6lJjf6IdtmNG7xGEC99OPJYyGVvU0TMXX7CMLz2KrCdjB1jj-WEXqse-ojbNgsXlXj128uMfL9oQce_22sH6DIuyog3qKYQjznLFa3ElFkIo9vR0CrF-ZGeCFE13aLlOihcZ9uR7BtrIGzYMm-bLuhNXot4tzCWUJla2RdlrlsLvWifKnFsbXjfe6Qm92QA_E_kYB61DSK1WE3Tvlfek5BoLdJBvuNBMln0i04fMbMfkMdwEwaZmM26IO8oapaxEKU1Ofo5MMo7EzpnedHSbPnqNVIJXXWMwTUfTrZYMXbfxoJ1qI3R-dHNuCcqhW_7-_8zSBTkvMI21yXwmE7cPsjGu_wbbTqFLuQtWw9lhqrsqF6J2_TVcJ7lo_7vktGWBTpZxw28mxmZHEpB3-hxhP7ZV1FgnR-qi4MrViSICtLOoRTIwINJ_eH8esuUZMlnmmwFNu5JwrcWZcTVNF747t-J15KD2CdmxzuMQ9gFZD-1JZHcJAGaHd2iMKNFbIfI0m2HDjxhz8duZJMxfRsGbEpe4RyiL1OxYcSxjmuaAEaMV842IC2hCSAZ2nd-mLr1iL47-tEIgIie1FIVnwsaZOX1Gw3VFhMKR0nAAU7JAjq06vAFUqGNC7ZIefHIIbf0Sz4Ki-w4QH8nY4NQVMIoMGotQEDG4zb00R2Om-7Bvnx0MC7PPSkCuiwM57Rocy-O7uEpUAnyIDN0KOjMpHRyt3FrQd68YSDEtZmTXTCmrT8C1x5GXjAx7upQ7PjFz9eTe9eKeesx-H-jprbf2DtzG_98tjgbqGwrgrMzkvCb5kL_e_UCSgzDx5IugJgrkls9K3-goQznNNgtmbbjXt5QfBQ8ZF4i-FWBxQejd67d1Xadm4Wuyqa_yFOmZ7_0g_rKJvQVq_N3xCG5Vj3mQQ8d0v1Hr_cjokUdg1oA0444y86vysz8qRw58Iz7wc4XdDt0V-TXdYyl2ongPjChy_V2w05q2N1sSSibZqYbg95lG4x3pWLca1E_ndxgj2BdNAV-q4EibpquhioITLSznYmq4ZclCCZjANISZyCQhqjmH2rQk6IWoOMsx7CSyohS885e3f44R6WafvVjF0ZJ_3ZWiR6SMxFbSfHGyQ2YX4AtsPlsrs9FHVLYzE_p2Is53OI5fu2tv70nORIv4QlcbIawM6Zq7cV7JNt6oawzRwtq1EaeA-_hOkj28XycbMuhCfQ6gQib1i_ES2r7TkZfG5EUghNifxZF8PeVPM8O5Z0uQaE-Z6x_lDMUVaYayUnCAJBbY75KckA9GELEW4cm2O1KJZvGMq_-oSDnuAO4KcZ9PP4_XoHppikVUXs8pIrGn4DNDirMc4QSTBMoQGNPrIN4J-yjYFkUYRZ0mf0082_iy-jbTDWA_jNypyG2OhfzQoemBgMMxOjbgV6UQiVTnYCCRRzr44wdPwRiSzv0Ba78_FO0gNZMqJ3FMza6WfQS0y7hojH9X1PiWHg6gmpqOW9FcJIPMZ1M-YE02URmEfCNz6H7_A7mMU3AG73uEiEe1DIoNw4hVBWyTjpwBjcGrBVbPDeRCGeFjoFcGW5SieCFQAiJAXKJSRRk7JiY78qmjCAmhUViJQNuaHGbIN1GKgRwLMqzGUNWWRh65dgwkMK5tVNB8O__fKFR23OgP4vmNGc3LCKkdzvcd3v_sghO4fKaI0u4dEbOBByLYQGk0EE_Sla08TPzxH2ytxrJtHr1dl0CHo7q1kAax27omobfqNJL0dxXkwJ7PHMFY_bW2iRHFoeOfIcDfPNOlfwWQAscwdPmVoJqkGUWGDb_PNhWbvgvmnt7dc2Wkty4tMniLWlSAIyonR_BZaGk5CPywEhCVi13bc8Eq2JZ_7G8edzH0Eqs7Zvtn_dnvu2cHIT9E2Kelpnp6EzFeg4ZQ03sv0LKTg4MsLYJ3TIpvu26rGLmREg5Yq1WBDOdHlobf3abYSBLrQtsq9mABBOpOpLid3cGtJYOED4GcaftgCQjPXxmwybm6A-XmED2-M3XQ2p_X8D_MRWSnn0THI51M0SXQva7WbTQllHm1b8qXAm1bhgRxKf-yz4ZxpqTBlbVLcLwHo_ls7l69SCD4HLDVdrfA0ESyht_ZjI2jTrYpEND9UCf0PBpHjI8_u2peVU-DIOOufPYr7QBrpHd40SbQH0eeqRP6gXxEHSgo9TX_un1fCDiilQlu0S-9Rh4oWzAxYUIOc8LLsjHIqmAfCLJA7E73P5jc-DVG76yfyeAsym-Oc-m2qcshZM",
+    "id": "rs_0bcd87fc51f58905016afb95c535c087d2a8ad1a13fd7f86ae",
+    "summary": [],
+    "type": "reasoning"
+   },
+   {
+    "content": [
+     {
+      "annotations": [],
+      "logprobs": [],
+      "text": "{\n  \"rationale\": \"The association between attained vitamin D status and prenatal depression differs from the null genetic causal estimate, making this a genuine disagreement primarily in study design.\",\n  \"verdict\": \"genuine\",\n  \"reason\": \"design_or_bias\",\n  \"also_differs\": [\"population\"],\n  \"detail\": \"Mendelian randomization versus a cohort comparison of women who remained deficient or reached insufficiency after supplementation; the latter compares attained vitamin D status, not supplementation versus no supplementation.\"\n}",
+      "type": "output_text"
+     }
+    ],
+    "id": "msg_0bcd87fc51f58905016afb95c6539887d2a8b7ea029991adc8",
+    "phase": "final_answer",
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+   }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+   "context": "all_turns",
+   "effort": "low",
+   "mode": "standard",
+   "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+   "format": {
+    "description": null,
+    "name": "classification",
+    "schema": {
+     "additionalProperties": false,
+     "description": "What the model returns for one pair. The rationale comes first, so the judgment follows\nfrom it.",
+     "properties": {
+      "also_differs": {
+       "description": "Other differences present; never the primary reason again, never unclear; empty when off_question.",
+       "items": {
+        "description": "Why two studies disagree: Cochrane's clinical and methodological heterogeneity.",
+        "enum": [
+         "population",
+         "intervention",
+         "comparator",
+         "outcome_measure",
+         "design_or_bias",
+         "unclear"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "detail": {
+       "description": "A short specific, such as 'duration: 8 weeks vs a median 5.3 years'; for an apparent pair, what dissolves the conflict, such as 'underpowered: n = 40'; for an off_question pair, the exposure that is not the question's.",
+       "type": "string"
+      },
+      "rationale": {
+       "description": "One short sentence explaining the judgment, naming the deciding difference.",
+       "type": "string"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "description": "Why two studies disagree: Cochrane's clinical and methodological heterogeneity.",
+         "enum": [
+          "population",
+          "intervention",
+          "comparator",
+          "outcome_measure",
+          "design_or_bias",
+          "unclear"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The primary reason, by the rules; null exactly when off_question."
+      },
+      "verdict": {
+       "description": "genuine, apparent or off_question, by the rules.",
+       "enum": [
+        "genuine",
+        "apparent",
+        "off_question"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "rationale",
+      "verdict",
+      "reason",
+      "also_differs",
+      "detail"
+     ],
+     "type": "object"
+    },
+    "strict": true,
+    "type": "json_schema"
+   },
+   "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+   "image_gen": {
+    "input_tokens": 0,
+    "input_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "output_tokens": 0,
+    "output_tokens_details": {
+     "image_tokens": 0,
+     "text_tokens": 0
+    },
+    "total_tokens": 0
+   },
+   "web_search": {
+    "num_requests": 0
+   }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+   "input_tokens": 1983,
+   "input_tokens_details": {
+    "cache_write_tokens": 387,
+    "cache_write_tokens_details": {
+     "ttl_12h_tokens": 0,
+     "ttl_30m_tokens": 387
+    },
+    "cached_tokens": 1593
+   },
+   "output_tokens": 148,
+   "output_tokens_details": {
+    "reasoning_tokens": 36
+   },
+   "total_tokens": 2131
+  },
+  "user": null
+ }
+}
