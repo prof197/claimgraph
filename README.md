@@ -63,7 +63,14 @@ uv run claimgraph eval extraction vitamin-d-depression    # extraction scores
 uv run claimgraph eval normalization vitamin-d-depression # outcome mapping scores
 npm --prefix site ci
 npm --prefix site run dev                                 # the page on /?fixture=synthetic
+uv run claimgraph export fetch                            # the real export, checked against
+                                                          # its pinned hash; needs gh signed in
 ```
+
+The real export is a public release asset, so `gh` is only a convenience: without it, download
+the asset that `site/export.lock.json` names from the repository's `exports` release into
+`site/public/export.json`, and check that its SHA-256 matches the lock's. The dev server then
+shows the real page on `/`.
 
 A run of your own starts with retrieval, which needs a contact email for NCBI:
 
