@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from claimgraph import pair_sample
-from claimgraph.models import Design, PairKind
+from claimgraph.models import Comparison, Design, Effect, ExposureSide, Finding, PairKind
 from claimgraph.pair_sample import Combination, DrawnPair, PairSample, combination
 
 ROOT = Path(__file__).parents[1]
@@ -190,4 +190,80 @@ def test_the_panel_order_is_weight_then_size_then_pair_id() -> None:
 
     pool = [unweighted, lighter, unsized, sized]
     assert pair_sample.panel_order(pool, studies) == [sized, unsized, lighter, unweighted]
-    assert pair_sample.top_per_outcome([*pool, other], studies, 1) == [sized, other]
+    assert other not in pair_sample.panel_order(pool, studies)
+
+
+def alike_finding(pmid: str, measure: str, status: str | None) -> Finding:
+    return Finding(
+        finding_id=f"{pmid}-1",
+        claim=f"Synthetic finding of synthetic study {pmid[-3:]}.",
+        quote=f"Synthetic sentence from synthetic abstract {pmid}.",
+        outcome_reported=measure,
+        effect=Effect.DECREASED,
+        is_primary=True,
+        is_subgroup=False,
+        subgroup=None,
+        population="Synthetic adults",
+        intervention="Synthetic supplement X",
+        comparator="Synthetic placebo",
+        exposure_side=ExposureSide.MORE,
+        outcome_direction=Effect.DECREASED,
+        comparison=Comparison.BETWEEN,
+        domain_outcome="synthetic symptoms",
+        dimensions={} if status is None else {"synthetic_status": status},
+    )
+
+
+def alike_pair(a: str, b: str) -> DrawnPair:
+    return DrawnPair(
+        outcome="synthetic symptoms",
+        study_a=a,
+        study_b=b,
+        kind=PairKind.EFFECT_VS_NONE,
+        combination=Combination.TRIAL_TRIAL,
+        finding_a=f"{a}-1",
+        finding_b=f"{b}-1",
+    )
+
+
+def test_a_field_is_shared_only_when_both_studies_report_it() -> None:
+    a = alike_finding("999000001", "synthetic PHQ-9 score", "not_reported")
+    b = alike_finding("999000002", "PHQ-9", "not_reported")
+    rct = (Design.RCT, Design.RCT)
+    # Same design, same instrument, sizes within 3x; two unreported statuses are unknown.
+    assert pair_sample.shared_fields(a, b, rct, (100, 300), ["synthetic_status"]) == 3
+    assert pair_sample.shared_fields(a, b, rct, (100, 301), ["synthetic_status"]) == 2
+    assert pair_sample.shared_fields(a, b, rct, (100, None), ["synthetic_status"]) == 2
+    other = (Design.OTHER, Design.OTHER)
+    assert pair_sample.shared_fields(a, b, other, (None, None), ["synthetic_status"]) == 1
+    low_a = alike_finding("999000001", "synthetic mood", "low")
+    low_b = alike_finding("999000002", "synthetic anxiety", "low")
+    assert pair_sample.shared_fields(low_a, low_b, rct, (10, 10), ["synthetic_status"]) == 3
+
+
+def test_the_most_alike_pairs_come_first_and_a_study_is_capped() -> None:
+    keys = [f"99900000{i}" for i in range(1, 6)]
+    findings = {f"{k}-1": alike_finding(k, "synthetic PHQ-9", "low") for k in keys}
+    findings["999000005-1"] = alike_finding("999000005", "synthetic mood", "high")
+    designs = dict.fromkeys(keys, Design.RCT)
+    studies: dict[str, tuple[float | None, int | None]] = {k: (3.0, 100) for k in keys}
+    studies["999000004"] = (3.0, 1000)
+    pairs = [
+        alike_pair("999000001", "999000002"),  # four of four
+        alike_pair("999000001", "999000003"),  # four of four
+        alike_pair("999000001", "999000004"),  # three: sizes 10x apart
+        alike_pair("999000001", "999000005"),  # two: measure and status differ
+        alike_pair("999000002", "999000003"),  # four of four
+    ]
+    dims = ["synthetic_status"]
+
+    chosen = pair_sample.alike_pairs(pairs, findings, designs, studies, dims, 3)
+    assert [p.pair_id for p in chosen] == [
+        p.pair_id for p in [pairs[0], pairs[1], pairs[4], pairs[2]]
+    ]
+
+    capped = pair_sample.alike_pairs(pairs, findings, designs, studies, dims, 3, per_study=1)
+    # 999000001 keeps its first, most alike pair; 999000002 and 999000003 are then both used.
+    assert [p.pair_id for p in capped] == [pairs[0].pair_id]
+    two = pair_sample.alike_pairs(pairs, findings, designs, studies, dims, 3, per_study=2)
+    assert [p.pair_id for p in two] == [p.pair_id for p in [pairs[0], pairs[1], pairs[4]]]

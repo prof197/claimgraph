@@ -122,7 +122,7 @@ class ScopePick(Record):
     best: Arm
     gain_over_small: Interval
     arm: Arm
-    # True when every candidate pair goes to `arm`; else only the top pairs per outcome do.
+    # True when every candidate pair goes to `arm`; else only the most alike pairs do.
     every_pair: bool
 
 
@@ -404,7 +404,7 @@ def scope_line(figures: Figures) -> str:
         )
     return (
         f"Scope rule: the best arm is {pick.best.value}, {gain} points over single-small, so the "
-        f"top pairs per outcome are classified at {pick.arm.value}, the cheapest arm whose "
+        f"most alike pairs are classified at {pick.arm.value}, the cheapest arm whose "
         "interval against the best includes zero."
     )
 
@@ -612,7 +612,7 @@ def readme(
         tables(sensitivity).rstrip("\n"),
     ]
     pick = hosted_pick(primary, sensitivity)
-    scope = "every candidate pair" if pick.every_pair else "the top pairs per outcome"
+    scope = "every candidate pair" if pick.every_pair else "the pairs whose studies are most alike"
     if primary.scope.arm != sensitivity.scope.arm:
         lines += [
             "",
@@ -624,5 +624,11 @@ def readme(
             f"those pairs is clearly below {primary.scope.arm.value}'s. {pick.why[0].upper()}"
             f"{pick.why[1:]}.",
         ]
-    lines += ["", f"The hosted page classifies {scope} at {pick.arm.value}."]
+    lines += [
+        "",
+        f"The hosted page classifies {scope} at {pick.arm.value}. The accuracy above is measured "
+        "on the stratified 300 eval pairs, drawn to stand for every candidate pair; the page "
+        "shows the most alike pairs instead, so its mix of verdicts and reasons need not match "
+        "the eval's.",
+    ]
     return "\n".join(lines) + "\n"

@@ -226,7 +226,7 @@ Paired differences in reason accuracy, strict, in points: against single-small a
 | council | +11.0 (+5.5 to +16.3) | — |
 | council-ranked | +9.2 (+4.4 to +14.0) | -1.8 (-4.4 to +0.0) |
 
-Scope rule: the best arm is council, +11.0 (+5.5 to +16.3) points over single-small, so the top pairs per outcome are classified at council, the cheapest arm whose interval against the best includes zero.
+Scope rule: the best arm is council, +11.0 (+5.5 to +16.3) points over single-small, so the most alike pairs are classified at council, the cheapest arm whose interval against the best includes zero.
 
 Reason accuracy before and after the 5 corrections made after scoring. Each applied a written rule on a pair where every arm agreed, so it moves every arm alike and no paired difference.
 
@@ -355,7 +355,7 @@ Scope rule: the best arm is self-consistency, and its gain over single-small, +2
 
 **Ruling:** the two figures pick different arms, council on the pre-registered figure and single-small without those pairs. The pre-registered figure picks it only because of the 15D pairs, a data error the corpus no longer has, and without them no arm separates from single-small. So the owner ruled: single-small for every pair, unless its precision on genuine without those pairs is clearly below council's. Without those pairs, single-small's precision on genuine is 84.1% (79% to 88%) and council's 93.2% (89% to 97%); the intervals do not overlap.
 
-The hosted page classifies the top pairs per outcome at council.
+The hosted page classifies the pairs whose studies are most alike at council. The accuracy above is measured on the stratified 300 eval pairs, drawn to stand for every candidate pair; the page shows the most alike pairs instead, so its mix of verdicts and reasons need not match the eval's.
 <!-- contradiction-eval:end -->
 
 ## A second question

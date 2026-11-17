@@ -1,5 +1,6 @@
 import errno
 import os
+from collections import Counter
 from datetime import date
 from enum import StrEnum
 from importlib.metadata import version
@@ -127,11 +128,15 @@ def run(
         models.Arm | None,
         typer.Option(help="Classify the candidate pairs at this arm after compare."),
     ] = None,
-    top: Annotated[
+    alike: Annotated[
         int | None,
         typer.Option(
-            min=1, help="With --depth, only the first N pairs of each outcome in the panel's order."
+            min=1, help="With --depth, only the pairs whose studies are alike in N ways or more."
         ),
+    ] = None,
+    per_study: Annotated[
+        int | None,
+        typer.Option(min=1, help="With --alike, no study in more than N pairs."),
     ] = None,
 ) -> None:
     """Run the pipeline for one question: retrieve, extract, propose the outcome mapping, compare,
@@ -161,7 +166,8 @@ def run(
             arm=depth,
             dry_run=dry_run,
             live=live,
-            top=top,
+            alike=alike,
+            per_study=per_study,
             runs_dir=runs_dir,
             mappings_dir=mappings_dir,
             prices_file=prices_file,
@@ -1347,13 +1353,17 @@ def classify_command(
             min=1,
         ),
     ] = None,
-    top: Annotated[
+    alike: Annotated[
         int | None,
         typer.Option(
-            help="With --split corpus, only the first N pairs of each outcome in the "
-            "contradiction panel's order.",
+            help="With --split corpus, only the pairs whose studies are alike in N ways or "
+            "more: design, outcome measure, each custom dimension, and size within 3x.",
             min=1,
         ),
+    ] = None,
+    per_study: Annotated[
+        int | None,
+        typer.Option(help="With --alike, no study in more than N pairs.", min=1),
     ] = None,
     runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     mappings_dir: Annotated[
@@ -1380,6 +1390,9 @@ def classify_command(
     if sample is None and split is not Split.CORPUS:
         typer.echo(f"no drawn pairs in {sample_path}; classify --split corpus instead", err=True)
         raise typer.Exit(1)
+    if per_study is not None and alike is None:
+        typer.echo("--per-study takes --alike", err=True)
+        raise typer.Exit(1)
     results = _corpus_results(run_dir, model)
     findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
     studies = {
@@ -1388,16 +1401,22 @@ def classify_command(
     if sample is None or split is Split.CORPUS:
         designs = {pmid: design for pmid, (design, _) in studies.items()}
         pairs = pair_sample.drawn_pairs(_candidates(run_dir), designs)
-        if top is not None:
+        if alike is not None:
             abstracts = {a.pmid: a for a in gold.read_abstracts(run_dir / "abstracts.jsonl")}
             facts = export_build.study_facts(
                 results, abstracts, _load_mapping(mappings_dir / f"{config.id}.toml"), config
             )
             every = len(pairs)
-            pairs = pair_sample.top_per_outcome(pairs, facts, top)
-            typer.echo(f"the first {top} pairs of each outcome: {len(pairs)} of {every:,}")
-    elif top is not None:
-        typer.echo("--top takes --split corpus", err=True)
+            dimensions = [d.name for d in config.dimensions]
+            pairs = pair_sample.alike_pairs(
+                pairs, findings, designs, facts, dimensions, alike, per_study
+            )
+            cap = "" if per_study is None else f", at most {per_study} per study"
+            typer.echo(f"pairs alike in {alike} ways or more{cap}: {len(pairs)} of {every:,}")
+            for outcome, n in sorted(Counter(p.outcome for p in pairs).items()):
+                typer.echo(f"  {outcome}: {n}")
+    elif alike is not None:
+        typer.echo("--alike takes --split corpus", err=True)
         raise typer.Exit(1)
     else:
         pairs = sample.eval if split is Split.EVAL else sample.dev

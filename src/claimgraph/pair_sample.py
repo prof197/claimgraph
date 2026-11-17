@@ -14,10 +14,13 @@ from typing import Self
 from pydantic import model_validator
 
 from claimgraph.compare import Candidates
+from claimgraph.config import NOT_REPORTED
+from claimgraph.measures import same_measure
 from claimgraph.models import (
     REVIEW_DESIGNS,
     CandidatePair,
     Design,
+    Finding,
     FindingId,
     NonBlank,
     PairKind,
@@ -154,16 +157,70 @@ def panel_order(
     return sorted(pairs, key=key)
 
 
-def top_per_outcome(
-    pairs: Sequence[DrawnPair], studies: Mapping[str, tuple[float | None, int | None]], n: int
+# Two sample sizes are alike within this factor of each other.
+ALIKE_SIZE_RATIO = 3
+
+
+def shared_fields(
+    a: Finding,
+    b: Finding,
+    designs: tuple[Design, Design],
+    sizes: tuple[int | None, int | None],
+    dimensions: Sequence[str],
+) -> int:
+    """How many ways two findings' studies are alike: the same design, the same outcome measure,
+    the same value of each custom dimension, and sample sizes within ALIKE_SIZE_RATIO. A field
+    counts only when both studies report it: two unreported values are unknown, not alike."""
+    design_a, design_b = designs
+    same_design = design_a == design_b and design_a is not Design.OTHER
+    n_a, n_b = sizes
+    same_size = (
+        n_a is not None and n_b is not None and max(n_a, n_b) <= ALIKE_SIZE_RATIO * min(n_a, n_b)
+    )
+    same_values = 0
+    for name in dimensions:
+        value_a, value_b = a.dimensions.get(name), b.dimensions.get(name)
+        if value_a not in (None, NOT_REPORTED) and value_a == value_b:
+            same_values += 1
+    return (
+        same_design + same_measure(a.outcome_reported, b.outcome_reported) + same_values + same_size
+    )
+
+
+def alike_pairs(
+    pairs: Sequence[DrawnPair],
+    findings: Mapping[str, Finding],
+    designs: Mapping[str, Design],
+    studies: Mapping[str, tuple[float | None, int | None]],
+    dimensions: Sequence[str],
+    minimum: int,
+    per_study: int | None = None,
 ) -> list[DrawnPair]:
-    """The first `n` pairs of each outcome in the panel's order; all of them when fewer."""
-    taken: dict[str, int] = defaultdict(int)
+    """The pairs whose studies are alike in at least `minimum` ways, most alike first, then in
+    the panel's order; with `per_study`, no study in more pairs than that, each keeping its
+    most alike. Ranking by weight alone fills the panel with one huge trial against everything,
+    where a disagreement is explained by design or size before anyone reads it.
+
+    `designs` is keyed by PMID, for the paper each finding came from; `studies` gives each
+    study's design weight and sample size by study key, as the page shows them.
+    """
+    scored: list[tuple[int, DrawnPair]] = []
+    for pair in pairs:
+        a, b = findings[pair.finding_a], findings[pair.finding_b]
+        (_, n_a), (_, n_b) = studies[pair.study_a], studies[pair.study_b]
+        shared = shared_fields(a, b, (designs[a.pmid], designs[b.pmid]), (n_a, n_b), dimensions)
+        if shared >= minimum:
+            scored.append((shared, pair))
+    rank = {p.pair_id: i for i, p in enumerate(panel_order([p for _, p in scored], studies))}
+    scored.sort(key=lambda sp: (-sp[0], rank[sp[1].pair_id]))
+    used: dict[str, int] = defaultdict(int)
     chosen: list[DrawnPair] = []
-    for pair in panel_order(pairs, studies):
-        if taken[pair.outcome] < n:
-            taken[pair.outcome] += 1
-            chosen.append(pair)
+    for _, pair in scored:
+        if per_study is not None and max(used[pair.study_a], used[pair.study_b]) >= per_study:
+            continue
+        used[pair.study_a] += 1
+        used[pair.study_b] += 1
+        chosen.append(pair)
     return chosen
 
 

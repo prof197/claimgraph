@@ -1219,11 +1219,12 @@ and none for invalid output. Cache reads were 13.6M of the 14.9M input tokens.
 
 A small Typer CLI drives every stage, and each pipeline step is one module.
 
-- `claimgraph run QUESTION [--stage STAGE] [--depth ARM [--top N]] [--dry-run] [--live]`.
-  QUESTION is a config path or id; a config, not free text, keeps runs reproducible. `--stage`
-  runs one stage, `--dev` extracts the dev sample, and `--model` picks the extraction model.
-  `--depth` classifies the candidate pairs after compare at one arm, `--top` only the first N
-  of each outcome in the panel's order; `--stage classify --depth ARM` runs that step alone.
+- `claimgraph run QUESTION [--stage STAGE] [--depth ARM [--alike N [--per-study M]]]
+  [--dry-run] [--live]`. QUESTION is a config path or id; a config, not free text, keeps runs
+  reproducible. `--stage` runs one stage, `--dev` extracts the dev sample, and `--model` picks
+  the extraction model. `--depth` classifies the candidate pairs after compare at one arm;
+  `--alike` only the pairs whose studies are alike in N ways or more, and `--per-study` puts no
+  study in more than M of them; `--stage classify --depth ARM` runs that step alone.
 - `claimgraph mapping check QUESTION` fails when the mapping is unreviewed or a string is
   unmapped. A member no finding reports does not fail it: the name is kept, since a later run
   may report it again. It counts the findings the `out_of_domain` list drops.
@@ -1429,6 +1430,21 @@ being the most whose dry-run estimate, $4.98 for the 189 pairs then, fits the $5
 budget. The exclusions after that run shifted the top pairs: 26 new ones were classified, for
 187 in all, and classification on the corpus cost $1.75 measured: $1.53 for the first 189 and
 $0.22 for the 26. All 187 are genuine.
+
+**The most alike pairs.** Ranking by combined design weight put three trials in 153 of the 187
+slots: the panel was mostly one large trial against a small observational study, a disagreement
+design and size explain before anyone reads it, and every pair came back genuine. So the panel
+now shows the pairs whose studies are most alike, where a disagreement cannot be explained away
+by design or size. Two studies are alike in a field when both report it and the values match:
+the same design (not `other`), the same outcome measure by the extraction eval's same-measure
+rule, the same value of each custom dimension (not `not_reported`), and sample sizes within 3x
+of each other. Two unreported values are unknown, not alike. For vitamin D that is four fields,
+and the page classifies every pair alike in at least three: 245 of 24,770. Four studies were in
+more than 10 of them, up to 16, so no study is in more than 8, each keeping its most alike
+pairs; that leaves 221 (168 on depressive symptoms, 53 on depression cases). The 187 pairs
+classified under the old rule keep their recordings, and the 2 the new rule selects replay
+without cost; the rest leave the page, so it shows one selection rule. The accuracy the
+README reports is still the stratified 300's, drawn to stand for every candidate pair.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
