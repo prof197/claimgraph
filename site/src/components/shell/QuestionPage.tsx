@@ -22,7 +22,16 @@ export function initialView(): View {
   return narrow ? "list" : "graph";
 }
 
-export function QuestionPage({ data, outcome }: { data: Export; outcome: string | null }) {
+export function QuestionPage({
+  data,
+  outcome,
+  at,
+}: {
+  data: Export;
+  outcome: string | null;
+  /** A section to land on, its heading focused. */
+  at?: "contradictions" | undefined;
+}) {
   const current = outcomeNamed(data, outcome);
   const [view, setView] = useState<View>(initialView);
   // The reader's pick per outcome, so switching tabs and back keeps it.
@@ -63,6 +72,7 @@ export function QuestionPage({ data, outcome }: { data: Export; outcome: string 
                 selected={picked[current.name]}
                 onSelect={(id) => pick(current.name, id)}
                 onAlso={pick}
+                landOnContradictions={at === "contradictions"}
               />
             )}
             <Reviews reviews={data.reviews} />
@@ -83,9 +93,19 @@ interface OutcomeBodyProps {
   selected: string | undefined;
   onSelect: (findingId: string) => void;
   onAlso: (outcome: string, findingId: string) => void;
+  landOnContradictions: boolean;
 }
 
-function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }: OutcomeBodyProps) {
+function OutcomeBody({
+  data,
+  outcome,
+  view,
+  onView,
+  selected,
+  onSelect,
+  onAlso,
+  landOnContradictions,
+}: OutcomeBodyProps) {
   const rows = studyRows(data, outcome);
   const findings = findingsOn(data, outcome);
   const everyOutcome = useMemo(() => data.outcomes.map((o) => studyRows(data, o)), [data]);
@@ -144,7 +164,7 @@ function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }
           <FindingCard data={data} outcome={outcome} finding={finding} onAlso={onAlso} />
         </div>
       </section>
-      <ContradictionPanel data={data} outcome={outcome} />
+      <ContradictionPanel data={data} outcome={outcome} land={landOnContradictions} />
     </>
   );
 }

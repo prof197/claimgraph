@@ -138,8 +138,11 @@ test("a keyboard reaches the tabs, summary, list, finding card and pairs, and ba
   const back = await tabTo(page, (f) => f.name === "Back to all contradictions", 3);
   path.push(...back);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20symptoms$/);
-  await expect(page.getByRole("region", { name: "Where studies disagree" })).toBeVisible();
+  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20symptoms\/contradictions$/);
+  // It lands on the contradictions, focus on their heading, not at the top of the page.
+  const heading = page.getByRole("heading", { name: "Where studies disagree" });
+  await expect(heading).toBeFocused();
+  await expect(heading).toBeInViewport();
 
   expect(notRealControls(path)).toEqual([]);
   // Every stop shows where focus is.

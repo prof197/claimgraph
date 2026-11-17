@@ -31,6 +31,6 @@ export function App({ load = loadExport }: { load?: () => Promise<Export> }) {
   return route.page === "pair" ? (
     <PairPage data={loaded.data} pairId={route.pairId} />
   ) : (
-    <QuestionPage data={loaded.data} outcome={route.outcome} />
+    <QuestionPage data={loaded.data} outcome={route.outcome} at={route.at} />
   );
 }

@@ -77,6 +77,7 @@ test("the keyboard reaches the chart in one stop and moves between dots with arr
 test("picking a design recounts the bands", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(SYMPTOMS);
+  await expect(graph(page).locator("text", { hasText: "Benefit" })).toBeVisible();
   const texts = () => graph(page).locator("text").allTextContents();
   const before = await texts();
   await page.getByRole("button", { name: "RCT", exact: true }).click();

@@ -61,7 +61,10 @@ function findPair(data: Export, pairId: string): Found | undefined {
 
 export function PairPage({ data, pairId }: PairPageProps) {
   const found = findPair(data, pairId);
-  const back = href({ page: "question", outcome: found?.outcome.name ?? null });
+  const back =
+    found === undefined
+      ? href({ page: "question", outcome: null })
+      : href({ page: "question", outcome: found.outcome.name, at: "contradictions" });
   return (
     <div className={styles.page}>
       <header className={styles.header}>

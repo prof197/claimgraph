@@ -3,6 +3,7 @@ import { href, parseRoute, type Route } from "./routes";
 const routes: Route[] = [
   { page: "question", outcome: null },
   { page: "question", outcome: "Synthetic symptoms" },
+  { page: "question", outcome: "Synthetic symptoms", at: "contradictions" },
   { page: "pair", pairId: "Synthetic symptoms|999000101|999000102" },
 ];
 

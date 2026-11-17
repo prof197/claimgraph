@@ -1,6 +1,6 @@
 // Where an outcome's studies disagree: genuine contradictions grouped by their likely reason,
 // strongest first, and beneath them the pairs that only looked contradictory.
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { studiesByKey } from "../../lib/data";
 import { href } from "../../routes";
 import type { ContradictionEdge, Export, FindingNode, Outcome, Reason, Study } from "../../types/export";
@@ -20,6 +20,8 @@ import { findingsById, groupByReason, orderedApparent, orderedPairs, orient } fr
 export interface ContradictionPanelProps {
   data: Export;
   outcome: Outcome;
+  /** Scroll to the panel and focus its heading, as a link back from a pair page asks. */
+  land?: boolean;
 }
 
 /** Pairs shown per reason before the reader asks for more. */
@@ -34,7 +36,14 @@ export function ContradictionPanel(props: ContradictionPanelProps) {
   return <Panel key={props.outcome.name} {...props} />;
 }
 
-function Panel({ data, outcome }: ContradictionPanelProps) {
+function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const el = heading.current;
+    if (!land || el === null) return;
+    el.scrollIntoView?.({ block: "start" });
+    el.focus({ preventScroll: true });
+  }, [land]);
   const pairs = useMemo(() => orderedPairs(data, outcome), [data, outcome]);
   const apparent = useMemo(() => orderedApparent(data, outcome), [data, outcome]);
   const findings = useMemo(() => findingsById(data, outcome), [data, outcome]);
@@ -51,7 +60,7 @@ function Panel({ data, outcome }: ContradictionPanelProps) {
   return (
     <section className={styles.panel} aria-labelledby={headingId}>
       <div className={styles.intro}>
-        <h2 id={headingId} className={styles.h2}>
+        <h2 id={headingId} ref={heading} tabIndex={-1} className={styles.h2}>
           Where studies disagree
         </h2>
         <p className={styles.lead}>{introText(pairs, outcome)}</p>
