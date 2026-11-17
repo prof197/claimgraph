@@ -8,11 +8,11 @@ design. A static page shows the result.
 
 Research navigation demo, not medical advice.
 
-**Status:** the pipeline runs on one question, vitamin D and depression, from retrieval
-through candidate pairs, and every classification arm has run on the drawn eval pairs.
-Extraction, outcome normalization and contradiction classification are each scored against
-hand labels, and the scores below are generated from committed recordings. The page builds
-from a synthetic fixture or from a published export of a run.
+**Status:** the pipeline runs end to end on one question, vitamin D and depression, and the
+hosted page shows its run: every kept abstract extracted, the outcome mapping reviewed, and the
+top candidate pairs of each outcome classified by a three-vendor council. Extraction, outcome
+normalization and contradiction classification are each scored against hand labels, and the
+scores below are generated from committed recordings. Creatine and cognition runs from the CLI.
 
 ## At a glance
 
@@ -366,26 +366,26 @@ hosted page. The table sets it beside vitamin D and depression.
 | --- | ---: | ---: |
 | Question | Does vitamin D affect depression? | Does creatine supplementation affect cognition? |
 | Abstracts kept | 1,901 | 188 |
-| Studies with a headline finding | 443 | 34 |
+| Studies with a headline finding | 425 | 34 |
 | Findings extracted | 815 | 83 |
 | Outcomes | 4 | 15 |
-| Candidate pairs | 27,297 | 60 |
-| Outcome mapping | unreviewed | unreviewed |
+| Candidate pairs | 24,770 | 60 |
+| Outcome mapping | reviewed | unreviewed |
 | Extraction, measured | $5.26 | $0.51 |
-| `single-small`, estimated | $5.74 (at most $38.81) | $0.012 (at most $0.085) |
-| `single-small`, measured | $2.62 (from 40 dev pairs) | n/a |
-| `single-mid`, estimated | $114.80 (at most $776.30) | $0.25 (at most $1.70) |
-| `single-mid`, measured | $44.93 (from 40 dev pairs) | n/a |
-| `self-consistency` (k = 6), estimated | $647.06 (at most $4,672.62) | $1.39 (at most $10.21) |
-| `self-moa`, estimated | $445.52 (at most $3,143.38) | $0.96 (at most $6.87) |
-| `council`, estimated | $717.91 (at most $3,142.22) | $1.56 (at most $6.87) |
-| `council`, measured | $220.54 (from 189 corpus pairs) | n/a |
-| `council-ranked`, estimated | $1,328.91 (at most $5,507.52) | $2.89 (at most $12.04) |
-| `council-ranked`, measured | $435.64 (from 40 dev pairs) | n/a |
+| `single-small`, estimated | $5.21 (at most $35.22) | $0.012 (at most $0.085) |
+| `single-small`, measured | $2.38 (from 40 dev pairs) | n/a |
+| `single-mid`, estimated | $104.11 (at most $704.31) | $0.25 (at most $1.70) |
+| `single-mid`, measured | $40.77 (from 40 dev pairs) | n/a |
+| `self-consistency` (k = 6), estimated | $586.80 (at most $4,239.34) | $1.39 (at most $10.21) |
+| `self-moa`, estimated | $404.04 (at most $2,851.91) | $0.96 (at most $6.87) |
+| `council`, estimated | $651.21 (at most $2,850.85) | $1.56 (at most $6.87) |
+| `council`, measured | $205.14 (from 187 corpus pairs) | n/a |
+| `council-ranked`, estimated | $1,205.47 (at most $4,996.83) | $2.89 (at most $12.04) |
+| `council-ranked`, measured | $395.31 (from 40 dev pairs) | n/a |
 
 Each depth's estimate is the classify dry run's for every candidate pair, as if none were recorded: typical output and no cache reads at batch prices, with the most it could cost in brackets. A measured row scales a current run's spend per pair, cache reads included, to every candidate pair. Prices checked 2026-11-16.
 
-Unreviewed outcome mapping: `vitamin-d-depression`, `creatine-cognition`. Some of its outcomes, polarity overrides or exclusions are the model's or the reviewer's proposal, not yet confirmed, so its counts can change; the CLI demo runs on it, and the hosted build refuses it.
+Unreviewed outcome mapping: `creatine-cognition`. Some of its outcomes, polarity overrides or exclusions are the model's or the reviewer's proposal, not yet confirmed, so its counts can change; the CLI demo runs on it, and the hosted build refuses it.
 <!-- question-contrast:end -->
 
 ## Cost
@@ -405,6 +405,7 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | extract | dev-haiku | claude-haiku-5-5 | 50 | 33,951 | 7,153 | 350,497 | 35,659 | $0.0128 | 2026-11-13 |
 | normalize | sonnet proposal 60df41ed | claude-sonnet-5-5 | 1 | 11,157 | 0 | 0 | 12,900 | $0.1513 | 2026-11-16 |
 | normalize | sonnet proposal 67f6f870 | claude-sonnet-5-5 | 1 | 12,547 | 0 | 0 | 11,040 | $0.1355 | 2026-11-16 |
+| classify | corpus-council | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 748 | 782,030 | 81,728 | 1,315,752 | 119,742 | $1.5487 | 2026-11-16 |
 | classify | dev-council-ranked | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 283 | 313,987 | 55,606 | 430,128 | 46,675 | $0.6384 | 2026-11-16 |
 | classify | dev-single-mid | claude-sonnet-5-5 | 40 | 24,390 | 2,697 | 105,183 | 6,565 | $0.0658 | 2026-11-16 |
 | classify | dev-single-mid.round1 | claude-sonnet-5-5 | 40 | 24,390 | 2,015 | 78,585 | 7,202 | $0.0668 | 2026-11-16 |
@@ -422,8 +423,8 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | retrieve | 1 | $0.0000 |
 | extract | 3 | $5.2760 |
 | normalize | 2 | $0.2868 |
-| classify | 11 | $12.9945 |
-| All stages | 17 | $18.5574 |
+| classify | 12 | $14.5432 |
+| All stages | 18 | $20.1061 |
 
 corpus-first200-sonnet's recordings are corpus-sonnet's, so the totals count them once.
 <!-- run-costs:end -->

@@ -1405,25 +1405,30 @@ Measured where a number is given; the rest are expectations.
 Block sizes, token use, cost and eval scores land here as they are measured.
 
 **Vitamin D candidate pairs**, from the reviewed mapping, after the 15D polarity override and the
-two excluded findings: 27,297 pairs among 443 studies with a headline finding, 26,443 of them an
-effect against no effect and 854 benefit against harm.
-Four trials merge 15 papers. Reviews and the excluded designs (case reports, animal and in vitro
-studies) never enter a pair. 48 findings are dropped as out of domain, and 57 study-outcomes
-have only subgroup results.
+23 excluded findings: 24,770 pairs among 425 studies with a headline finding, 24,504 of them an
+effect against no effect and 266 benefit against harm. Before the 21 findings whose exposure is
+off the question were excluded there were 27,297 pairs, 854 of them benefit against harm: a
+finding on another exposure points the other way from many vitamin D findings, so the leaks made
+two in three of the benefit-against-harm pairs. Four trials merge 15 papers. Reviews and the
+excluded designs (case reports, animal and in vitro studies) never enter a pair. 48 findings are
+dropped as out of domain, and 57 study-outcomes have only subgroup results.
 
 | Outcome | Studies | Pairs | Only subgroup results |
 | --- | ---: | ---: | ---: |
-| Depressive symptoms | 288 | 19,619 | 35 |
-| Depression cases | 190 | 7,675 | 22 |
-| Treatment response | 3 | 2 | 0 |
+| Depressive symptoms | 276 | 17,888 | 36 |
+| Depression cases | 184 | 6,881 | 21 |
 | Remission | 2 | 1 | 0 |
+| Treatment response | 2 | 0 | 0 |
 
 An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
 grow roughly with the square of the studies on an outcome, and this corpus of 1,901 abstracts is
 nearly four times that size, so most of the gap comes from corpus size. Scaled from the dev runs'
-measured cost per pair, classifying every pair would cost about $2.66 on `single-small`. The scope
-rule, with the owner's ruling, sends the top 93 pairs of each outcome to `council` instead: 189
-pairs, the most whose dry-run estimate, $4.98, fits the $5 classification budget.
+measured cost per pair, classifying every pair would cost about $2.38 on `single-small`. The scope
+rule, with the owner's ruling, sends the top 93 pairs of each outcome to `council` instead, 93
+being the most whose dry-run estimate, $4.98 for the 189 pairs then, fits the $5 classification
+budget. The exclusions after that run shifted the top pairs: 26 new ones were classified, for
+187 in all, and classification on the corpus cost $1.75 measured: $1.53 for the first 189 and
+$0.22 for the 26. All 187 are genuine.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
