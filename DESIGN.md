@@ -1445,6 +1445,10 @@ pairs; that leaves 221 (168 on depressive symptoms, 53 on depression cases). The
 classified under the old rule keep their recordings, and the 2 the new rule selects replay
 without cost; the rest leave the page, so it shows one selection rule. The accuracy the
 README reports is still the stratified 300's, drawn to stand for every candidate pair.
+Council on the 219 new pairs cost $1.74. Of the 221, 176 are genuine, 29 apparent and 16 off
+the question, against none apparent under the old rule; population is the reason for 141, the
+outcome measure for 28, design or bias for 16, the intervention for 11, the comparator for 7,
+and 2 are unclear.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
