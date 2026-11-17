@@ -17,6 +17,7 @@ from claimgraph import (
     contradiction_eval,
     contradiction_review,
     contradictions,
+    costs,
     evaluation,
     export_build,
     extract,
@@ -1265,6 +1266,32 @@ def classification_replay(split: Split, arm: models.Arm, committed: Path, run_di
     theirs stay in the gitignored run directory."""
     root = committed if split is Split.EVAL else run_dir / "replay"
     return root / "classification" / arm.value
+
+
+@app.command("costs")
+def costs_command(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    replay_root: Annotated[Path, typer.Option(help="Where the committed recordings live.")] = Path(
+        "replay"
+    ),
+    prices_file: PricesFile = PRICES_FILE,
+    readme: Annotated[
+        Path | None, typer.Option(help="Also write the table into this README's block.")
+    ] = None,
+) -> None:
+    """Measured spend of every recorded run of a question, per run and per stage."""
+    config = load_config(resolve_question(question))
+    found = costs.run_costs(
+        runs_dir / config.id, replay_root / config.id / "normalization", load_prices(prices_file)
+    )
+    if not found:
+        typer.echo(f"no recorded runs in {runs_dir / config.id}", err=True)
+        raise typer.Exit(1)
+    table = costs.table(found)
+    if readme is not None:
+        readme.write_text(relabel.replace_block(readme.read_text(), costs.README_BLOCK, table))
+    typer.echo(table, nl=False)
 
 
 @app.command("classify")

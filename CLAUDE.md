@@ -58,6 +58,7 @@ uv run claimgraph classify vitamin-d-depression --split corpus --arm single-smal
 uv run claimgraph eval contradictions vitamin-d-depression --readme README.md
                                           # every arm against the labels, replayed, and the
                                           # arm the hosted page classifies at
+uv run claimgraph costs vitamin-d-depression --readme README.md  # measured spend per run
 uv run claimgraph gold record vitamin-d-depression     # check the gold recordings are current
 uv run claimgraph gold record vitamin-d-depression --dry-run  # estimate re-recording them
 uv run --env-file .env claimgraph gold record vitamin-d-depression --live

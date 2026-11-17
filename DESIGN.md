@@ -1,9 +1,9 @@
 # Claimgraph design
 
-Claimgraph turns about 500 PubMed abstracts on one health question into a contradiction map a
-general reader can trust, for under $15 a run. This file records the problem, the decisions and
-the alternatives rejected, the limits we expect, and the numbers we measure. It grows with the
-code.
+Claimgraph turns the PubMed abstracts on one health question, 1,901 kept for vitamin D and
+depression, into a contradiction map a general reader can trust, for under $15 a run. This file
+records the problem, the decisions and the alternatives rejected, the limits we expect, and the
+numbers we measure. It grows with the code.
 
 ## Problem and constraints
 
@@ -28,7 +28,8 @@ navigates existing evidence; it never generates hypotheses or gives medical advi
 - **Language.** 97% of MEDLINE citations from 2020–2023 are English-language articles
   ([NLM][nlm-lang]). Abstracts in other languages sit in PubMed's `OtherAbstract` element
   ([DTD][dtd-other]). v1 extracts from the English abstract.
-- **Budget.** $30–100 all in; one full run on about 500 abstracts under $15.
+- **Budget.** $30–100 all in; one full run under $15. It was set for about 500 abstracts; the
+  vitamin D corpus kept 1,901.
 - **Runs without an API key.** A replay mode serves recorded responses, and CI never calls a
   model.
 - **Static hosting.** No live queries and no ongoing cost.
@@ -43,11 +44,11 @@ model; everything else is deterministic.
 
 | Step | Reads | Writes | Who decides | Cached by |
 | --- | --- | --- | --- | --- |
-| 1. Retrieve | `questions/<id>.toml` | `runs/<id>/raw/<pmid>.xml`, `abstracts.jsonl` | Deterministic | PMID |
-| 2. Extract | abstracts | `findings.jsonl` | Model, validated by Pydantic | Request hash |
+| 1. Retrieve | `questions/<id>.toml` | `runs/<id>/search.json`, `raw/<pmid>.xml`, `abstracts.jsonl`, `manifest.json` | Deterministic | PMID |
+| 2. Extract | abstracts | `runs/<id>/extract/<sample>-<model>.jsonl`, `extract/manifest.json` | Model, validated by Pydantic | Request hash |
 | 3. Normalize | unique outcome strings | `mappings/<id>.toml` (committed) | Model proposes, a person reviews | The mapping file |
-| 4. Compare | findings and mapping | `pairs.jsonl`, `classifications.jsonl` | Pairs deterministic; model classifies | Request hash |
-| 5. Build graph | all of the above | `site/data/<id>.json` | Deterministic | — |
+| 4. Compare | findings and mapping | `runs/<id>/compare/candidates.json`, `classify/<split>-<arm>.jsonl`, `classify/contradictions.json` | Pairs deterministic; model classifies | Request hash |
+| 5. Build graph | all of the above | the export JSON, published as a release asset, never committed | Deterministic | — |
 | 6. Render | graph JSON | static site | Deterministic | — |
 
 The pipeline is plain functions and direct SDK calls. Every flow is fixed in advance, so an agent
@@ -419,8 +420,9 @@ title alone.
 - Reviews, systematic or narrative, and meta-analyses get study fields and a one-sentence
   summary, labelled as a summary. Their findings are not extracted for counting.
 - Protocols report no results, so they have no findings; their design is the planned design.
-- **Model.** Extraction starts on the small model and moves to the mid-tier model only where the
-  extraction eval shows a field-level gap.
+- **Model.** Extraction started on the small model and moved to the mid-tier model where the
+  extraction eval showed a gap, on design, which sets each study's weight. It runs on Sonnet 5.5;
+  Gold runs gives the reasoning.
 
 ## Normalize
 
@@ -432,16 +434,15 @@ a person reviews the mapping before anything is published.
 - One model call proposes groups: a canonical name, the member strings and `higher_is_better`.
   The result is written to `mappings/<id>.toml` with `reviewed = false`. The file is TOML,
   committed and edited by hand.
-- **The proposal call.** `run --stage normalize` sends the sorted strings, numbered, in one
-  direct request on the extraction model's settings. The model defines the outcomes, each with
-  the one domain entry it measures, then assigns every string by number, in list order. Numbers,
-  not strings, so it cannot misspell a member. Code checks that every number is assigned once,
-  to a defined outcome, and that no name repeats; a failure gets one retry naming it, like
-  extraction's. The recording is committed under `replay/<id>/normalization/`, so the eval
-  replays the proposal it scores; it holds outcome names and no abstract text, the same names
-  the committed mapping lists. An existing mapping file is never overwritten. On the 547
-  vitamin D strings it was valid on the first attempt: 8 outcomes, for $0.15 at standard
-  prices, with 12,900 output tokens.
+- **The proposal call.** `run --stage normalize` sends the sorted strings, numbered, in one direct
+  request on the extraction model's settings. The model defines the outcomes, each with the one
+  domain entry it measures, then assigns every string by number, in list order. Numbers, not
+  strings, so it cannot misspell a member. Code checks that every number is assigned once, to a
+  defined outcome, and that no name repeats; a failure gets one retry naming it, like extraction's.
+  The recording is committed under `replay/<id>/normalization/`, so the eval replays the proposal it
+  scores; it holds outcome names and no abstract text, the same names the committed mapping lists.
+  An existing mapping file is never overwritten. On the 547 vitamin D strings the first proposal was
+  valid on the first attempt: 8 outcomes, for $0.15 at standard prices, with 12,900 output tokens.
 - **Assign in order, not partition.** The first version asked for each outcome's member
   numbers. On the 547 vitamin D strings both attempts failed the check: 9 strings in two
   outcomes and 1 in none, then 1 in none after the retry. It also merged remission with
@@ -486,15 +487,15 @@ a person reviews the mapping before anything is published.
   override moved the 15D trial's headline from harm to benefit and changed 286 of 27,945
   candidate pairs: 178 benefit-against-harm pairs went, 2 came, and 108 kept their kind with
   that side now read as benefit, leaving 27,769.
-- **Excluded findings.** A finding whose string is in the domain but whose result cannot be
-  read is left out one by one: an `excluded_findings` entry in the mapping file names it, a
-  reason from a closed set and what the abstract says. It applies once reviewed; then the
-  finding leaves the summary strip, the graph and the pairs, and the method section counts it by
-  reason. The hosted build refuses an unreviewed entry. The reasons are
-  `direction_not_reported`, below, and `exposure_off_question`, for a finding whose exposure is
-  not the question's, which classification flags as `off_question`. The two vitamin D entries, 39051261-1 and 40596345-1, are
-  each their study's only finding; confirming them takes 2 studies off the strip and 472
-  candidate pairs out, leaving 27,297. The owner confirmed both.
+- **Excluded findings.** A finding whose string is in the domain but whose result cannot be read is
+  left out one by one: an `excluded_findings` entry in the mapping file names it, a reason from a
+  closed set and what the abstract says. It applies once reviewed; then the finding leaves the
+  summary strip, the graph and the pairs, and the method section counts it by reason. The hosted
+  build refuses an unreviewed entry. The reasons are `direction_not_reported`, below, and
+  `exposure_off_question`, for a finding whose exposure is not the question's, which classification
+  flags as `off_question`. The two vitamin D entries, 39051261-1 and 40596345-1, are each their
+  study's only finding; confirming them takes 2 studies off the strip and 472 candidate pairs out,
+  leaving 27,297. The owner confirmed both.
 - **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings
   were frozen after the re-proposal under the rules, as the extraction prompt was after its
   last gold run. A test pins the request's key, so any change shows; it changes only with the
@@ -595,7 +596,7 @@ them, at whatever depth the run asks for.
 | `self-consistency` | Sonnet 5.5, k samples, majority vote; k set so billed tokens match `council-ranked` |
 | `self-moa` | Sonnet 5.5, three samples, as many as the council's members, then Sonnet 5.5 synthesizes them |
 | `council` | Sonnet 5.5, GPT-6.1 Sol and Gemini 4 Argon answer; Sonnet 5.5 chairs and synthesizes |
-| `council-ranked` | As `council`, with anonymized peer ranking before synthesis, following [llm-council][llm-council] by Andrej Karpathy |
+| `council-ranked` | As `council`, with anonymized peer ranking before synthesis, following [llm-council][llm-council] |
 
 Claude models are the default everywhere outside the council arms. The council's other vendors
 and models were chosen after a price check on 2026-11-16, from each vendor's own pricing page:
@@ -608,14 +609,14 @@ exactly in an optional `council` extra, and only `vendors.py` imports them, duri
 - **Reasoning:** every member runs at its vendor's lowest setting. The Claude arms run without
   thinking; GPT-6.1 Sol and Gemini 4 Argon cannot turn reasoning off, and their lowest is
   "low". Their hidden reasoning is billed as output and counted in every cost and token figure.
-- **The same question:** each member gets the frozen classification prompt and the same pair,
-  with the schema's references written out for the other vendors. Gemini's batches enforce a
-  schema only in the OpenAPI form of `response_schema`, and ignore a `response_json_schema`,
-  which the dev run showed; they return fields in alphabetical order whatever the ordering
-  asked, which still puts the rationale before the reason and the verdict. The chair, the rankers and
-  Self-MoA's synthesizer get that prompt plus a short statement of their role, and the answers
-  as anonymous responses in an order fixed by the pair. Ranking follows llm-council: each member
-  ranks every answer, and the chair sees each answer's mean position.
+- **The same question:** each member gets the frozen classification prompt and the same pair, with
+  the schema's references written out for the other vendors. Gemini's batches enforce a schema only
+  in the OpenAPI form of `response_schema`, and ignore a `response_json_schema`, which the dev run
+  showed; they return fields in alphabetical order whatever the ordering asked, which still puts the
+  rationale before the reason and the verdict. The chair, the rankers and Self-MoA's synthesizer get
+  that prompt plus a short statement of their role, and the answers as anonymous responses in an
+  order fixed by the pair. Ranking follows llm-council: each member ranks every answer, and the
+  chair sees each answer's mean position.
 - **Failures:** each call gets one retry on invalid output. A member invalid twice is left out,
   and the chair synthesizes the rest; a pair whose chair is invalid twice is unclassified.
 - **Matching k:** self-consistency's k is council-ranked's billed tokens per pair, every input,
@@ -625,18 +626,18 @@ exactly in an optional `council` extra, and only `vendors.py` imports them, duri
   Samples differ as repeated calls do, since current models take no sampling parameters; ties
   in the vote go to the earlier sample.
 
-**Dry run.** `--dry-run` runs retrieval, extraction and normalization, then stops before
-classification. It prints pairs by outcome and the estimated cost per arm: pairs × mean tokens per
-pair, measured on the dev set, × the prices in a dated `prices.toml`.
+**Dry run.** Every stage that calls a model has a `--dry-run` that prices its unrecorded requests
+with the dated `prices.toml` and sends nothing: `run --stage extract`, `run --stage normalize`,
+and `classify --arm`, which also scales the dev run's measured cost per pair to the pairs it
+counts.
 
-Until classification exists, the dry run prices extraction, and nothing is sent without one. It
-counts the first requests that have no recording, at about three characters per token, a low
-figure on purpose for the current tokenizer, and gives two numbers at batch prices. The
-typical cost is one request each, with no cache reads and 590 output tokens, the mean over the
-67 requests of the first dev run. The ceiling is every abstract taking all three requests at
-full output, which real spend cannot pass. It refuses a request that could pass 100,000 prompt
-tokens, where Haiku 5.5's price changes. Each run then prints what its recorded responses cost
-from their token counts.
+Nothing is sent without a dry run first. Extraction's dry run counts the first requests that have no
+recording, at about three characters per token, a low figure on purpose for the current tokenizer,
+and gives two numbers at batch prices. The typical cost is one request each, with no cache reads and
+590 output tokens, the mean over the 67 requests of the first dev run. The ceiling is every abstract
+taking all three requests at full output, which real spend cannot pass. It refuses a request that
+could pass 100,000 prompt tokens, where Haiku 5.5's price changes. Each run then prints what its
+recorded responses cost from their token counts.
 
 Classification's dry run works the same way, per arm. A multi-call arm's later requests depend
 on earlier answers, so it is run against a client that sends nothing and answers each request
@@ -666,8 +667,8 @@ page to draw.
   when either changes the leading direction.
 - **Thin outcomes:** under 5 studies, the strip shows counts only, without the weighted bar or the
   sensitivity line, and says the evidence is thin.
-- **Reviews and meta-analyses:** listed, not counted. Whether narrative reviews are listed too
-  or left out by default is set with the page.
+- **Reviews and meta-analyses:** listed, not counted. Narrative reviews sit in a collapsed list with
+  their count, under the systematic reviews and meta-analyses.
 - **Graph:** a NetworkX graph whose nodes are outcome hubs and findings. Edges link each finding
   to its outcome, plus genuine contradictions with their reason. It is exported as node-link JSON
   with a per-outcome summary block, and a JSON schema test guards the export.
@@ -732,9 +733,9 @@ data is labeled by hand, from openly licensed articles only.
 | --- | --- | --- | --- | --- |
 | Extraction | Hand-labeled abstracts, including the baseline vitamin D dimension | 32 | Design and sample size per abstract, design three ways: review tags first, every design tag first, and the model's answers alone; for findings matched to the labels, precision and recall for the match itself, outcome, effect, primary, subgroup and each labeled dimension; verbatim-quote rate; off-topic abstracts with no findings; how often design falls to Other | Replay |
 | Normalization | Each outcome string labeled score, case status, remission, response or out of domain; pair verdicts follow from the kinds | 547 strings, so every pair; 200 drawn pairs, including the hard cases, as a subset | Merge precision and recall over every pair of in-domain strings, and on the drawn pairs with the stratum sizes; out-of-domain strings counted | Replay |
-| Contradictions | Drawn candidate pairs, labeled genuine or apparent with the primary reason | 300 pairs, both studies openly licensed, stratified by outcome, pair kind and designs | Precision on genuine; reason accuracy, strict and lenient, with a confusion matrix; per stratum and on the 300 as drawn | Replay |
+| Contradictions | Drawn candidate pairs, labeled genuine, apparent or off the question, with the primary reason and any also_differs | 300 pairs drawn, both studies openly licensed, stratified by outcome, pair kind and designs; 70 labeled, the arms' disagreements capped at 50 plus 20 agreement pairs | Precision on genuine; reason accuracy, strict and lenient, with a confusion matrix; per stratum and on the 300 as drawn | Replay |
 | Council ablation | The contradiction set | The 300 pairs | Accuracy and cost per pair for each arm, with paired-bootstrap 95% intervals | Replay; live runs by hand |
-| Cost per run | The run manifest's token counts × `prices.toml` | Every run | Dollars per stage | Computed |
+| Cost per run | The run manifests' token counts × `prices.toml`, and the outcome proposal's recordings | Every recorded run | Dollars per run and per stage, `claimgraph costs` | Local runs only; `runs/` is not in CI |
 
 - **Gold sizes:** extraction gold is sized to catch a broken field, such as a design that always
   falls to Other or an effect read the wrong way round, not to rank close prompts. It is 32
@@ -772,14 +773,14 @@ data is labeled by hand, from openly licensed articles only.
   came from comparing the kinds with the first-pass pair verdicts, before scoring.
   `outcome_kind_corrections.toml` records how each was found, and the README reports each
   proposal before and after the corrections its own disagreements turned up.
-- **Scoring the proposal:** `claimgraph eval normalization` replays the current prompt's
-  proposal from the strings in the kind file, so CI needs no run outputs; `--baseline` replays
-  the recording the pairs were drawn from, by its key, so the first proposal stays scorable after
-  the prompt changes. The strata are always the draw's. `--readme` writes both proposals into
-  the README, each before and after the corrections its own disagreements found, with the
-  frozen prompt's proposal by stratum and a note that its rates are in sample. CI prints both. A string the proposal puts under an
-  outcome it marks outside the domain merges with nothing, since review deletes that outcome,
-  and the eval counts how many strings each side puts out of domain.
+- **Scoring the proposal:** `claimgraph eval normalization` replays the current prompt's proposal
+  from the strings in the kind file, so CI needs no run outputs; `--baseline` replays the recording
+  the pairs were drawn from, by its key, so the first proposal stays scorable after the prompt
+  changes. The strata are always the draw's. `--readme` writes both proposals into the README, each
+  before and after the corrections its own disagreements found, with the frozen prompt's proposal by
+  stratum and a note that its rates are in sample. CI prints both. A string the proposal puts under
+  an outcome it marks outside the domain merges with nothing, since review deletes that outcome, and
+  the eval counts how many strings each side puts out of domain.
 - **Contradiction pair draw:** every arm's requests are recorded and replayed in CI, and each
   carries both findings' quotes, so the 300 eval pairs come only from candidates whose two
   headline papers are CC BY or CC0 by both licence sources, the gold rule. The strata are
@@ -795,12 +796,12 @@ data is labeled by hand, from openly licensed articles only.
   against harm) come from studies no eval pair touches, under any licence, and only their IDs
   are committed. `gold contradiction-pairs sample` draws both with a fixed seed into
   `contradiction_sample.json`.
-- **Measured on vitamin D:** 3,124 of the 27,945 candidate pairs have both papers openly
-  licensed, and the bucket's metadata agreed with PMC's licence filters on every one. The eval
-  limits that follow: no remission or treatment response pair has both papers open, so neither
-  outcome is in the eval; depression cases has one trial-against-trial pair; and benefit
-  against harm has 17 pairs of a trial against an observational study (16 on depressive
-  symptoms, 1 on depression cases). Results in those cells say little.
+- **Measured on vitamin D:** 3,124 of the 27,945 candidate pairs at the draw, before the polarity
+  override, have both papers openly licensed, and the bucket's metadata agreed with PMC's licence
+  filters on every one. The eval limits that follow: no remission or treatment response pair has
+  both papers open, so neither outcome is in the eval; depression cases has one trial-against-trial
+  pair; and benefit against harm has 17 pairs of a trial against an observational study (16 on
+  depressive symptoms, 1 on depression cases). Results in those cells say little.
 
   | Outcome | Pair kind | Designs | Candidates | Both open | Eval | Dev |
   | --- | --- | --- | ---: | ---: | ---: | ---: |
@@ -924,12 +925,12 @@ data is labeled by hand, from openly licensed articles only.
   gold design.
 - **Scoring the outcome:** two outcome strings count as the same measure when they share an
   instrument, or, when neither names one, when they have the same content words, ignoring order,
-  word endings and filler such as "score" or "scale". An instrument is an abbreviation in either string,
-  such as PHQ-2 or CES-D, or a full name the abstract defines beside its abbreviation, found by
-  Schwartz and Hearst's algorithm ([Schwartz and Hearst 2003][schwartz-hearst]). Case and
-  hyphens are ignored, but versions count: PHQ-2 is not PHQ-9. So "PHQ-2" and "depression risk
-  (PHQ-2)" agree, and "HAMD-17" and "anhedonia (RSAS)" do not. The second labeling pass scores
-  outcomes the same way.
+  word endings and filler such as "score" or "scale". An instrument is an abbreviation in either
+  string, such as PHQ-2 or CES-D, or a full name the abstract defines beside its abbreviation, found
+  by Schwartz and Hearst's algorithm ([Schwartz and Hearst 2003][schwartz-hearst]). Case and hyphens
+  are ignored, but versions count: PHQ-2 is not PHQ-9. So "PHQ-2" and "depression risk (PHQ-2)"
+  agree, and "HAMD-17" and "anhedonia (RSAS)" do not. The second labeling pass scores outcomes the
+  same way.
 - **Replay cache:** responses are keyed by a hash of model, parameters and request. CI fails on a
   missing response rather than calling out. Requests send no sampling parameters: the current
   API rejects `temperature`, `top_p` and `top_k` on every model, so a run cannot be pinned to
@@ -1172,9 +1173,11 @@ each.
 | Dry run before spending | Cost is known before it is incurred |
 
 Batch prices in November 2026, per million input/output tokens: Haiku 5.5 $0.05/$0.25, Sonnet 5.5
-$1/$5, Opus 5.5 $2/$10 ([pricing][pricing]). Before measurement, we estimate extraction of about
-500 abstracts at roughly $0.08 on Haiku or $1.60 on Sonnet, and classification at roughly $0.07 or
-$1.30 per 1,000 pairs. These are estimates; the README's cost table reports measured spend.
+$1/$5, Opus 5.5 $2/$10 ([pricing][pricing]). Before measurement, the estimates were extraction of
+about 500 abstracts at roughly $0.08 on Haiku or $1.60 on Sonnet, and classification at roughly
+$0.07 or $1.30 per 1,000 pairs. Measured spend per run and per stage is in the README's cost
+table, generated by `claimgraph costs`, and each arm's measured cost per pair is in its
+contradiction table.
 Measured on gold, extraction costs about $0.0042 an abstract on Sonnet 5.5 and $0.00026 on
 Haiku 5.5. The corpus costs less per abstract than gold does: extracting the 1,901 kept
 abstracts on Sonnet 5.5 cost $5.26, or $0.0028 an abstract, because gold oversamples trials and
@@ -1206,7 +1209,8 @@ A small Typer CLI drives every stage, and each pipeline step is one module.
   the guide, so the model's grouping cannot show.
 - `claimgraph gold template QUESTION` writes a label file to fill in for each gold abstract, and
   `claimgraph gold check QUESTION` validates the labels.
-- `claimgraph eval [extraction | normalization | contradictions | ablation]`
+- `claimgraph eval [extraction | normalization | contradictions | models]`, and `claimgraph costs
+  QUESTION` for measured spend
 - `claimgraph export build QUESTION` writes the page data; `export stub` stands in for
   classification while the page is built.
 
@@ -1218,13 +1222,18 @@ claimgraph/
     verbatim.py  batch.py  evaluation.py  normalize.py  outcome_pairs.py  outcome_kinds.py
     kind_review.py  normalization_eval.py  compare.py  contradictions.py  pair_sample.py
     arms.py  summary.py  graph.py  export.py  export_build.py  paths.py  llm.py  prices.py  cli.py
+    classify.py  vendors.py  contradiction_eval.py  contradiction_review.py  label_set.py
+    relabel.py  review.py  design_tree.py  measures.py  publish.py  costs.py
   schema/      export.schema.json, generated from export.py
   prices.toml  dated Claude prices, read by the dry run and the cost report
   questions/   vitamin-d-depression.toml  creatine-cognition.toml
   mappings/    vitamin-d-depression.toml
   evals/       gold/LABELING.md  gold/QUESTION/ (gold.jsonl, dev.jsonl, screening.toml,
                sample.json, ATTRIBUTION.md, labels/, outcome_pair_sample.json,
-               outcome_kinds.toml, contradiction_pairs.toml)  run.py  results/
+               outcome_kinds.toml, outcome_kind_corrections.toml, contradiction_sample.json,
+               contradiction_label_set.json, contradiction_pairs.toml,
+               contradiction_corrections.toml, CONTRADICTION_ATTRIBUTION.md, relabel/)
+               gold/README.md
   replay/      recorded model responses used by CI
   site/        React + TypeScript front end: src/types/export.ts generated from the schema,
                src/fixtures/ synthetic exports, components/ shell, graph and contradictions
@@ -1232,8 +1241,8 @@ claimgraph/
   .github/workflows/   ci.yml  pages.yml
 ```
 
-Tooling: uv, ruff, pyright (strict on `src/`), pytest, Pydantic v2, Typer, httpx for
-E-utilities and the Anthropic SDK, on Python 3.12.
+Tooling: uv, ruff, pyright (strict on `src/`), pytest, Pydantic v2, Typer, httpx for E-utilities,
+the Anthropic SDK, and the OpenAI and Google SDKs in the optional `council` extra, on Python 3.12.
 
 ## Scaling limits and failure modes
 
@@ -1242,7 +1251,7 @@ that reaches readers is mis-normalization.
 
 ### Scaling limits
 
-These are expectations, to be replaced with measurements.
+Measured where a number is given; the rest are expectations.
 
 - **Pairs** grow with the product of direction counts within an outcome. At 10× abstracts the
   small arm still fits the budget and the larger arms may not, and the dry run says so before
@@ -1314,10 +1323,11 @@ These are expectations, to be replaced with measurements.
   - an exposure contrast filed as a subgroup, and a significant deficiency result in a sentence
     listing many factors read as no_change (1 each).
 
-  In gold, six designs stay wrong: two cross-sectional studies sent to other by the
-  genetic-proxy question, a narrative review answered as not on people, a cross-sectional study
-  read as a cohort, a case series read as a non-randomized trial, and the secondary analysis
-  tagged as a trial.
+  In gold, Haiku 5.5's frozen-prompt run left six designs wrong: two cross-sectional studies sent to
+  other by the genetic-proxy question, a narrative review answered as not on people, a
+  cross-sectional study read as a cohort, a case series read as a non-randomized trial, and the
+  secondary analysis tagged as a trial. Sonnet 5.5, the extraction model, misses one, 36771476,
+  which Haiku misses too.
 - **Normalization errors left at the freeze.** The normalization prompt was frozen after the
   re-proposal under the outcome rules. It leaves two known failures:
   - one "mixed or non-depression outcome" takes in strings the labels keep in the domain, such
@@ -1363,24 +1373,26 @@ These are expectations, to be replaced with measurements.
 
 Block sizes, token use, cost and eval scores land here as they are measured.
 
-**Vitamin D candidate pairs**, from the reviewed mapping: 27,945 pairs among 445 studies with a
-headline finding, 26,601 of them an effect against no effect and 1,344 benefit against harm.
+**Vitamin D candidate pairs**, from the reviewed mapping, after the 15D polarity override and the
+two excluded findings: 27,297 pairs among 443 studies with a headline finding, 26,443 of them an
+effect against no effect and 854 benefit against harm.
 Four trials merge 15 papers. Reviews and the excluded designs (case reports, animal and in vitro
 studies) never enter a pair. 48 findings are dropped as out of domain, and 57 study-outcomes
 have only subgroup results.
 
 | Outcome | Studies | Pairs | Only subgroup results |
 | --- | ---: | ---: | ---: |
-| Depressive symptoms | 289 | 20,082 | 35 |
-| Depression cases | 191 | 7,860 | 22 |
+| Depressive symptoms | 288 | 19,619 | 35 |
+| Depression cases | 190 | 7,675 | 22 |
 | Treatment response | 3 | 2 | 0 |
 | Remission | 2 | 1 | 0 |
 
 An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
 grow roughly with the square of the studies on an outcome, and this corpus of 1,901 abstracts is
-nearly four times that size, so most of the gap comes from corpus size. At the estimates under
-Cost, classifying every pair would cost about $2 on Haiku 5.5 or $36 on Sonnet 5.5 at batch
-prices, before the dry run measures tokens per pair.
+nearly four times that size, so most of the gap comes from corpus size. Scaled from the dev runs'
+measured cost per pair, classifying every pair would cost about $2.66 on `single-small`. The scope
+rule, with the owner's ruling, sends the top 93 pairs of each outcome to `council` instead: 189
+pairs, the most whose dry-run estimate, $4.98, fits the $5 classification budget.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
@@ -1402,11 +1414,12 @@ publication types and animal-only studies, apply to every row.
   severity. "seasonal affective disorder" adds 5, 3 of them on seasonal depression. "25OHD" and
   "calcidiol" add none, and "25(OH)D3" adds 4, all bone or kidney studies, so those three are not
   listed.
-- **Mood.** A bare `mood` term added 142 records; of 10 sampled from what it and `25(OH)D`
-  added, 1 was on topic, 1 marginal and 8 off topic, such as quality-of-life or pain studies that mention mood in passing, so it was
-  dropped. In its place, "depressed mood" adds nothing that `depress*` does not already find, and
-  "low mood", "mood disorder" and "mood disorders" add 3, 2 and 22 records with none on the
-  outcome domain: a record they add never uses a word starting with "depress". None is listed.
+- **Mood.** A bare `mood` term added 142 records; of 10 sampled from what it and `25(OH)D` added, 1
+  was on topic, 1 marginal and 8 off topic, such as quality-of-life or pain studies that mention
+  mood in passing, so it was dropped. In its place, "depressed mood" adds nothing that `depress*`
+  does not already find, and "low mood", "mood disorder" and "mood disorders" add 3, 2 and 22
+  records with none on the outcome domain: a record they add never uses a word starting with
+  "depress". None is listed.
 - **MeSH headings.** `Vitamin D`, `Depression` and `Mood Disorders` add 142 records to
   title-and-abstract scope. Of 26 distinct records sampled from what each heading adds, read by
   title and abstract, 1 was on topic (a review of add-on treatments for depression), 3 marginal
@@ -1435,8 +1448,7 @@ publication types and animal-only studies, apply to every row.
   Journal Article, as do 716 kept records in all, most of them recent. Of 109 records tagged
   Systematic Review or Meta-Analysis, 1 describes no method in its abstract. By type and
   wording, about 300 kept records, 16%, are narrative reviews; extraction gives the count.
-- **Which scope the demo uses** is decided at the dry run, from measured pairs, cost and mapping
-  review effort, and defaults to title and abstract.
+- **Which scope the demo uses:** title and abstract, as the scope rule under Evals fixes.
 
 ## References
 
@@ -1456,6 +1468,7 @@ publication types and animal-only studies, apply to every row.
 - [Cochrane EPOC: what study designs should be included in an EPOC review][epoc-designs]
 - [CEBM glossary: case series][cebm-glossary]
 - [Rief et al. 2009, placebo response in antidepressant trials][rief]
+- [Sintonen 2001, the 15D instrument][sintonen]
 - [Goodacre 2015, uncontrolled before-after studies][goodacre]
 - [Schwartz and Hearst 2003, finding abbreviation definitions in biomedical text][schwartz-hearst]
 - [GRADE certainty criteria, CDC ACIP handbook][grade-cdc]
