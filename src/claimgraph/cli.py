@@ -17,6 +17,7 @@ from claimgraph import (
     contradiction_eval,
     contradiction_review,
     contradictions,
+    contrast,
     costs,
     evaluation,
     export_build,
@@ -1204,6 +1205,8 @@ gold_app.add_typer(contradiction_app, name="contradiction-pairs")
 contradiction_app.command("template")(contradiction_review.template_command)
 contradiction_app.command("check")(contradiction_review.check_command)
 contradiction_app.command("review")(contradiction_review.review_command)
+# The README contrast between questions, from their runs and the dry run.
+app.command("contrast")(contrast.contrast_command)
 
 
 @contradiction_app.command("sample")
@@ -1342,13 +1345,18 @@ def classify_command(
     """
     config = load_config(resolve_question(question))
     run_dir = runs_dir / config.id
-    sample = pair_sample.read_sample(gold_dir / config.id / pair_sample.SAMPLE_FILE)
+    sample_path = gold_dir / config.id / pair_sample.SAMPLE_FILE
+    # A question with no drawn contradiction pairs, as the CLI demo's, still has a corpus.
+    sample = pair_sample.read_sample(sample_path) if sample_path.exists() else None
+    if sample is None and split is not Split.CORPUS:
+        typer.echo(f"no drawn pairs in {sample_path}; classify --split corpus instead", err=True)
+        raise typer.Exit(1)
     results = _corpus_results(run_dir, model)
     findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
     studies = {
         r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
     }
-    if split is Split.CORPUS:
+    if sample is None or split is Split.CORPUS:
         designs = {pmid: design for pmid, (design, _) in studies.items()}
         pairs = pair_sample.drawn_pairs(_candidates(run_dir), designs)
         if top is not None:
@@ -1383,6 +1391,9 @@ def classify_command(
     if dry_run:
         estimate = classify.estimate(items, config, guide, arm, replay_dir, prices)
         typer.echo(classify.describe_estimate(estimate))
+        if sample is None:
+            typer.echo(f"no dev pairs drawn for {config.id} to measure against")
+            return
         dev_items = classify.pair_inputs(sample.dev, findings, studies, mapping, overrides=False)
         dev_replay = classification_replay(Split.DEV, arm, replay_root / config.id, run_dir)
         dev_out = run_dir / "classify" / f"{Split.DEV.value}-{arm.value}.jsonl"
