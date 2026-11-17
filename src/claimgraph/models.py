@@ -302,6 +302,17 @@ class Classification(PairClassification):
     arm: Arm
 
 
+class PairSelection(Record):
+    """How the classified pairs were chosen from the candidates: those whose two studies are
+    alike in at least `minimum` of `fields` ways, both reporting each, with sample sizes alike
+    within `size_ratio`, and no study in more than `per_study` pairs."""
+
+    minimum: PositiveInt
+    fields: PositiveInt
+    size_ratio: PositiveInt
+    per_study: PositiveInt | None
+
+
 class ClassifiedPairs(Record):
     """A run's classified pairs, the file the export reads its contradictions from."""
 
@@ -310,6 +321,8 @@ class ClassifiedPairs(Record):
     depth: Arm | None
     # Candidate pairs in the run, classified or not.
     candidates: NonNegativeInt
+    # None when every candidate pair was sent.
+    selection: PairSelection | None = None
     classifications: list[PairClassification]
 
     @model_validator(mode="after")

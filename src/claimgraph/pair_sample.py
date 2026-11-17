@@ -159,6 +159,8 @@ def panel_order(
 
 # Two sample sizes are alike within this factor of each other.
 ALIKE_SIZE_RATIO = 3
+# Design, outcome measure and size; each custom dimension adds one more.
+FIXED_FIELDS = 3
 
 
 def shared_fields(

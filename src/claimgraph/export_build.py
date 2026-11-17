@@ -487,6 +487,7 @@ def build_export(
             candidate_pairs=len(found.pairs),
             classified_pairs=len(classified.classifications),
             depth=classified.depth,
+            selection=classified.selection,
             costs=[StageCost(stage="extract", dollars=extracted.cost_usd)],
             evals=_evals(config, gold_dir, replay_root),
         ),

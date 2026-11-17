@@ -211,6 +211,7 @@ export interface Method {
   candidate_pairs: number;
   classified_pairs: number;
   depth: Arm | null;
+  selection?: PairSelection | null;
   costs: StageCost[];
   evals: EvalResult[];
 }
@@ -220,6 +221,17 @@ export interface Method {
 export interface Drop {
   what: string;
   count: number;
+}
+/**
+ * How the classified pairs were chosen from the candidates: those whose two studies are
+ * alike in at least `minimum` of `fields` ways, both reporting each, with sample sizes alike
+ * within `size_ratio`, and no study in more than `per_study` pairs.
+ */
+export interface PairSelection {
+  minimum: number;
+  fields: number;
+  size_ratio: number;
+  per_study: number | null;
 }
 export interface StageCost {
   stage: string;

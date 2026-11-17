@@ -24,6 +24,7 @@ from claimgraph.models import (
     FindingId,
     NonBlank,
     PairKind,
+    PairSelection,
     Pmid,
     Reason,
     Record,
@@ -299,6 +300,8 @@ class Method(Record):
     classified_pairs: NonNegativeInt
     # The arm that classified the pairs; None for stub contradictions, never hosted.
     depth: Arm | None
+    # How the classified pairs were chosen; None when every candidate pair was classified.
+    selection: PairSelection | None = None
     costs: list[StageCost]
     evals: list[EvalResult]
 

@@ -661,6 +661,17 @@
             }
           ]
         },
+        "selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PairSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "costs": {
           "items": {
             "$ref": "#/$defs/StageCost"
@@ -775,6 +786,47 @@
       ],
       "title": "PairKind",
       "type": "string"
+    },
+    "PairSelection": {
+      "additionalProperties": false,
+      "description": "How the classified pairs were chosen from the candidates: those whose two studies are\nalike in at least `minimum` of `fields` ways, both reporting each, with sample sizes alike\nwithin `size_ratio`, and no study in more than `per_study` pairs.",
+      "properties": {
+        "minimum": {
+          "exclusiveMinimum": 0,
+          "title": "Minimum",
+          "type": "integer"
+        },
+        "fields": {
+          "exclusiveMinimum": 0,
+          "title": "Fields",
+          "type": "integer"
+        },
+        "size_ratio": {
+          "exclusiveMinimum": 0,
+          "title": "Size Ratio",
+          "type": "integer"
+        },
+        "per_study": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Per Study"
+        }
+      },
+      "required": [
+        "minimum",
+        "fields",
+        "size_ratio",
+        "per_study"
+      ],
+      "title": "PairSelection",
+      "type": "object"
     },
     "Question": {
       "additionalProperties": false,

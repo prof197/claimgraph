@@ -1493,9 +1493,20 @@ def classify_command(
         raise typer.Exit(1)
     if split is Split.CORPUS:
         # The file the export reads: every valid answer, with the arm that gave it.
+        selection = (
+            None
+            if alike is None
+            else models.PairSelection(
+                minimum=alike,
+                fields=pair_sample.FIXED_FIELDS + len(config.dimensions),
+                size_ratio=pair_sample.ALIKE_SIZE_RATIO,
+                per_study=per_study,
+            )
+        )
         classified = models.ClassifiedPairs(
             depth=arm,
             candidates=len(_candidates(run_dir).pairs),
+            selection=selection,
             classifications=[r.classification for r in run.results if r.classification],
         )
         path = run_dir / "classify" / contradictions.FILE

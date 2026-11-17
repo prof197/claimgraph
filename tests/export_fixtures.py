@@ -33,7 +33,7 @@ from claimgraph.export import (
     WeightedView,
     Weighting,
 )
-from claimgraph.models import DESIGN_WEIGHTS, Arm, Design, PairKind, Reason
+from claimgraph.models import DESIGN_WEIGHTS, Arm, Design, PairKind, PairSelection, Reason
 
 B, N, H = Direction.BENEFIT, Direction.NONE, Direction.HARM
 
@@ -456,6 +456,7 @@ def synthetic() -> Export:
             candidate_pairs=sum(CANDIDATES.values()),
             classified_pairs=sum(classified.values()),
             depth=Arm.SINGLE_SMALL,
+            selection=PairSelection(minimum=3, fields=5, size_ratio=3, per_study=8),
             costs=[
                 StageCost(stage="extract", dollars=0.11),
                 StageCost(stage="normalize", dollars=0.02),

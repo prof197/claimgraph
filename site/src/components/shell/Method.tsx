@@ -1,6 +1,6 @@
 import { ExternalLink } from "../../lib/ExternalLink";
 import { type ReactNode, useState } from "react";
-import type { Export, Method as MethodData, Review } from "../../types/export";
+import type { Dimension, Export, Method as MethodData, PairSelection, Review } from "../../types/export";
 import { citation, longDate, money, number, pubmedUrl } from "./labels";
 
 /** Reviews a page shows before "Show more". */
@@ -94,6 +94,9 @@ export function Method({ data }: { data: Export }) {
           Only findings on the same outcome that point different ways are compared, and a model
           names the likely reason: {number(method.classified_pairs)} of{" "}
           {number(method.candidate_pairs)} candidate pairs classified.
+          {method.selection !== null && method.selection !== undefined && (
+            <> {selectionLine(method.selection, data.question.dimensions, method)}</>
+          )}
         </Step>
       </ol>
       {method.drops.length > 0 && (
@@ -119,6 +122,25 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
       <span className="shell-step__title">{title}</span>
       <span className="shell-step__text">{children}</span>
     </li>
+  );
+}
+
+/** How the classified pairs were chosen, and what that means for reading them. */
+export function selectionLine(selection: PairSelection, dimensions: Dimension[], method: MethodData): string {
+  const fields = [
+    "design",
+    "outcome measure",
+    ...dimensions.map((d) => d.label.charAt(0).toLowerCase() + d.label.slice(1)),
+    `sample size within ${selection.size_ratio}×`,
+  ];
+  const listed = `${fields.slice(0, -1).join(", ")} and ${fields.at(-1) ?? ""}`;
+  const cap = selection.per_study === null ? "" : `, with no study in more than ${selection.per_study}`;
+  const rest = method.candidate_pairs - method.classified_pairs;
+  return (
+    `They are the pairs whose two studies are alike in at least ${selection.minimum} of ` +
+    `${selection.fields} ways, each reported by both: ${listed}${cap}. These are the ` +
+    `disagreements design or size cannot explain away. The other ${number(rest)} were not ` +
+    "classified, so the genuine and apparent counts describe these pairs, not every disagreement."
   );
 }
 
