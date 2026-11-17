@@ -874,6 +874,14 @@ data is labeled by hand, from openly licensed articles only.
     pre-registered: strict, on every scored pair. The scope rule is applied to the primary
     figure. If the primary and the sensitivity figure would pick different arms, the build
     stops for the owner's ruling, and the README reports both whichever way it goes.
+  - *How the scorer weights:* each group of the label set, a disagreement stratum or the
+    agreement pairs, stands for all of its pairs, so a labeled pair weighs its group's pairs
+    over its group's labeled pairs; for a disagreement pair that is the inverse of its chance of
+    being drawn. Every figure is a weighted share over the labeled pairs on the question, so
+    the pairs labeled `off_question` drop out of numerator and denominator alike, and a paired
+    difference is the difference of two arms' rates, which agreement pairs cannot move. The
+    post-hoc check takes its pairs out of their groups' counts too, so its weights stay exact.
+    Intervals are percentiles of 10,000 rounds seeded with the label set's seed.
   - *Prompt:* the classification prompt is tuned on the 40 dev pairs only and frozen before
     any arm runs on the 300. It is settled when no error pattern shows on more than 2 dev pairs,
     after at most two rounds, the rule extraction used.

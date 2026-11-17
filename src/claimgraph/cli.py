@@ -14,6 +14,7 @@ from claimgraph import (
     batch,
     classify,
     compare,
+    contradiction_eval,
     contradiction_review,
     contradictions,
     evaluation,
@@ -989,6 +990,68 @@ def eval_normalization(
     typer.echo(normalization_eval.table(scores), nl=False)
 
 
+@eval_app.command("contradictions")
+def eval_contradictions(
+    question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
+    runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
+    mappings_dir: Annotated[
+        Path, typer.Option(help="Where the outcome mappings are read from.")
+    ] = Path("mappings"),
+    gold_dir: GoldDir = Path("evals/gold"),
+    replay_root: Annotated[
+        Path, typer.Option(help="Where the committed eval recordings live.")
+    ] = Path("replay"),
+    prices_file: PricesFile = PRICES_FILE,
+    model: Model = extract.DEFAULT_MODEL,
+    readme: Annotated[
+        Path | None, typer.Option(help="Write the figures into this README's block.")
+    ] = None,
+) -> None:
+    """Every arm against the contradiction labels, as pre-registered, and the post-hoc check
+    without the eval pairs drawn before a polarity override.
+
+    Replays the arms' recorded answers on the eval pairs, so nothing is sent; the requests are
+    built from the run's extraction, so it must be present. Exits with status 2 when the two
+    figures would have the scope rule pick different arms.
+    """
+    config = load_config(resolve_question(question))
+    out_dir = gold_dir / config.id
+    sample, findings, runs = _eval_runs(
+        config, runs_dir, mappings_dir, gold_dir, replay_root, model
+    )
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    found = label_set.read(out_dir / label_set.LABEL_SET_FILE)
+    labeled = labels.load_contradiction_pairs(out_dir / contradiction_review.LABEL_FILE)
+    prices = load_prices(prices_file)
+    costs = {
+        arm: (classify.measured_per_pair(run, prices), classify.billed_per_pair(run))
+        for arm, run in runs.items()
+    }
+    overridden = {o.string for o in mapping.polarity_overrides}
+    left_out = {
+        p.pair_id
+        for p in sample.eval
+        if any(findings[f].outcome_reported in overridden for f in (p.finding_a, p.finding_b))
+    }
+    answers = _answers(runs)
+    primary = contradiction_eval.score(sample.eval, found, labeled, answers, costs)
+    sensitivity = contradiction_eval.score(
+        sample.eval, found, labeled, answers, costs, left_out=left_out
+    )
+    block = contradiction_eval.readme(primary, sensitivity, len(left_out))
+    if readme is not None:
+        text = relabel.replace_block(readme.read_text(), contradiction_eval.README_BLOCK, block)
+        readme.write_text(text)
+    typer.echo(block, nl=False)
+    if primary.scope.arm != sensitivity.scope.arm:
+        typer.echo(
+            f"the scope rule picks {primary.scope.arm.value} on the pre-registered figure and "
+            f"{sensitivity.scope.arm.value} without the {len(left_out)} pairs: the owner rules",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+
 @eval_app.command("models")
 def eval_models(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
@@ -1327,6 +1390,63 @@ def classify_command(
         raise typer.Exit(1)
 
 
+def _eval_runs(
+    config: QuestionConfig,
+    runs_dir: Path,
+    mappings_dir: Path,
+    gold_dir: Path,
+    replay_root: Path,
+    model: extract.ModelChoice,
+) -> tuple[
+    pair_sample.PairSample,
+    dict[str, models.Finding],
+    dict[models.Arm, list[classify.ClassifyResult]],
+]:
+    """Every arm's recorded answers on the eval pairs, replayed as drawn; sends nothing.
+
+    Exits with status 1 if a pair is not recorded or has no valid answer.
+    """
+    run_dir = runs_dir / config.id
+    sample = pair_sample.read_sample(gold_dir / config.id / pair_sample.SAMPLE_FILE)
+    results = _corpus_results(run_dir, model)
+    findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
+    studies = {
+        r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
+    }
+    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
+    items = classify.pair_inputs(sample.eval, findings, studies, mapping, overrides=False)
+    guide = (gold_dir / "LABELING.md").read_text()
+    runs: dict[models.Arm, list[classify.ClassifyResult]] = {}
+    for arm in models.Arm:
+        replay_dir = classification_replay(Split.EVAL, arm, replay_root / config.id, run_dir)
+        run = batch.run_batched(
+            items,
+            lambda item: item.pair.pair_id,
+            arms.attempt(arm, config, guide, arms.SELF_CONSISTENCY_K),
+            replay_dir,
+            None,
+            max_rounds=arms.ROUNDS.get(arm, batch.MAX_ROUNDS),
+        )
+        if run.missing:
+            typer.echo(f"{arm.value}: {len(run.missing)} eval pairs not recorded", err=True)
+            raise typer.Exit(1)
+        unanswered = [r.pair_id for r in run.results if r.classification is None]
+        if unanswered:
+            typer.echo(f"{arm.value}: no valid answer for {unanswered[0]}", err=True)
+            raise typer.Exit(1)
+        runs[arm] = list(run.results)
+    return sample, findings, runs
+
+
+def _answers(
+    runs: dict[models.Arm, list[classify.ClassifyResult]],
+) -> dict[models.Arm, dict[str, models.PairClassification]]:
+    return {
+        arm: {r.pair_id: r.classification for r in run if r.classification}
+        for arm, run in runs.items()
+    }
+
+
 @contradiction_app.command("label-set")
 def contradiction_label_set(
     question: Annotated[str, typer.Argument(help="A question id, or the path to its config.")],
@@ -1347,36 +1467,9 @@ def contradiction_label_set(
     seeded order. The labeling page then shows only those pairs.
     """
     config = load_config(resolve_question(question))
-    run_dir = runs_dir / config.id
     out_dir = gold_dir / config.id
-    sample = pair_sample.read_sample(out_dir / pair_sample.SAMPLE_FILE)
-    results = _corpus_results(run_dir, model)
-    findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
-    studies = {
-        r.pmid: (r.study.design, r.study.sample_size) for r in results if r.study is not None
-    }
-    mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
-    items = classify.pair_inputs(sample.eval, findings, studies, mapping, overrides=False)
-    guide = (gold_dir / "LABELING.md").read_text()
-    answers: dict[models.Arm, dict[str, models.PairClassification]] = {}
-    for arm in models.Arm:
-        replay_dir = classification_replay(Split.EVAL, arm, replay_root / config.id, run_dir)
-        run = batch.run_batched(
-            items,
-            lambda item: item.pair.pair_id,
-            arms.attempt(arm, config, guide, arms.SELF_CONSISTENCY_K),
-            replay_dir,
-            None,
-            max_rounds=arms.ROUNDS.get(arm, batch.MAX_ROUNDS),
-        )
-        if run.missing:
-            typer.echo(f"{arm.value}: {len(run.missing)} eval pairs not recorded", err=True)
-            raise typer.Exit(1)
-        unanswered = [r.pair_id for r in run.results if r.classification is None]
-        if unanswered:
-            typer.echo(f"{arm.value}: no valid answer for {unanswered[0]}", err=True)
-            raise typer.Exit(1)
-        answers[arm] = {r.pair_id: r.classification for r in run.results if r.classification}
+    sample, _, runs = _eval_runs(config, runs_dir, mappings_dir, gold_dir, replay_root, model)
+    answers = _answers(runs)
     found = label_set.build(sample, answers, sample.seed)
     path = out_dir / label_set.LABEL_SET_FILE
     label_set.write(path, found)
