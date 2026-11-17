@@ -103,6 +103,13 @@ discussed how the rules applied with an AI assistant before labeling. The discus
 the 15D is scored higher-is-better, which the outcome mapping now records as a polarity
 override; the rules were unchanged.
 
+After labeling, an AI coding assistant checked the labels against the written rules, and the
+maintainer accepted the correction below before the contradiction eval was first scored.
+
+| Pair | Was | Now | Rule | Found |
+|---|---|---|---|---|
+| 36032243 × 39125485 | `apparent`, `outcome_measure` | `off_question` | A supplement whose fields never name vitamin D is off the question, and that is checked first | The rules check, before scoring |
+
 ## Licence
 
 The code in this repository is MIT-licensed. The abstract texts in `gold.jsonl` are not: they
