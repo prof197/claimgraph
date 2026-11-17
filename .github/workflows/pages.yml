@@ -1,0 +1,85 @@
+name: Pages
+
+# Builds the page from the export pinned in site/export.lock.json and deploys it to GitHub
+# Pages. Until an export is pinned, or when a manual run asks for it, the page is built from
+# the synthetic fixture instead, so the deploy can be tried before the real export exists.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      data:
+        description: The export to build the page from
+        type: choice
+        options: [pinned, synthetic]
+        default: pinned
+
+permissions:
+  contents: read
+
+# One deploy at a time, and a running one finishes rather than being cancelled halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Choose the export
+        id: data
+        env:
+          WANTED: ${{ inputs.data || 'pinned' }}
+        run: |
+          if [ "$WANTED" = synthetic ]; then
+            echo "source=synthetic" >> "$GITHUB_OUTPUT"
+          elif [ -f site/export.lock.json ]; then
+            echo "source=pinned" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::site/export.lock.json pins no export; building from the synthetic fixture"
+            echo "source=synthetic" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: steps.data.outputs.source == 'pinned'
+      - if: steps.data.outputs.source == 'pinned'
+        run: uv sync --locked
+      # Downloads the pinned release asset to site/public/export.json and refuses it unless its
+      # SHA-256 matches the lock file.
+      - name: Fetch the pinned export
+        if: steps.data.outputs.source == 'pinned'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: uv run claimgraph export fetch
+      - name: Use the synthetic fixture
+        if: steps.data.outputs.source == 'synthetic'
+        run: cp site/src/fixtures/synthetic.json site/public/export.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm --prefix site ci
+      - name: Export size budget
+        run: |
+          set -o pipefail
+          node site/scripts/export-size.mjs site/public/export.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Types, tests and build
+        run: npm --prefix site run check
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

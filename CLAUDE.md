@@ -69,6 +69,8 @@ npm --prefix site run check               # site: export types current, typechec
 npm --prefix site run dev                 # the page on a fixture: /?fixture=synthetic
 npm --prefix site run e2e                 # browser checks in the installed Chrome
 npm --prefix site run types               # regenerate the site's types after a schema change
+npm --prefix site run export:size         # the fetched export's sizes; fails over 1 MB gzip
+npm --prefix site run export:size -- ../real-data/export.json  # or any export
 UPDATE_SNAPSHOTS=1 uv run pytest          # rewrite schema snapshots after an intended change
 uv run ruff format . && uv run ruff check --fix .
 ```

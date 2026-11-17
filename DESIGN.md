@@ -686,7 +686,11 @@ page to draw.
   SHA-256, and writes the name and hash to the committed `site/export.lock.json`. The deploy runs
   `export fetch`, which downloads the pinned asset and refuses it if the hash differs. Each
   commit keeps pointing at the export it was published with. Publishing refuses an unreviewed
-  mapping and stub contradictions. Rejected: committing the export (publisher text in git
+  mapping and stub contradictions. The deploy fails when the fetched export is over 1 MB
+  gzip, what a phone downloads from Pages: about 5 s on Lighthouse's slow 4G, before which the
+  page draws nothing. With stub contradictions it is 6.0 MB raw, 0.43 MB gzip and 0.28 MB
+  brotli. Until an export is pinned, the deploy builds from the synthetic fixture, and a manual
+  run can ask for that build too. Rejected: committing the export (publisher text in git
   history for good), quotes only from openly licensed articles (about two thirds of findings
   would lose their sentence), and fetching abstracts from PubMed in the reader's browser (a
   runtime dependency on NCBI, for the same quotes).
@@ -716,7 +720,32 @@ page to draw.
 - **Accessibility:** every control is a real button or link, and text meets 4.5:1 contrast.
   Direction is never shown by colour alone; position and labels carry it too. The three direction
   colours get a colour-blindness simulation. A keyboard reaches the tabs, the list, the finding
-  card and the pairs.
+  card and the pairs. Each rule, its check and the result:
+  - *Real buttons and links:* `e2e/a11y.spec.ts` walks the tab order and requires every stop to
+    be a native button, link or disclosure, apart from the weighted bar's segments and the
+    finding card's scrolling details, which take focus to be read. It also looks for any
+    interactive role, click handler or pointer cursor outside a native control in the graph
+    view, the list view and the pair page. Passes.
+  - *4.5:1 text contrast:* `src/tokens.test.ts` checks each text token on its backgrounds, and
+    axe's color-contrast rule runs on every outcome at 390 px, in both views, on the pair page
+    and at each stop of the keyboard path. Passes.
+  - *Not by colour alone:* `e2e/a11y.spec.ts` checks that every graph dot's name starts with its
+    direction and the dot sits in that direction's sector (benefit left of the hub, no effect
+    right, harm below), that the sector labels and the legend name each direction, that the
+    weighted bar keeps the order benefit, no effect, harm with each segment named, and that every
+    list row sits under a heading naming its direction. Passes.
+  - *Colour-blindness simulation:* `src/tokens.colour-vision.test.ts`, part of the site check,
+    simulates protanopia, deuteranopia and tritanopia with Machado, Oliveira and Fernandes'
+    full-severity matrices. Every pair of direction colours stays at least CIEDE2000 10 apart,
+    several just-noticeable differences, since the dots are small; each direction colour meets
+    WCAG's 3:1 for graphics on the surface and the band; the tab accent stays 10 from benefit
+    and harm. Closest pair: benefit and no effect under tritanopia, 16.9. Lowest contrast: harm
+    on the band under deuteranopia, 3.12:1. Passes.
+  - *Keyboard path:* `e2e/a11y.spec.ts` tabs from the outcome tabs through the weighted bar, the
+    graph or list toggle, a list row, the finding card's details (scrolled with Page Down) and
+    its PubMed link, to a contradiction pair, opens it and follows its link back; every stop
+    shows a focus outline. `e2e/graph.spec.ts` covers the graph's single tab stop and its arrow
+    keys. Passes.
 - **Stack:** React and TypeScript on Vite, built to static files on GitHub Pages, reading one JSON
   file per question. D3 supplies only geometry, such as scales and arc paths; React renders the
   page.
