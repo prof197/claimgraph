@@ -99,3 +99,24 @@ test("the finding card keeps its height and scrolls only its middle", async ({ p
   expect(await body.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
   await expect(card.getByRole("link", { name: "Open on PubMed" })).toBeInViewport();
 });
+
+test("picking another finding scrolls the card back to its claim", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?fixture=synthetic");
+  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("button", { name: "Synthetic106 et al. 2016" }).click();
+  const body = page.getByRole("complementary").getByRole("region", { name: "Finding details" });
+  await body.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  expect(await body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+  await page
+    .getByRole("region", { name: /as a list$/ })
+    .getByRole("button")
+    .filter({ hasNotText: "Synthetic106" })
+    .first()
+    .click();
+
+  await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBe(0);
+});

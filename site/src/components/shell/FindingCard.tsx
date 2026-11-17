@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { ExternalLink } from "../../lib/ExternalLink";
 import { href } from "../../routes";
 import type { Export, FindingNode, Outcome } from "../../types/export";
@@ -24,6 +24,14 @@ export interface FindingCardProps {
 /** A fixed-height card: title and citation pinned at the top, actions at the bottom, and only
  * the details between them scroll. */
 export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps) {
+  // A newly picked finding starts at its claim, not where the last one was scrolled to.
+  const body = useRef<HTMLDivElement>(null);
+  const findingId = finding?.id;
+  useEffect(() => {
+    if (body.current !== null) {
+      body.current.scrollTop = 0;
+    }
+  }, [findingId]);
   const study = finding && data.studies.find((s) => s.key === finding.study);
   if (finding === undefined || study === undefined) {
     return (
@@ -88,7 +96,7 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
         </h3>
         <p className="shell-small shell-muted">{citation(study)}</p>
       </div>
-      <div className="shell-detail__body" role="region" aria-label="Finding details" tabIndex={0}>
+      <div ref={body} className="shell-detail__body" role="region" aria-label="Finding details" tabIndex={0}>
         <p className="shell-detail__claim">{finding.claim}</p>
         <figure className="shell-quote">
           <figcaption className="shell-eyebrow">From the abstract, word for word</figcaption>
