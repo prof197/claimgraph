@@ -76,7 +76,7 @@ describe("the pair page", () => {
     render(<PairPage data={data} pairId={POPULATION} />);
     const back = href({ page: "question", outcome: "Synthetic symptoms" });
     expect(screen.getByRole("link", { name: "Back to all contradictions" }).getAttribute("href")).toBe(back);
-    expect(screen.getByRole("link", { name: "Back to the graph" }).getAttribute("href")).toBe(back);
+    expect(screen.getByRole("link", { name: "Back to the findings" }).getAttribute("href")).toBe(back);
     expect(screen.getByRole("link", { name: "Next population pair · 2 of 2" }).getAttribute("href")).toBe(
       href({ page: "pair", pairId: `${POPULATION}|copy` }),
     );

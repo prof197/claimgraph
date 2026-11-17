@@ -37,13 +37,16 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
     return (
       <aside className="shell-card shell-detail" aria-labelledby="detail-h">
         <div className="shell-detail__head">
-          <p className="shell-eyebrow">Selected finding</p>
+          <p className="shell-eyebrow">Study details</p>
           <h3 id="detail-h" className="shell-detail__title">
-            No finding selected
+            Select a study from the chart to see its details
           </h3>
         </div>
         <div className="shell-detail__body">
-          <p>Select a finding in the graph or the list to see it here.</p>
+          <p className="shell-muted">
+            Each dot is one study. Pick one to read what it found, the sentence it was quoted from,
+            and its design, size and population.
+          </p>
         </div>
       </aside>
     );

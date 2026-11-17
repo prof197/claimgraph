@@ -34,7 +34,7 @@ interface DesignWords {
 const DESIGN: Record<Design, DesignWords> = {
   rct: { short: "RCT", long: "Randomized controlled trial", one: "RCT", many: "RCTs" },
   non_randomized_trial: {
-    short: "Non-randomized trial",
+    short: "Non-randomized",
     long: "Non-randomized trial",
     one: "non-randomized trial",
     many: "non-randomized trials",
@@ -233,18 +233,6 @@ export function studyRows(data: Export, outcome: Outcome): StudyRow[] {
       (b.study.sample_size ?? -1) - (a.study.sample_size ?? -1) ||
       a.study.year - b.study.year,
   );
-}
-
-/** The finding selected before the reader picks one: the largest counted study's. */
-export function defaultFinding(rows: StudyRow[]): string | null {
-  const counted = rows.filter((r) => r.notCounted === null);
-  const pool = counted.length > 0 ? counted : rows;
-  const largest = pool.reduce<StudyRow | null>(
-    (best, row) =>
-      best === null || (row.study.sample_size ?? -1) > (best.study.sample_size ?? -1) ? row : best,
-    null,
-  );
-  return largest === null ? null : largest.finding.id;
 }
 
 export function dimensionValue(value: string | number | null | undefined, unit: string | null): string {

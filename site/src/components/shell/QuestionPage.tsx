@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { findingsOn, outcomeNamed } from "../../lib/data";
 import { href } from "../../routes";
 import type { Export, FindingNode, Outcome } from "../../types/export";
 import { ContradictionPanel } from "../contradictions/ContradictionPanel";
-import { GraphView } from "../graph/GraphView";
+import { BandChart } from "../bands/BandChart";
 import { FindingCard } from "./FindingCard";
 import { FindingList } from "./FindingList";
 import { PageFooter, PageHeader } from "./Frame";
-import { defaultFinding, inSentence, longDate, number, studyRows } from "./labels";
+import { inSentence, longDate, number, studyRows } from "./labels";
 import { Method, Reviews } from "./Method";
 import { OutcomeTabs } from "./OutcomeTabs";
 import { SummaryStrip } from "./SummaryStrip";
@@ -88,8 +88,8 @@ interface OutcomeBodyProps {
 function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }: OutcomeBodyProps) {
   const rows = studyRows(data, outcome);
   const findings = findingsOn(data, outcome);
-  const selectedId = selected ?? defaultFinding(rows);
-  const finding: FindingNode | undefined = findings.find((f) => f.id === selectedId);
+  const everyOutcome = useMemo(() => data.outcomes.map((o) => studyRows(data, o)), [data]);
+  const finding: FindingNode | undefined = findings.find((f) => f.id === selected);
   const name = inSentence(outcome.name);
 
   return (
@@ -102,7 +102,7 @@ function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }
           </h2>
           <p className="shell-intro">
             {view === "graph"
-              ? `Each dot is one study of ${name}, grouped by what it found. Lines between dots are contradictions the pipeline classified.`
+              ? `Each dot is one study of ${name}, in the band for what it found, placed by publication year. Select a dot to see its finding.`
               : `Each row is one study's finding on ${name}, grouped by what it found. Select a study to see its finding.`}
           </p>
         </div>
@@ -123,9 +123,11 @@ function OutcomeBody({ data, outcome, view, onView, selected, onSelect, onAlso }
             </div>
             <div className="shell-figure__view">
               {view === "graph" ? (
-                <GraphView
-                  data={data}
+                <BandChart
                   outcome={outcome}
+                  rows={rows}
+                  everyOutcome={everyOutcome}
+                  through={Number(data.question.retrieved.slice(0, 4))}
                   selected={finding?.id ?? null}
                   onSelect={onSelect}
                 />

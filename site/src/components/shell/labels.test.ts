@@ -1,6 +1,5 @@
 import { fixtures } from "../../fixtures";
 import {
-  defaultFinding,
   designLine,
   dimensionValue,
   inSentence,
@@ -50,8 +49,6 @@ it("lists one row per study and says which are shown but not counted", () => {
     ["999000106-1", null],
     ["999000107-1", "unweighted"],
   ]);
-  expect(defaultFinding(rows)).toBe("999000102-1");
-  expect(defaultFinding([])).toBeNull();
 });
 
 it("writes a dimension's value with its unit", () => {

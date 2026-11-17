@@ -203,35 +203,35 @@ test("direction is carried by position and labels as well as colour", async ({ p
   const graph = page.getByRole("group", { name: /as a graph/ });
   await expect(graph).toBeVisible();
 
-  // In the graph, each dot's name starts with its direction and the dot sits in that direction's
-  // sector around the hub: benefit to the left, no effect to the right, harm below.
+  // In the graph, each dot's name starts with its direction and the dot sits inside that
+  // direction's band: benefit on top, no effect in the middle, harm at the bottom.
   const dots = await graph.locator("foreignObject").evaluateAll((objects) => {
     const svg = objects[0]?.closest("svg");
-    // The hub is the first circle drawn after the dots.
-    const hub = svg?.querySelector("circle[data-node] ~ circle:not([data-node])");
+    const bands = Object.fromEntries(
+      [...(svg?.querySelectorAll("rect[data-band]") ?? [])].map((r) => [
+        r.getAttribute("data-band"),
+        { top: Number(r.getAttribute("y")), bottom: Number(r.getAttribute("y")) + Number(r.getAttribute("height")) },
+      ]),
+    );
     return objects.map((o) => ({
       name: o.querySelector("button")?.getAttribute("aria-label") ?? "",
-      x: Number(o.getAttribute("x")) + Number(o.getAttribute("width")) / 2,
       y: Number(o.getAttribute("y")) + Number(o.getAttribute("height")) / 2,
-      hubX: Number(hub?.getAttribute("cx")),
-      hubY: Number(hub?.getAttribute("cy")),
+      bands,
     }));
   });
   expect(dots.length).toBeGreaterThan(0);
-  expect(dots[0]?.hubX).toBeGreaterThan(0);
-  expect(dots[0]?.hubY).toBeGreaterThan(0);
+  const band: Record<string, string> = { Benefit: "benefit", "No effect": "none", Harm: "harm" };
   const misplaced = dots.filter((d) => {
     const direction = /^[^:]+: (Benefit|No effect|Harm),/.exec(d.name)?.[1];
-    if (direction === "Benefit") return !(d.x < d.hubX);
-    if (direction === "No effect") return !(d.x > d.hubX);
-    if (direction === "Harm") return !(d.y > d.hubY);
-    return true;
+    const zone = direction === undefined ? undefined : d.bands[band[direction] ?? ""];
+    return zone === undefined || d.y < zone.top || d.y > zone.bottom;
   });
   expect(misplaced).toEqual([]);
-  // The sectors and the legend say the directions in words.
+  const tops = ["benefit", "none", "harm"].map((d) => dots[0]?.bands[d]?.top ?? NaN);
+  expect(tops).toEqual([...tops].sort((x, y) => x - y));
+  // Each band says its direction in words.
   for (const word of ["Benefit", "No effect", "Harm"]) {
-    await expect(graph.locator("text", { hasText: new RegExp(word, "i") }).first()).toBeAttached();
-    await expect(page.getByRole("list", { name: "Legend" })).toContainText(word);
+    await expect(graph.locator("text", { hasText: word }).first()).toBeVisible();
   }
 
   // The weighted bar keeps a fixed order, and each segment names its direction.

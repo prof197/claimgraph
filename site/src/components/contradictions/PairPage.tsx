@@ -149,7 +149,7 @@ function Pair({ data, found }: { data: Export; found: Found }) {
             </a>
           )}
           <a className={styles.action} href={href({ page: "question", outcome: outcome.name })}>
-            Back to the graph
+            Back to the findings
           </a>
         </div>
       </section>

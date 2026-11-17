@@ -49,13 +49,13 @@ const VISION: [string, Matrix][] = [["typical vision", IDENTITY], ...Object.entr
 
 // Two direction colours must stay at least this far apart, in CIEDE2000, under every
 // simulation. 2.3 is about one just-noticeable difference, but that is for large patches side by
-// side; the graph's dots are a few pixels across and sit apart, where colour differences shrink
+// side; the chart's dots are a few pixels across and sit apart, where colour differences shrink
 // sharply with size, so the floor asks for several times that: a difference a reader names as a
 // different colour, not one they notice on a second look.
 const DIRECTION_FLOOR = 10;
 // WCAG 2.2's non-text contrast (1.4.11): a graphic needed to understand the content meets 3:1
-// against the colours next to it. The dots, segments and swatches sit on the surface, the cards
-// on the band.
+// against the colours next to it. The segments and swatches sit on the surface, the cards on the
+// band, and each direction's dots on that direction's band in the chart.
 const GRAPHIC_CONTRAST = 3;
 
 function linear(hex: string): Rgb {
@@ -203,6 +203,18 @@ describe("the direction colours", () => {
             : [];
         }),
       ),
+    );
+    expect(faint).toEqual([]);
+  });
+
+  it(`each meet ${GRAPHIC_CONTRAST}:1 on their own band in the chart under every simulation`, () => {
+    const tint: Record<string, string> = { benefit: "benefit-tint", none: "rule", harm: "harm-tint" };
+    const faint = VISION.flatMap(([vision, m]) =>
+      Object.entries(DIRECTIONS).flatMap(([direction, hex]) => {
+        const bg = tint[direction] as string;
+        const ratio = contrast(simulate(linear(hex), m), simulate(linear(token(bg)), m));
+        return ratio < GRAPHIC_CONTRAST ? [`${direction} on ${bg} under ${vision}: ${ratio.toFixed(2)}:1`] : [];
+      }),
     );
     expect(faint).toEqual([]);
   });

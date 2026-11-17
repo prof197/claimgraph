@@ -1,5 +1,4 @@
-// Ordering and grouping of an outcome's contradiction pairs, shared by the panel, the pair page
-// and the graph's edges.
+// Ordering and grouping of an outcome's contradiction pairs, shared by the panel and the pair page.
 import { contradictionsOn, findingsOn, studiesByKey } from "../../lib/data";
 import type {
   ApparentPair,

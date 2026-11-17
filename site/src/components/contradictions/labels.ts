@@ -1,5 +1,5 @@
 import { fullCitation, shortCitation } from "../../lib/names";
-// The words the graph, the panel and the pair page use for studies, designs and directions.
+// The words the panel and the pair page use for studies, designs and directions.
 import type { Design, Dimension, Direction, Reason, Study } from "../../types/export";
 
 export const REASONS: readonly Reason[] = [
@@ -64,17 +64,6 @@ export const DESIGN_NOUN: Record<Design, string> = {
   in_vitro: "lab study",
   other: "study",
 };
-
-const OBSERVATIONAL: ReadonlySet<Design> = new Set([
-  "cohort",
-  "case_control",
-  "cross_sectional",
-  "case_series",
-]);
-
-export function isObservational(design: Design): boolean {
-  return OBSERVATIONAL.has(design);
-}
 
 /** A short name for a study, as a reader would cite it. */
 export function studyLabel(study: Study | undefined, key: string): string {

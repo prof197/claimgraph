@@ -8,6 +8,8 @@ function outcomeNames(data: Export): string[] {
   return data.outcomes.map((o) => o.name);
 }
 
+const TEASER = "Select a study from the chart to see its details";
+
 function detail(): HTMLElement {
   return screen.getByRole("complementary", { name: /./ });
 }
@@ -36,9 +38,15 @@ describe.each(Object.entries(fixtures))("the %s fixture", (_, data) => {
     );
   });
 
-  it("selects a finding by default and shows its verbatim quote", () => {
+  it("invites a pick until one is made, then shows the finding's verbatim quote", async () => {
     render(<QuestionPage data={data} outcome={null} />);
+    expect(within(detail()).getByRole("heading").textContent).toBe(TEASER);
+    expect(detail().querySelector("blockquote")).toBeNull();
 
+    const list = await showList();
+    const first = within(list).getAllByRole("button")[0];
+    if (first === undefined) throw new Error("the list has no rows");
+    await userEvent.click(first);
     const card = detail();
     expect(within(card).getByText("From the abstract, word for word")).toBeTruthy();
     const quote = card.querySelector("blockquote")?.textContent ?? "";
@@ -111,8 +119,10 @@ describe("the synthetic fixture", () => {
     expect(within(card).getByText("Case series")).toBeTruthy();
   });
 
-  it("marks a custom dimension that was not evaluated", () => {
+  it("marks a custom dimension that was not evaluated", async () => {
     render(<QuestionPage data={data} outcome="Synthetic symptoms" />);
+    const list = await showList();
+    await userEvent.click(within(list).getByRole("button", { name: "Synthetic102 et al. 2012" }));
     const card = detail();
 
     const fields = [...card.querySelectorAll(".shell-fields__row")].map((row) => [
@@ -135,9 +145,7 @@ describe("the synthetic fixture", () => {
     expect(screen.getByRole("link", { name: /^Synthetic cases/ }).getAttribute("aria-current")).toBe(
       "page",
     );
-    expect(within(detail()).getByRole("heading").textContent).toBe(
-      "Synthetic study 103 of supplement X and mood",
-    );
+    expect(within(detail()).getByRole("heading").textContent).toBe(TEASER);
 
     rerender(<QuestionPage data={data} outcome="Synthetic symptoms" />);
     expect(within(detail()).getByRole("heading").textContent).toBe(
