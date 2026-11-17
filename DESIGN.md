@@ -490,8 +490,9 @@ a person reviews the mapping before anything is published.
   read is left out one by one: an `excluded_findings` entry in the mapping file names it, a
   reason from a closed set and what the abstract says. It applies once reviewed; then the
   finding leaves the summary strip, the graph and the pairs, and the method section counts it by
-  reason. The hosted build refuses an unreviewed entry. The one reason so far is
-  `direction_not_reported`, below. The two vitamin D entries, 39051261-1 and 40596345-1, are
+  reason. The hosted build refuses an unreviewed entry. The reasons are
+  `direction_not_reported`, below, and `exposure_off_question`, for a finding whose exposure is
+  not the question's, which classification flags as `off_question`. The two vitamin D entries, 39051261-1 and 40596345-1, are
   each their study's only finding; confirming them takes 2 studies off the strip and 472
   candidate pairs out, leaving 27,297. The owner confirmed both.
 - **Frozen.** The normalization prompt, its schema, the outcome rules and the model settings

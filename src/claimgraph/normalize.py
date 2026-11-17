@@ -407,6 +407,8 @@ class PolarityOverride(Record):
 class ExclusionReason(StrEnum):
     # The abstract reports an association but not which way it goes, so extraction guessed.
     DIRECTION_NOT_REPORTED = "direction_not_reported"
+    # The finding's exposure is not the question's, a leak classification flags as off_question.
+    EXPOSURE_OFF_QUESTION = "exposure_off_question"
 
 
 class ExcludedFinding(Record):
