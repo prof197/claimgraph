@@ -1288,6 +1288,14 @@ def classify_command(
             min=1,
         ),
     ] = None,
+    top: Annotated[
+        int | None,
+        typer.Option(
+            help="With --split corpus, only the first N pairs of each outcome in the "
+            "contradiction panel's order.",
+            min=1,
+        ),
+    ] = None,
     runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     mappings_dir: Annotated[
         Path, typer.Option(help="Where the outcome mappings are read from.")
@@ -1316,6 +1324,17 @@ def classify_command(
     if split is Split.CORPUS:
         designs = {pmid: design for pmid, (design, _) in studies.items()}
         pairs = pair_sample.drawn_pairs(_candidates(run_dir), designs)
+        if top is not None:
+            abstracts = {a.pmid: a for a in gold.read_abstracts(run_dir / "abstracts.jsonl")}
+            facts = export_build.study_facts(
+                results, abstracts, _load_mapping(mappings_dir / f"{config.id}.toml"), config
+            )
+            every = len(pairs)
+            pairs = pair_sample.top_per_outcome(pairs, facts, top)
+            typer.echo(f"the first {top} pairs of each outcome: {len(pairs)} of {every:,}")
+    elif top is not None:
+        typer.echo("--top takes --split corpus", err=True)
+        raise typer.Exit(1)
     else:
         pairs = sample.eval if split is Split.EVAL else sample.dev
     mapping = _load_mapping(mappings_dir / f"{config.id}.toml")
@@ -1386,6 +1405,16 @@ def classify_command(
             err=True,
         )
         raise typer.Exit(1)
+    if split is Split.CORPUS:
+        # The file the export reads: every valid answer, with the arm that gave it.
+        classified = models.ClassifiedPairs(
+            depth=arm,
+            candidates=len(_candidates(run_dir).pairs),
+            classifications=[r.classification for r in run.results if r.classification],
+        )
+        path = run_dir / "classify" / contradictions.FILE
+        contradictions.write(path, classified)
+        typer.echo(f"wrote {path}: {len(classified.classifications)} classified pairs")
 
 
 def _eval_runs(

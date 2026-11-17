@@ -161,3 +161,33 @@ def test_the_eval_papers_are_the_eval_pairs_headline_papers() -> None:
         "999000103",
         "999000105",
     }
+
+
+def test_the_panel_order_is_weight_then_size_then_pair_id() -> None:
+    def drawn(a: str, b: str, outcome: str = "synthetic symptoms") -> DrawnPair:
+        return DrawnPair(
+            outcome=outcome,
+            study_a=a,
+            study_b=b,
+            kind=PairKind.EFFECT_VS_NONE,
+            combination=Combination.TRIAL_TRIAL,
+            finding_a=f"{a}-1",
+            finding_b=f"{b}-1",
+        )
+
+    studies: dict[str, tuple[float | None, int | None]] = {
+        "999000001": (3.0, 100),
+        "999000002": (3.0, None),
+        "999000003": (3.0, 50),
+        "999000004": (1.0, 5000),
+        "999000005": (None, 10),
+    }
+    sized = drawn("999000001", "999000003")  # weight 6, 150 enrolled
+    unsized = drawn("999000001", "999000002")  # weight 6, a size missing: after the sized one
+    lighter = drawn("999000001", "999000004")  # weight 4, however large
+    unweighted = drawn("999000004", "999000005")  # weight 1: no weight counts as 0
+    other = drawn("999000004", "999000005", "synthetic cases")
+
+    pool = [unweighted, lighter, unsized, sized]
+    assert pair_sample.panel_order(pool, studies) == [sized, unsized, lighter, unweighted]
+    assert pair_sample.top_per_outcome([*pool, other], studies, 1) == [sized, other]

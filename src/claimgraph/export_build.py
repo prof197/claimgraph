@@ -434,6 +434,17 @@ def _question(
     )
 
 
+def study_facts(
+    results: list[ExtractionResult],
+    abstracts: dict[str, Abstract],
+    mapping: OutcomeMapping,
+    config: QuestionConfig,
+) -> dict[str, tuple[float | None, int | None]]:
+    """Each study's design weight and sample size, by study key, as the page shows them."""
+    corpus = _corpus(results, abstracts, mapping, config)
+    return {key: (s.weight, s.sample_size) for key, s in corpus.studies.items()}
+
+
 def build_export(
     config: QuestionConfig,
     run_dir: Path,

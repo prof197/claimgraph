@@ -140,6 +140,33 @@ def drawn_pairs(found: Candidates, designs: Mapping[str, Design]) -> list[DrawnP
     return pairs
 
 
+def panel_order(
+    pairs: Sequence[DrawnPair], studies: Mapping[str, tuple[float | None, int | None]]
+) -> list[DrawnPair]:
+    """The pairs in the contradiction panel's order: the two studies' design weights added,
+    then their sample sizes added, larger first, a pair missing a size last, then pair_id."""
+
+    def key(p: DrawnPair) -> tuple[float, int, int, str]:
+        (wa, na), (wb, nb) = studies[p.study_a], studies[p.study_b]
+        size = None if na is None or nb is None else na + nb
+        return (-((wa or 0) + (wb or 0)), size is None, -(size or 0), p.pair_id)
+
+    return sorted(pairs, key=key)
+
+
+def top_per_outcome(
+    pairs: Sequence[DrawnPair], studies: Mapping[str, tuple[float | None, int | None]], n: int
+) -> list[DrawnPair]:
+    """The first `n` pairs of each outcome in the panel's order; all of them when fewer."""
+    taken: dict[str, int] = defaultdict(int)
+    chosen: list[DrawnPair] = []
+    for pair in panel_order(pairs, studies):
+        if taken[pair.outcome] < n:
+            taken[pair.outcome] += 1
+            chosen.append(pair)
+    return chosen
+
+
 def _take(
     pool: Sequence[DrawnPair], sizes: Mapping[PairKind, int], rng: random.Random
 ) -> list[DrawnPair]:
