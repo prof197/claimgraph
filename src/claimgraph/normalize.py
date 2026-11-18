@@ -409,6 +409,12 @@ class ExclusionReason(StrEnum):
     DIRECTION_NOT_REPORTED = "direction_not_reported"
     # The finding's exposure is not the question's, a leak classification flags as off_question.
     EXPOSURE_OFF_QUESTION = "exposure_off_question"
+    # A trial's result within one arm, such as scores falling after the intervention, which the
+    # labeling guide's between-groups rule leaves out but extraction kept.
+    WITHIN_GROUP_CHANGE = "within_group_change"
+    # An observational analysis inside a trial, such as of its baseline data, which would take
+    # the trial's design and weight.
+    OBSERVATIONAL_ANALYSIS_IN_TRIAL = "observational_analysis_in_trial"
 
 
 class ExcludedFinding(Record):
