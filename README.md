@@ -375,22 +375,22 @@ hosted page. The table sets it beside vitamin D and depression.
 | --- | ---: | ---: |
 | Question | Does vitamin D affect depression? | Does creatine supplementation affect cognition? |
 | Abstracts kept | 1,901 | 188 |
-| Studies with a headline finding | 425 | 34 |
+| Studies with a headline finding | 423 | 34 |
 | Findings extracted | 815 | 83 |
 | Outcomes | 4 | 15 |
-| Candidate pairs | 24,770 | 60 |
+| Candidate pairs | 24,495 | 60 |
 | Outcome mapping | reviewed | unreviewed |
 | Extraction, measured | $5.26 | $0.51 |
-| `single-small`, estimated | $5.21 (at most $35.22) | $0.012 (at most $0.085) |
-| `single-small`, measured | $2.38 (from 40 dev pairs) | n/a |
-| `single-mid`, estimated | $104.11 (at most $704.31) | $0.25 (at most $1.70) |
-| `single-mid`, measured | $40.77 (from 40 dev pairs) | n/a |
-| `self-consistency` (k = 6), estimated | $586.80 (at most $4,239.34) | $1.39 (at most $10.21) |
-| `self-moa`, estimated | $404.04 (at most $2,851.91) | $0.96 (at most $6.87) |
-| `council`, estimated | $651.21 (at most $2,850.85) | $1.56 (at most $6.87) |
-| `council`, measured | $196.63 (from 221 corpus pairs) | n/a |
-| `council-ranked`, estimated | $1,205.47 (at most $4,996.83) | $2.89 (at most $12.04) |
-| `council-ranked`, measured | $395.31 (from 40 dev pairs) | n/a |
+| `single-small`, estimated | $5.15 (at most $34.82) | $0.012 (at most $0.085) |
+| `single-small`, measured | $2.35 (from 40 dev pairs) | n/a |
+| `single-mid`, estimated | $102.95 (at most $696.49) | $0.25 (at most $1.70) |
+| `single-mid`, measured | $40.32 (from 40 dev pairs) | n/a |
+| `self-consistency` (k = 6), estimated | $580.30 (at most $4,192.29) | $1.39 (at most $10.21) |
+| `self-moa`, estimated | $399.56 (at most $2,820.25) | $0.96 (at most $6.87) |
+| `council`, estimated | $643.99 (at most $2,819.21) | $1.56 (at most $6.87) |
+| `council`, measured | $194.05 (from 204 corpus pairs) | n/a |
+| `council-ranked`, estimated | $1,192.09 (at most $4,941.36) | $2.89 (at most $12.04) |
+| `council-ranked`, measured | $390.93 (from 40 dev pairs) | n/a |
 
 Each depth's estimate is the classify dry run's for every candidate pair, as if none were recorded: typical output and no cache reads at batch prices, with the most it could cost in brackets. A measured row scales a current run's spend per pair, cache reads included, to every candidate pair. Prices checked 2026-11-16.
 
@@ -450,13 +450,13 @@ record, which is only as current as the last fetch. Published runs refresh the c
 Known limitation: papers on the same trial or dataset can be paired as a contradiction, since
 they match on everything the most-alike selection compares. Papers that share a trial
 registration are merged into one study first, but an unregistered trial or a shared survey is
-not. Of the 221 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
+not. Of the 204 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
 against Huang 2025, Guo 2025 and Chen 2025, all on NHANES, from different cycles and so
 different people. Found by string matching; see DESIGN.md. The merge also misses a trial whose
 registration only one paper names: Libuda 2020 and Schlarbaum 2026 appear to report the same
-adolescent trial (DRKS00009758), and stay two studies, both no effect.
+adolescent trial (DRKS00009758), and stay two studies, both no clear difference.
 
-Known limitation: "no effect" mostly means the abstract reported no significant difference, so
+Known limitation: "No clear difference" mostly means the abstract reported no significant difference, so
 the summary strip maps what studies reported rather than synthesizing them. Cochrane's handbook
 (chapter 12, section 12.2.2.1) rejects vote counting by statistical significance, because small
 studies that cannot detect a real effect get counted as showing none.

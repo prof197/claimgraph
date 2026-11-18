@@ -1313,10 +1313,10 @@ Measured where a number is given; the rest are expectations.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.
-- **Vote counting:** "no effect" mostly means the abstract reported no significant
-  difference, since `no_change` covers a non-significant trend and "the rest were not
-  significant" as well as a true null. So the summary strip maps what studies reported rather
-  than synthesizing them. Cochrane's handbook rejects vote counting by statistical significance,
+- **Vote counting:** "No clear difference", the page's label for `no_change`, mostly means the
+  abstract reported no significant difference, since `no_change` covers a non-significant trend
+  and "the rest were not significant" as well as a true null; the label is GRADE's wording for
+  such a result. So the summary strip maps what studies reported rather than synthesizing them. Cochrane's handbook rejects vote counting by statistical significance,
   because underpowered studies that cannot rule out a real effect get counted as showing none
   ([Cochrane Handbook 6.5, chapter 12, section 12.2.2.1][cochrane-vote]).
 - **A finding with no stated direction gets a guessed one:** an abstract can report that
@@ -1381,7 +1381,7 @@ Measured where a number is given; the rest are expectations.
   registration: retrieval reads NCT numbers from the text and other registries only from
   PubMed's DataBank list. Schlarbaum 2026 names DRKS00009758 in its text, and Libuda 2020
   reports what appears to be the same adolescent trial (the same 2,640 IU a day for 28 days,
-  BDI-II) without it, so the two stay separate studies, both no effect. Two papers on one
+  BDI-II) without it, so the two stay separate studies, both no clear difference. Two papers on one
   cohort or survey without a trial ID are not merged either.
 - **A real quote that doesn't support the claim:** claim wording is unscored, so the eval does
   not measure support. The page shows the verbatim quote beside every claim, so a reader checks
@@ -1417,23 +1417,24 @@ Measured where a number is given; the rest are expectations.
 Block sizes, token use, cost and eval scores land here as they are measured.
 
 **Vitamin D candidate pairs**, from the reviewed mapping, after the 15D polarity override and the
-23 excluded findings: 24,770 pairs among 425 studies with a headline finding, 24,504 of them an
-effect against no effect and 266 benefit against harm. Before the 21 findings whose exposure is
+26 excluded findings: 24,495 pairs among 423 studies with a headline finding, 24,229 of them an
+effect against no effect and 266 benefit against harm. The last three exclusions, found by
+reading the closely matched pairs, took the count from 24,770. Before the 21 findings whose exposure is
 off the question were excluded there were 27,297 pairs, 854 of them benefit against harm: a
 finding on another exposure points the other way from many vitamin D findings, so the leaks made
 two in three of the benefit-against-harm pairs. Four trials merge 15 papers. Reviews and the
 excluded designs (case reports, animal and in vitro studies) never enter a pair. 48 findings are
-dropped as out of domain, and 57 study-outcomes have only subgroup results.
+dropped as out of domain, and 58 study-outcomes have only subgroup results.
 
 | Outcome | Studies | Pairs | Only subgroup results |
 | --- | ---: | ---: | ---: |
-| Depressive symptoms | 276 | 17,888 | 36 |
+| Depressive symptoms | 274 | 17,613 | 37 |
 | Depression cases | 184 | 6,881 | 21 |
 | Remission | 2 | 1 | 0 |
 | Treatment response | 2 | 0 | 0 |
 
 These count pairs of studies, which grow with the square of the studies on an outcome, not
-findings. The page no longer shows them: 17,888 beside 276 studies reads as a count of
+findings. The page no longer shows them: 17,613 beside 274 studies reads as a count of
 findings, and the panel shows the closely matched pairs instead.
 
 An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
@@ -1473,7 +1474,8 @@ differs in most of these pairs, not that it is the main reason in each.
 
 Two papers on the same trial or dataset match on every field, so the selection was checked for
 them by string matching, without a model. Papers sharing a trial registration are already one
-study. No classified pair includes a review, and no pair names the same trial; 3 of the 221
+study. No classified pair includes a review, and no pair names the same trial; 3 of the 221,
+still classified after the exclusions below,
 pair Zhao 2010 with a later paper on the same survey, NHANES, from different cycles and so
 different people (Huang 2025, Guo 2025, Chen 2025).
 
@@ -1482,34 +1484,58 @@ in all four fields: design, outcome measure, baseline vitamin D status, and samp
 3x, each reported by both. A pair alike in only three differs in the fourth or leaves it
 unreported, and with design and size free to differ, its reason, mostly population, describes
 two studies looking at different things; a partial list of those tells a researcher little.
-Eleven pairs are alike in all four,
-all classified (10 on depressive symptoms, 1 on depression cases); 9 are genuine and 2
-apparent. Each was read against both abstracts to confirm the two papers are separate studies,
-since two papers on one cohort match on all four fields by construction, and all 11 are:
-different investigators, countries and populations. None was dropped.
+Eleven pairs were alike in all four, all classified, and each was read against both abstracts.
+All 11 pair separate studies, since two papers on one cohort would match on all four fields by
+construction: different investigators, countries and populations. Reading them against the
+abstracts found three extraction errors, each now on the reviewed exclusion list:
 
-| Pair | Verdict | Reason |
+- Sharifi 2019's finding is a within-group change ("scores decreased in the vitamin D group
+  after the intervention"); the abstract gives no between-group result for all patients, only
+  subgroup ones, so the study now has subgroup results only (`within_group_change`).
+- Mousa 2018's headline was the cross-sectional analysis of the trial's baseline data, which
+  took the trial's design; the trial's own result, no difference from placebo, is now its
+  headline (`observational_analysis_in_trial`).
+- Tarikere Satyanarayana 2023 reports a significant association of unreported direction,
+  which extraction recorded as no change (`direction_not_reported`).
+
+Tang 2022, in three pairs, stands: its "However" contrasts with the sentence before it, about
+night-shift nurses' sleep, not with an association in a continuous analysis, which the abstract
+does not report; the conclusion confirms the null. Its quote says "mental health", which the
+abstract defines as depression, sleep problems and fatigue together.
+
+With the exclusions, 9 pairs are alike in all four (8 on depressive symptoms, 1 on depression
+cases), 8 genuine and 1 apparent, all recorded:
+
+| Pair (study a vs b) | Verdict | Reason |
 | --- | --- | --- |
 | Libuda 2020 vs Omidian 2019 | genuine | population |
 | Schlarbaum 2026 vs Omidian 2019 | apparent | outcome measure |
-| Mousa 2018 vs Sharifi 2019 | genuine | design or bias |
 | Williams 2015 vs Sahasrabudhe 2020 | genuine | population |
 | Leedahl 2013 vs D'Souza 2020 | genuine | population |
 | Leedahl 2013 vs Jang 2026 | genuine | population |
-| Jamall 2016 vs Tarikere Satyanarayana 2023 | apparent | outcome measure |
 | Dana-Alamdari 2015 vs Kabukçu 2026 | genuine | population |
 | Kim 2016 vs Tang 2022 | genuine | population |
 | Tang 2022 vs Moura 2026 | genuine | population |
 | Krysiak 2018 vs Tang 2022 | genuine | population |
+
+The exclusions also change the wider selection: 209 pairs are alike in at least three of four,
+and 5 of them, each with Mousa 2018's trial result as its new headline, have no recorded answer.
+They were not sent, and `classify --recorded-only` leaves them unclassified, which the method
+text says; 204 are classified.
 
 Closely matched is not a replication: dose, duration and who was studied can still differ, and
 those are what the reasons point at. Each pair is shown side by side from the extracted fields,
 with its likely reason as one line and the classifier's measured accuracy stated once for the
 panel: the verdict is right on 93.8% (90% to 97%) of the stratified 300 and the strict reason on
 54.2% (38% to 69%), as pre-registered. `eval contradictions` writes those figures beside the
-labels, and the export reads the hosted arm's. The other 210 classified pairs stay in the export
+labels, and the export reads the hosted arm's. The other 196 classified pairs stay in the export
 and in the CLI's output, for anyone who wants them; the page leaves them off so that what it
 lists is the disagreements design, measure, baseline status and size cannot explain.
+
+The columns follow the classifier's order, study a then study b, so a reason line's "A" and "B"
+read left to right. Each study's badge is worded in the question config by design: a trial
+found a benefit, no clear difference or harm, while an observational study is linked to less or
+more depression, or shows no clear link, since an association is not a benefit.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
