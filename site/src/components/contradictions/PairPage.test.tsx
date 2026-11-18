@@ -52,6 +52,9 @@ describe("the pair page", () => {
     expect(statusOf(/^Year$/)).toBe("—");
     expect(screen.getByRole("rowheader", { name: /^Baseline synthetic status/ }).textContent).toContain("Not evaluated");
     expect(screen.getByRole("rowheader", { name: /^Synthetic dose/ }).textContent).not.toContain("Not evaluated");
+    // A dimension's short label is what shows; its full label is what a screen reader hears.
+    const baseline = screen.getByRole("rowheader", { name: /^Baseline synthetic status/ });
+    expect(baseline.querySelector('[aria-hidden="true"]')?.textContent).toBe("Baseline status");
     expect(screen.getAllByText("50 mg", { selector: "td" })).toHaveLength(2);
   });
 

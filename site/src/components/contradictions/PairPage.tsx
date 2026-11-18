@@ -286,7 +286,17 @@ function rows(found: Found, dimensions: Dimension[], studies: Map<string, Study>
       key: `dimension-${dimension.name}`,
       name: (
         <span className={styles.rowName}>
-          <span className={styles.fieldName}>{dimension.label}</span>
+          {/* The short label leaves the two studies' columns room; a screen reader hears the full one. */}
+          <span className={styles.fieldName}>
+            {(dimension.short_label ?? null) === null ? (
+              dimension.label
+            ) : (
+              <>
+                <span aria-hidden="true">{dimension.short_label}</span>
+                <span className={styles.visuallyHidden}>{dimension.label}</span>
+              </>
+            )}
+          </span>
           <span className={styles.tag}>Custom</span>
           {!dimension.evaluated && <span className={styles.tag}>Not evaluated</span>}
         </span>

@@ -151,7 +151,7 @@ const MIN_BAND = 66;
 export const COMPACT_HEAD = 22;
 /** Below this width the label column gives way to labels across each band's top. */
 export const COMPACT_BELOW = 560;
-const LABEL_COLUMN = 160;
+const LABEL_COLUMN = 152;
 const EDGE = 14;
 
 export interface Band {
