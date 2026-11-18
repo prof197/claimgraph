@@ -68,11 +68,10 @@ export const STEP = 2;
 /** The least room between two year labels' starts. */
 const LABEL_ROOM = 34;
 
+/** A section boundary: a gridline, and the label that starts just right of it, if any. */
 export interface Tick {
   at: number;
   label: string | null;
-  /** A section boundary gets a gridline; the pre-2010 label sits in its section's middle. */
-  boundary: boolean;
 }
 
 export interface Axis {
@@ -94,15 +93,12 @@ export function yearAxis(last: number, left: number, right: number): Axis {
   // Every two-year boundary gets a gridline; labels thin out to every four years or more when
   // the axis is too narrow to name each one.
   const every = STEP * Math.max(1, Math.ceil(LABEL_ROOM / (x(STEP) - x(0))));
-  const ticks: Tick[] = [
-    { at: x(0), label: null, boundary: true },
-    { at: x(STEP / 2), label: `<${CUT}`, boundary: false },
-  ];
-  // "2010" starts where the pre-2010 label ends, so it gives way when that section is narrow.
+  const ticks: Tick[] = [{ at: x(0), label: `<${CUT}` }];
+  // "2010" would run into "<2010" when the pre-2010 section is narrow, so it gives way.
   const crowded = x(STEP) - x(0) < LABEL_ROOM;
   for (let year = CUT; year <= last; year += STEP) {
     const named = (year - CUT) % every === 0 && !(crowded && year === CUT);
-    ticks.push({ at: x(year - start), label: named ? String(year) : null, boundary: true });
+    ticks.push({ at: x(year - start), label: named ? String(year) : null });
   }
   return { left, right, section, ticks };
 }

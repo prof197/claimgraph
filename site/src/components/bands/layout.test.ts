@@ -50,16 +50,18 @@ describe("the year axis", () => {
       "<2010",
       ...[2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024, 2026].map(String),
     ]);
-    expect(axis.ticks.filter((t) => t.boundary).length).toBe(10);
+    expect(axis.ticks.length).toBe(10);
+    // "<2010" starts at its section's left edge, as each year starts at its own.
+    expect(axis.ticks[0]).toEqual({ at: 100, label: "<2010" });
   });
 
   it("names fewer years when the axis is narrow, keeping every gridline", () => {
     const narrow = yearAxis(2026, 14, 260);
-    const labels = narrow.ticks.flatMap((t) => (t.label === null || !t.boundary ? [] : [Number(t.label)]));
+    const labels = narrow.ticks.flatMap((t) => (t.label === null || t.label.startsWith("<") ? [] : [Number(t.label)]));
     expect(labels[0]).toBe(2014);
     expect(labels[1]! - labels[0]!).toBeGreaterThanOrEqual(4);
     expect(narrow.ticks.some((t) => t.label === "<2010")).toBe(true);
-    expect(narrow.ticks.filter((t) => t.boundary).length).toBe(10);
+    expect(narrow.ticks.length).toBe(10);
   });
 });
 

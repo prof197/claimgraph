@@ -141,16 +141,9 @@ export function BandChart({ outcome, rows, everyOutcome, through, selected, onSe
               ))}
               {layout.axis.ticks.map((t) => (
                 <g key={t.at}>
-                  {t.boundary && (
-                    <line x1={t.at} x2={t.at} y1={AXIS - 18} y2={layout.height - 4} className={styles.gridline} />
-                  )}
+                  <line x1={t.at} x2={t.at} y1={AXIS - 18} y2={layout.height - 4} className={styles.gridline} />
                   {t.label !== null && (
-                    <text
-                      x={t.boundary ? t.at + 3 : t.at}
-                      y={AXIS - 9}
-                      textAnchor={t.boundary ? "start" : "middle"}
-                      className={styles.tick}
-                    >
+                    <text x={t.at + 3} y={AXIS - 9} className={styles.tick}>
                       {t.label}
                     </text>
                   )}
