@@ -34,6 +34,8 @@ OFF_QUESTION = Verdict.OFF_QUESTION.value
 # The README block that eval contradictions --readme writes.
 README_BLOCK = "contradiction-eval"
 CORRECTIONS_FILE = "contradiction_corrections.toml"
+# Each arm's verdict and strict reason accuracy, as pre-registered, for the export to read.
+SCORES_FILE = "contradiction_scores.json"
 
 Rule = Callable[[PairClassification, ContradictionLabel], bool]
 
@@ -102,6 +104,28 @@ class ArmScore(Record):
     called_off_question: int
     usd_per_pair: float
     billed_per_pair: float
+
+
+class ArmAccuracy(Record):
+    arm: Arm
+    verdict: Interval
+    # The verdict with the label's primary reason exactly: the strict figure.
+    reason: Interval
+
+
+class Scores(Record):
+    """The pre-registered figures the page states, so the export need not replay every arm."""
+
+    # Labeled pairs on the question, which the estimates are weighted from.
+    scored: int
+    arms: list[ArmAccuracy]
+
+
+def scores(figures: "Figures") -> Scores:
+    return Scores(
+        scored=figures.scored,
+        arms=[ArmAccuracy(arm=a.arm, verdict=a.verdict, reason=a.correct) for a in figures.arms],
+    )
 
 
 class Difference(Record):
@@ -626,9 +650,9 @@ def readme(
         ]
     lines += [
         "",
-        f"The hosted page classifies {scope} at {pick.arm.value}. The accuracy above is measured "
-        "on the stratified 300 eval pairs, drawn to stand for every candidate pair; the page "
-        "shows the most alike pairs instead, so its mix of verdicts and reasons need not match "
-        "the eval's.",
+        f"The hosted page classifies {scope} at {pick.arm.value}, and shows the closely matched "
+        "ones, alike in every field the comparison checks. The accuracy above is measured on the "
+        "stratified 300 eval pairs, drawn to stand for every candidate pair; the page's pairs "
+        "are chosen differently, so its mix of verdicts and reasons need not match the eval's.",
     ]
     return "\n".join(lines) + "\n"

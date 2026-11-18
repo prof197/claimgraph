@@ -119,6 +119,20 @@ def test_agreement_pairs_count_in_the_rate_but_not_in_a_paired_difference() -> N
     assert figures.scope.best is Arm.COUNCIL
 
 
+def test_the_scores_file_keeps_each_arm_s_verdict_and_strict_reason() -> None:
+    pairs, found, answers = setup({0, 1, 2, 3}, set())
+    labels = [label(p) for p in pairs]
+    figures = contradiction_eval.score(pairs, found, labels, answers, COSTS, rounds=ROUNDS)
+
+    scores = contradiction_eval.scores(figures)
+
+    assert scores.scored == figures.scored
+    by_arm = {a.arm: a for a in scores.arms}
+    council = next(a for a in figures.arms if a.arm is Arm.COUNCIL)
+    assert by_arm[Arm.COUNCIL].verdict == council.verdict
+    assert by_arm[Arm.COUNCIL].reason == council.correct
+
+
 def test_the_same_seed_gives_the_same_intervals() -> None:
     pairs, found, answers = setup({0, 2}, {1, 3})
     labels = [label(p) for p in pairs]

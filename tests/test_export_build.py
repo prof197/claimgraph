@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from claimgraph import export_build
+from claimgraph import contradiction_eval, export_build
 from claimgraph.batch import ExtractManifest
 from claimgraph.compare import Direction
 from claimgraph.config import Dimension, DimensionType, QuestionConfig
@@ -587,3 +587,59 @@ def test_normalization_rows_are_merge_precision_and_recall() -> None:
     rows = [(r.metric, r.value, r.n) for r in export_build.normalization_evals(scores)]
 
     assert rows == [("merge precision", 18 / 20, 20), ("merge recall", 18 / 40, 40)]
+
+
+def test_no_pair_is_closely_matched_when_its_sizes_are_far_apart(tmp_path: Path) -> None:
+    export = build(tmp_path)
+    edges = [e for e in export.graph.edges if isinstance(e, ContradictionEdge)]
+
+    # 120 against 18,000 people, and 640 against 60: neither within 3x, so neither pair is
+    # alike in every field.
+    assert [e.closely_matched for e in edges] == [False, False]
+
+
+def test_a_pair_alike_in_every_field_is_closely_matched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    every = export_build.pair_sample.FIXED_FIELDS + len(CONFIG.dimensions)
+    monkeypatch.setattr(export_build.pair_sample, "shared_fields", lambda *_: every)
+    export = build(tmp_path)
+
+    edges = [e for e in export.graph.edges if isinstance(e, ContradictionEdge)]
+    assert all(e.closely_matched for e in edges)
+    assert all(p.closely_matched for p in export.outcomes[0].apparent)
+
+
+def scores(depth: Arm = Arm.SINGLE_SMALL) -> contradiction_eval.Scores:
+    return contradiction_eval.Scores(
+        scored=60,
+        arms=[
+            contradiction_eval.ArmAccuracy(
+                arm=depth,
+                verdict=contradiction_eval.Interval(estimate=0.9, low=0.85, high=0.95),
+                reason=contradiction_eval.Interval(estimate=0.5, low=0.35, high=0.65),
+            )
+        ],
+    )
+
+
+def test_classification_rows_are_the_hosted_arm_s_verdict_and_reason() -> None:
+    rows = export_build.classification_evals(scores(), Arm.SINGLE_SMALL)
+
+    assert [(r.eval, r.metric, r.value, r.n, r.low, r.high) for r in rows] == [
+        ("classification", "verdict", 0.9, 60, 0.85, 0.95),
+        ("classification", "reason", 0.5, 60, 0.35, 0.65),
+    ]
+    assert export_build.classification_evals(scores(), Arm.COUNCIL) == []
+
+
+def test_the_export_reads_the_recorded_classification_scores(tmp_path: Path) -> None:
+    gold_dir = tmp_path / "gold" / CONFIG.id
+    gold_dir.mkdir(parents=True)
+    path = gold_dir / contradiction_eval.SCORES_FILE
+    path.write_text(scores().model_dump_json())
+
+    rows = [(r.eval, r.metric) for r in build(tmp_path).method.evals]
+
+    assert ("classification", "verdict") in rows
+    assert ("classification", "reason") in rows

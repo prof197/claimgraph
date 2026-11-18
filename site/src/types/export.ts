@@ -110,6 +110,7 @@ export interface ApparentPair {
   finding_b: string;
   reason: Reason;
   detail: string;
+  closely_matched?: boolean;
 }
 /**
  * A primary study: one paper, or the papers of one trial, the earliest leading.
@@ -189,6 +190,7 @@ export interface ContradictionEdge {
   rationale: string;
   design_weight: number;
   sample_size: number | null;
+  closely_matched?: boolean;
 }
 /**
  * Listed for context and never counted: reviews pool studies already on the page.

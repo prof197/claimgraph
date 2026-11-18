@@ -155,6 +155,9 @@ class ApparentPair(Record):
     finding_b: FindingId
     reason: Reason
     detail: NonBlank
+    # Alike in every field the comparison checks: design, outcome measure, each custom
+    # dimension, and sample size; the page shows only these.
+    closely_matched: bool = False
 
 
 class Outcome(Record):
@@ -252,6 +255,9 @@ class ContradictionEdge(Record):
     # added, which is None when either study reports none.
     design_weight: NonNegativeFloat
     sample_size: PositiveInt | None
+    # Alike in every field the comparison checks: design, outcome measure, each custom
+    # dimension, and sample size; the page shows only these.
+    closely_matched: bool = False
 
 
 Node = Annotated[HubNode | FindingNode, Field(discriminator="kind")]

@@ -134,6 +134,15 @@ GENUINE: list[tuple[str, str, str, PairKind, Reason, list[Reason], str]] = [
 ]
 
 # (outcome, study a, study b, kind, reason, detail)
+# The pairs alike in every field the comparison checks, which the page shows.
+CLOSELY_MATCHED = {
+    f"{SYMPTOMS}|999000101|999000102",
+    f"{SYMPTOMS}|999000102|999000104",
+    f"{SYMPTOMS}|999000104|999000105",
+    f"{SYMPTOMS}|999000102|999000106",
+    f"{REMISSION}|999000101|999000111",
+}
+
 APPARENT: list[tuple[str, str, str, PairKind, Reason, str]] = [
     (
         SYMPTOMS,
@@ -374,6 +383,7 @@ def synthetic() -> Export:
                 rationale=f"Synthetic rationale: the studies differ most in {reason.value}.",
                 design_weight=_weight(a) + _weight(b),
                 sample_size=_size(a, b),
+                closely_matched=f"{outcome}|{a}|{b}" in CLOSELY_MATCHED,
             )
         )
     classified = {o: 0 for o in outcomes}
@@ -407,6 +417,7 @@ def synthetic() -> Export:
                         finding_b=headline[(o, b)].id,
                         reason=reason,
                         detail=detail,
+                        closely_matched=f"{o}|{a}|{b}" in CLOSELY_MATCHED,
                     )
                     for outcome, a, b, kind, reason, detail in APPARENT
                     if outcome == o
@@ -473,6 +484,12 @@ def synthetic() -> Export:
                     n=200,
                     low=None,
                     high=None,
+                ),
+                EvalResult(
+                    eval="classification", metric="verdict", value=0.9, n=60, low=0.85, high=0.95
+                ),
+                EvalResult(
+                    eval="classification", metric="reason", value=0.5, n=60, low=0.35, high=0.65
                 ),
             ],
         ),

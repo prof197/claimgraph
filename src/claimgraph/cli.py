@@ -1049,7 +1049,8 @@ def eval_contradictions(
 
     Replays the arms' recorded answers on the eval pairs, so nothing is sent; the requests are
     built from the run's extraction, so it must be present. When the two figures would have the
-    scope rule pick different arms, the owner's ruling settles the hosted pick.
+    scope rule pick different arms, the owner's ruling settles the hosted pick. Writes each arm's
+    verdict and reason accuracy beside the labels, where the export reads the hosted arm's.
     """
     config = load_config(resolve_question(question))
     out_dir = gold_dir / config.id
@@ -1081,6 +1082,8 @@ def eval_contradictions(
     first = contradiction_eval.score(sample.eval, found, earlier, answers, costs)
     corrected = sum(c.found is after for c in corrections)
     block = contradiction_eval.readme(primary, sensitivity, first, corrected, len(left_out))
+    scores = contradiction_eval.scores(primary).model_dump_json(indent=2) + "\n"
+    write_atomic(out_dir / contradiction_eval.SCORES_FILE, scores.encode())
     if readme is not None:
         text = relabel.replace_block(readme.read_text(), contradiction_eval.README_BLOCK, block)
         readme.write_text(text)

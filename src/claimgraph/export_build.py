@@ -9,7 +9,15 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from claimgraph import compare, evaluation, graph, normalization_eval, outcome_kinds
+from claimgraph import (
+    compare,
+    contradiction_eval,
+    evaluation,
+    graph,
+    normalization_eval,
+    outcome_kinds,
+    pair_sample,
+)
 from claimgraph.batch import ExtractManifest
 from claimgraph.config import QuestionConfig
 from claimgraph.export import (
@@ -34,6 +42,7 @@ from claimgraph.labels import load_abstract_label
 from claimgraph.models import (
     DESIGN_WEIGHTS,
     REVIEW_DESIGNS,
+    Arm,
     ClassifiedPairs,
     Design,
     Finding,
@@ -115,8 +124,30 @@ def normalization_evals(scores: NormalizationScores) -> list[EvalResult]:
     ]
 
 
-def _evals(config: QuestionConfig, gold_dir: Path, replay_root: Path) -> list[EvalResult]:
-    """The extraction and normalization evals, replayed, for whichever gold data exists."""
+def classification_evals(scores: contradiction_eval.Scores, depth: Arm) -> list[EvalResult]:
+    """The hosted arm's verdict and strict reason accuracy on the labeled eval pairs."""
+    arm = next((a for a in scores.arms if a.arm is depth), None)
+    if arm is None:
+        return []
+    return [
+        EvalResult(
+            eval="classification",
+            metric=metric,
+            value=figure.estimate,
+            n=scores.scored,
+            low=figure.low,
+            high=figure.high,
+        )
+        for metric, figure in (("verdict", arm.verdict), ("reason", arm.reason))
+        if figure.estimate is not None
+    ]
+
+
+def _evals(
+    config: QuestionConfig, gold_dir: Path, replay_root: Path, depth: Arm | None
+) -> list[EvalResult]:
+    """The extraction and normalization evals, replayed, for whichever gold data exists, and
+    the hosted arm's classification figures as the contradiction eval recorded them."""
     rows: list[EvalResult] = []
     if (gold_dir / "gold.jsonl").exists():
         scores = evaluation.gold_scores(gold_dir.parent, replay_root, config, DEFAULT_MODEL)
@@ -129,6 +160,10 @@ def _evals(config: QuestionConfig, gold_dir: Path, replay_root: Path) -> list[Ev
         assert proposal.outcomes is not None
         found = normalization_eval.score(labels, proposal.outcomes, proposal.outside, drawn)
         rows += normalization_evals(found)
+    scores_path = gold_dir / contradiction_eval.SCORES_FILE
+    if depth is not None and scores_path.exists():
+        scores = contradiction_eval.Scores.model_validate_json(scores_path.read_text())
+        rows += classification_evals(scores, depth)
     return rows
 
 
@@ -324,9 +359,22 @@ def _classified(
     classified: ClassifiedPairs,
     studies: dict[str, Study],
     headline: dict[tuple[str, str], str],
+    results: list[ExtractionResult],
+    dimensions: list[str],
 ) -> _Classified:
     """The classified pairs in the comparison's order, each between two headline findings."""
     verdicts = {c.pair_id: c for c in classified.classifications}
+    findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
+    designs = {r.pmid: r.study.design for r in results if r.study is not None}
+    every_field = pair_sample.FIXED_FIELDS + len(dimensions)
+
+    def closely_matched(a: Study, b: Study, finding_a: str, finding_b: str) -> bool:
+        fa, fb = findings[finding_a], findings[finding_b]
+        shared = pair_sample.shared_fields(
+            fa, fb, (designs[fa.pmid], designs[fb.pmid]), (a.sample_size, b.sample_size), dimensions
+        )
+        return shared == every_field
+
     genuine: list[ContradictionEdge] = []
     apparent: dict[str, list[ApparentPair]] = defaultdict(list)
     counts: Counter[str] = Counter()
@@ -353,6 +401,7 @@ def _classified(
                     finding_b=finding_b,
                     reason=verdict.reason,
                     detail=verdict.detail,
+                    closely_matched=closely_matched(a, b, finding_a, finding_b),
                 )
             )
             continue
@@ -371,6 +420,7 @@ def _classified(
                 # A design without a weight adds nothing to the panel's order.
                 design_weight=(a.weight or 0) + (b.weight or 0),
                 sample_size=None if size_a is None or size_b is None else size_a + size_b,
+                closely_matched=closely_matched(a, b, finding_a, finding_b),
             )
         )
     return _Classified(
@@ -470,7 +520,8 @@ def build_export(
     tabs = _tabs(corpus, mapping)
     headline = {(h.outcome, h.study): h.finding_id for h in found.headlines}
     nodes = _finding_nodes(corpus, tabs, headline, mapping, config)
-    pairs = _classified(found, classified, corpus.studies, headline)
+    dimensions = [d.name for d in config.dimensions]
+    pairs = _classified(found, classified, corpus.studies, headline, results, dimensions)
     return Export(
         schema_version=SCHEMA_VERSION,
         question=_question(config, retrieved, len(results), mapping, gold_dir),
@@ -489,6 +540,6 @@ def build_export(
             depth=classified.depth,
             selection=classified.selection,
             costs=[StageCost(stage="extract", dollars=extracted.cost_usd)],
-            evals=_evals(config, gold_dir, replay_root),
+            evals=_evals(config, gold_dir, replay_root, classified.depth),
         ),
     )
