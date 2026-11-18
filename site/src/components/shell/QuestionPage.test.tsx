@@ -185,14 +185,18 @@ describe("the synthetic fixture", () => {
     const method = screen.getByRole("region", { name: "How this page was made" });
 
     expect(method.textContent).toContain(
-      "It judged the 10 pairs whose studies are alike in at least 3 of 5 ways, with no study in " +
+      "Contradictions on this page were classified at single-small depth. The model judged the 10 pairs whose studies are alike in at least 3 of 5 ways, with no study in " +
         "more than 8. The page shows only the closely matched ones, alike in all 5, each reported " +
         "by both studies: design, outcome measure, baseline synthetic status, synthetic dose and " +
         "sample size within 3×.",
     );
     // Candidate counts count pairs of studies, which reads as a count of findings.
     expect(method.textContent).not.toMatch(/candidate pairs|\b25\b/);
-    expect(method.textContent).toContain("classified at single-small depth");
+    // The step itself stays as short as the others.
+    expect(screen.getByText(/^Findings on the same outcome/).textContent).toBe(
+      "Findings on the same outcome that point different ways are paired, and a model judges the 10 " +
+        "most alike, naming the likely reason.",
+    );
     expect(method.textContent).toContain(
       "Measured spend over every recorded run of this question, evals included: $0.18. By stage: " +
         "retrieve $0.00 (1 run) · extract $0.11 (2 runs) · normalize $0.02 (1 run) · classify $0.05 (3 runs).",
@@ -237,7 +241,7 @@ describe("the method's compare line", () => {
     render(<QuestionPage data={data} outcome={null} />);
     const method = screen.getByRole("region", { name: "How this page was made" });
     expect(method.textContent).toContain(
-      "It judged 10 of the 12 pairs whose studies are alike in at least 3 of 5 ways, with no " +
+      "The model judged 10 of the 12 pairs whose studies are alike in at least 3 of 5 ways, with no " +
         "study in more than 8. The other 2 have not been classified yet.",
     );
   });

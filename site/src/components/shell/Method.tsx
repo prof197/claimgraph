@@ -91,8 +91,7 @@ export function Method({ data }: { data: Export }) {
           {data.outcomes.length} {data.outcomes.length === 1 ? "outcome" : "outcomes"}.
         </Step>
         <Step n="04" title="Compare">
-          Only findings on the same outcome that point different ways are compared, and a model
-          judges each pair and names the likely reason. {compareLine(method, data.question.dimensions)}
+          {compareStep(method)}
         </Step>
       </ol>
       {method.drops.length > 0 && (
@@ -102,8 +101,9 @@ export function Method({ data }: { data: Export }) {
         </p>
       )}
       <p className="shell-text">
-        {depthLine(method)} {costLine(method)}
+        {[depthLine(method), compareLine(method, data.question.dimensions)].filter((t) => t !== null).join(" ")}
       </p>
+      <p className="shell-text">{costLine(method)}</p>
       <Evals method={method} />
     </section>
   );
@@ -121,9 +121,24 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
   );
 }
 
+/** The compare step in brief, as short as the other steps; the paragraph under the steps says
+ * which pairs were judged and which the page shows. */
+function compareStep(method: MethodData): string {
+  const paired = "Findings on the same outcome that point different ways are paired";
+  if (method.classified_pairs === 0) {
+    return `${paired}; no pairs have been judged yet.`;
+  }
+  const selection = method.selection ?? null;
+  const which =
+    selection === null
+      ? "each pair"
+      : `the ${number(method.classified_pairs + (selection.unclassified ?? 0))} most alike`;
+  return `${paired}, and a model judges ${which}, naming the likely reason.`;
+}
+
 /** Which pairs the model judged, and which of them the page shows. Candidate counts stay
  * off the page: they count pairs of studies, which reads as a count of findings. */
-export function compareLine(method: MethodData, dimensions: Dimension[]): string {
+export function compareLine(method: MethodData, dimensions: Dimension[]): string | null {
   const selection = method.selection ?? null;
   const ratio = selection === null ? null : selection.size_ratio;
   const fields = [
@@ -134,14 +149,14 @@ export function compareLine(method: MethodData, dimensions: Dimension[]): string
   ];
   const listed = `${fields.slice(0, -1).join(", ")} and ${fields.at(-1) ?? ""}`;
   if (method.classified_pairs === 0) {
-    return "No pairs have been judged yet.";
+    return null;
   }
   const waiting = selection?.unclassified ?? 0;
   const chosen = method.classified_pairs + waiting;
   const judged =
     selection === null
-      ? "It judged every pair"
-      : `It judged ${waiting > 0 ? `${number(method.classified_pairs)} of ` : ""}the ${number(chosen)} pairs ` +
+      ? "The model judged every pair"
+      : `The model judged ${waiting > 0 ? `${number(method.classified_pairs)} of ` : ""}the ${number(chosen)} pairs ` +
         `whose studies are alike in at least ${selection.minimum} of ${selection.fields} ways` +
         (selection.per_study === null ? "" : `, with no study in more than ${selection.per_study}`);
   const rest = waiting === 0 ? "" : ` The other ${number(waiting)} have not been classified yet.`;
