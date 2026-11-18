@@ -134,3 +134,17 @@ def test_fetching_refuses_and_removes_an_export_whose_hash_differs(tmp_path: Pat
     with pytest.raises(PublishError, match="not the pinned"):
         publish.fetch(lock_for(b"the pinned export"), out, run=FakeGh(True, served=b"another"))
     assert not out.exists()
+
+
+def test_fetching_without_gh_says_how_to_download_the_export_by_hand(tmp_path: Path) -> None:
+    lock = lock_for(b"the pinned export")
+
+    def signed_out(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 1, "", "synthetic: not signed in")
+
+    def missing(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        raise FileNotFoundError("gh")
+
+    for run in (signed_out, missing):
+        with pytest.raises(PublishError, match=f"download {lock.asset} from the repository's"):
+            publish.fetch(lock, tmp_path / "export.json", run=run)

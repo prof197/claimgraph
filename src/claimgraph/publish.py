@@ -113,19 +113,15 @@ def publish(
 def fetch(lock: ExportLock, out: Path, run: Runner = gh) -> None:
     """Download the pinned export to `out`, refusing it unless its hash matches the lock."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    _checked(
-        run,
-        [
-            "release",
-            "download",
-            lock.tag,
-            "--pattern",
-            lock.asset,
-            "--output",
-            str(out),
-            "--clobber",
-        ],
-    )
+    args = ["release", "download", lock.tag, "--pattern", lock.asset, "--output", str(out)]
+    try:
+        _checked(run, [*args, "--clobber"])
+    except (PublishError, FileNotFoundError) as error:
+        # The release is public, so a reader without gh, or not signed in, can fetch it by hand.
+        raise PublishError(
+            f"{error}. Without gh, download {lock.asset} from the repository's {lock.tag!r} "
+            f"release to {out} and check that its SHA-256 is {lock.sha256}"
+        ) from error
     digest = hashlib.sha256(out.read_bytes()).hexdigest()
     if digest != lock.sha256:
         out.unlink()
