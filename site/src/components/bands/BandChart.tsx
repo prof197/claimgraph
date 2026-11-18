@@ -110,7 +110,7 @@ export function BandChart({ outcome, rows, everyOutcome, through, selected, onSe
     <div className={styles.root}>
       <p id={descId} className={styles.visuallyHidden}>
         {number(rows.length)} {rows.length === 1 ? "study" : "studies"} on {name} in three bands by
-        what they found: {counts("benefit")} benefit, {counts("none")} no effect, {counts("harm")}{" "}
+        what they found: {counts("benefit")} benefit, {counts("none")} no clear difference, {counts("harm")}{" "}
         harm, each placed by publication year. Arrow keys move between studies; Enter selects one.
       </p>
       <div ref={box} className={styles.canvas}>

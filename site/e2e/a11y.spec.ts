@@ -207,7 +207,7 @@ test("direction is carried by position and labels as well as colour", async ({ p
   await expect(graph).toBeVisible();
 
   // In the graph, each dot's name starts with its direction and the dot sits inside that
-  // direction's band: benefit on top, no effect in the middle, harm at the bottom.
+  // direction's band: benefit on top, no clear difference in the middle, harm at the bottom.
   const dots = await graph.locator("foreignObject").evaluateAll((objects) => {
     const svg = objects[0]?.closest("svg");
     const bands = Object.fromEntries(
@@ -223,9 +223,9 @@ test("direction is carried by position and labels as well as colour", async ({ p
     }));
   });
   expect(dots.length).toBeGreaterThan(0);
-  const band: Record<string, string> = { Benefit: "benefit", "No effect": "none", Harm: "harm" };
+  const band: Record<string, string> = { Benefit: "benefit", "No clear difference": "none", Harm: "harm" };
   const misplaced = dots.filter((d) => {
-    const direction = /^[^:]+: (Benefit|No effect|Harm),/.exec(d.name)?.[1];
+    const direction = /^[^:]+: (Benefit|No clear difference|Harm),/.exec(d.name)?.[1];
     const zone = direction === undefined ? undefined : d.bands[band[direction] ?? ""];
     return zone === undefined || d.y < zone.top || d.y > zone.bottom;
   });
@@ -233,7 +233,7 @@ test("direction is carried by position and labels as well as colour", async ({ p
   const tops = ["benefit", "none", "harm"].map((d) => dots[0]?.bands[d]?.top ?? NaN);
   expect(tops).toEqual([...tops].sort((x, y) => x - y));
   // Each band says its direction in words.
-  for (const word of ["Benefit", "No effect", "Harm"]) {
+  for (const word of ["Benefit", "No clear difference", "Harm"]) {
     await expect(graph.locator("text", { hasText: word }).first()).toBeVisible();
   }
 
@@ -242,7 +242,7 @@ test("direction is carried by position and labels as well as colour", async ({ p
     .getByRole("group", { name: "Design-weighted share by direction" })
     .getByRole("img")
     .evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")?.split(":")[0]));
-  const order = ["Benefit", "No effect", "Harm"];
+  const order = ["Benefit", "No clear difference", "Harm"];
   expect(segments).toEqual(order.filter((d) => segments.includes(d)));
 
   // In the list, each row sits under a heading naming its direction.
@@ -258,7 +258,7 @@ test("direction is carried by position and labels as well as colour", async ({ p
     );
   expect(groups.length).toBeGreaterThan(0);
   for (const group of groups) {
-    expect(group.heading).toMatch(/^(Benefit|No effect|Harm) · /);
+    expect(group.heading).toMatch(/^(Benefit|No clear difference|Harm) · /);
     expect(group.rows).toBeGreaterThan(0);
   }
 });

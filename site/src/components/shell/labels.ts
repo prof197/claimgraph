@@ -15,9 +15,10 @@ import type {
 
 export const DIRECTIONS: Direction[] = ["benefit", "none", "harm"];
 
+// GRADE's wording for a result that is not significant; see contradictions/labels.ts.
 export const DIRECTION_LABEL: Record<Direction, string> = {
   benefit: "Benefit",
-  none: "No effect",
+  none: "No clear difference",
   harm: "Harm",
 };
 

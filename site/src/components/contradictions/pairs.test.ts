@@ -1,6 +1,6 @@
 import { fixtures } from "../../fixtures";
 import type { Outcome } from "../../types/export";
-import { comparePairs, findingsById, orderedApparent, orderedPairs, orient } from "./pairs";
+import { comparePairs, findingsById, orderedApparent, orderedPairs, sidesOf } from "./pairs";
 
 const data = fixtures.synthetic;
 
@@ -44,13 +44,13 @@ describe("pair order", () => {
     ]);
   });
 
-  it("reads a pair with the finding that found an effect first", () => {
+  it("reads a pair in the classifier's order, study a then study b", () => {
     const o = outcome("Synthetic symptoms");
     const byId = findingsById(data, o);
     const [pair] = orderedPairs(data, o);
     if (pair === undefined) throw new Error("the fixture has pairs");
-    expect(orient(byId, pair)?.map((f) => f.direction)).toEqual(["benefit", "none"]);
+    expect(sidesOf(byId, pair)?.map((f) => f.id)).toEqual([pair.source, pair.target]);
     const reversed = { ...pair, source: pair.target, target: pair.source };
-    expect(orient(byId, reversed)?.map((f) => f.direction)).toEqual(["benefit", "none"]);
+    expect(sidesOf(byId, reversed)?.map((f) => f.id)).toEqual([pair.target, pair.source]);
   });
 });

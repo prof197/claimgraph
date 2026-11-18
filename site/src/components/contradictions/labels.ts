@@ -1,6 +1,6 @@
 import { fullCitation, shortCitation } from "../../lib/names";
 // The words the panel and the pair page use for studies, designs and directions.
-import type { Design, Dimension, Direction, Reason, Study } from "../../types/export";
+import type { Design, Dimension, Direction, FoundWords, Reason, Study } from "../../types/export";
 
 export const REASONS: readonly Reason[] = [
   "population",
@@ -20,17 +20,26 @@ export const REASON_LABEL: Record<Reason, string> = {
   unclear: "Unclear",
 };
 
+// "No clear difference" is GRADE's wording for a result that is not significant, which is
+// mostly what a null finding here is: it does not claim the exposure has no effect.
 export const DIRECTION_LABEL: Record<Direction, string> = {
   benefit: "Benefit",
-  none: "No effect",
+  none: "No clear difference",
   harm: "Harm",
 };
 
-export const FOUND_LABEL: Record<Direction, string> = {
-  benefit: "Found a benefit",
-  none: "Found no effect",
-  harm: "Found harm",
-};
+/** A study's badge, in the question's words: a trial found a difference or not; an
+ * observational study found a link, which is not a benefit. */
+export function foundLabel(words: FoundWords, study: Study | undefined, direction: Direction): string {
+  return (study?.trial === true ? words.trial : words.observational)[direction];
+}
+
+/** Extraction writes "Across participants" for an association with no comparison group. */
+export function comparatorText(comparator: string): string {
+  return /across participants/i.test(comparator)
+    ? "No comparison group (association across participants)"
+    : comparator;
+}
 
 export const DESIGN_LABEL: Record<Design, string> = {
   rct: "Randomized controlled trial",

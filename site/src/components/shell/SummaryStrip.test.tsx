@@ -21,7 +21,7 @@ it("says each segment's share on keyboard focus and on hover", async () => {
 
   expect(segments.map((s) => s.getAttribute("aria-label"))).toEqual([
     "Benefit: 64% of the design-weighted evidence",
-    "No effect: 24% of the design-weighted evidence",
+    "No clear difference: 24% of the design-weighted evidence",
     "Harm: 12% of the design-weighted evidence",
   ]);
 
@@ -41,7 +41,7 @@ it("says when a weighting changes the leading direction", () => {
   expect(rows).toEqual([
     "Design-weightedBenefit leads",
     "Unweighted countBenefit leads",
-    "Size-awareNo effect leadsChanges",
+    "Size-awareNo clear difference leadsChanges",
   ]);
   expect(screen.getByText("Weighting by sample size changes which direction leads.")).toBeTruthy();
 });
@@ -53,7 +53,7 @@ it("leaves out empty segments", () => {
 
   expect(within(bar).getAllByRole("img").map((s) => s.getAttribute("aria-label"))).toEqual([
     "Benefit: 40% of the design-weighted evidence",
-    "No effect: 60% of the design-weighted evidence",
+    "No clear difference: 60% of the design-weighted evidence",
   ]);
   expect(screen.getByText("Every weighting gives the same leading direction.")).toBeTruthy();
 });
@@ -67,7 +67,7 @@ it("shows counts only for a thin outcome and says the evidence is thin", () => {
   expect(screen.getByText(/Thin evidence\./)).toBeTruthy();
   expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
     "Benefit · 1 study",
-    "No effect · 1 study",
+    "No clear difference · 1 study",
     "Harm · 1 study",
   ]);
 });

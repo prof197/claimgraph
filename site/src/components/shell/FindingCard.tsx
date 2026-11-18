@@ -1,9 +1,9 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { ExternalLink } from "../../lib/ExternalLink";
 import { href } from "../../routes";
+import { comparatorText, foundLabel } from "../contradictions/labels";
 import type { Export, FindingNode, Outcome } from "../../types/export";
 import {
-  DIRECTION_LABEL,
   citation,
   designLong,
   dimensionValue,
@@ -68,7 +68,7 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
       "Direction",
       <span className="shell-direction">
         <span aria-hidden="true" className={`shell-dot shell-swatch--${finding.direction}`} />
-        {DIRECTION_LABEL[finding.direction]}
+        {foundLabel(data.question.found, study, finding.direction)}
       </span>,
     ],
     ["Outcome", outcome.name],
@@ -76,7 +76,7 @@ export function FindingCard({ data, outcome, finding, onAlso }: FindingCardProps
     ...(finding.subgroup === null ? [] : ([["Subgroup", finding.subgroup]] as [string, ReactNode][])),
     ["Population", finding.population],
     ["Intervention", finding.intervention],
-    ["Comparator", finding.comparator],
+    ["Comparator", comparatorText(finding.comparator)],
     ["Design", designLong(study.design)],
     ["Sample size", study.sample_size === null ? "Not reported" : number(study.sample_size)],
     ["Year", String(study.year)],

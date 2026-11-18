@@ -8,9 +8,9 @@ import { href } from "../../routes";
 import type {
   ContradictionEdge,
   Dimension,
-  Direction,
   Export,
   FindingNode,
+  FoundWords,
   Outcome,
   Reason,
   Study,
@@ -19,28 +19,23 @@ import styles from "./Contradictions.module.css";
 import {
   DESIGN_LABEL,
   DESIGN_NOUN,
-  FOUND_LABEL,
   REASON_LABEL,
   citation,
+  comparatorText,
   dimensionValue,
   formatCount,
+  foundLabel,
   inSentence,
   pubmedUrl,
   sampleSize,
   studyLabel,
 } from "./labels";
-import { findingsById, orderedPairs, orient } from "./pairs";
+import { findingsById, orderedPairs, sidesOf } from "./pairs";
 
 export interface PairPageProps {
   data: Export;
   pairId: string;
 }
-
-const FOUND_PHRASE: Record<Direction, string> = {
-  benefit: "a benefit",
-  none: "no effect",
-  harm: "harm",
-};
 
 interface Found {
   pair: ContradictionEdge;
@@ -52,7 +47,7 @@ function findPair(data: Export, pairId: string): Found | undefined {
   for (const outcome of data.outcomes) {
     const pair = orderedPairs(data, outcome).find((p) => p.pair_id === pairId);
     if (pair !== undefined) {
-      const sides = orient(findingsById(data, outcome), pair);
+      const sides = sidesOf(findingsById(data, outcome), pair);
       return sides === undefined ? undefined : { pair, outcome, sides };
     }
   }
@@ -90,13 +85,16 @@ export function PairPage({ data, pairId }: PairPageProps) {
   );
 }
 
-function headline(sides: [FindingNode, FindingNode], studies: Map<string, Study>): string {
-  const [a, b] = sides.map((f) => {
-    const design = studies.get(f.study)?.design;
-    return design === undefined ? "study" : DESIGN_NOUN[design];
-  });
-  const second = a === b ? "One" : `One ${b}`;
-  return `One ${a} found ${FOUND_PHRASE[sides[0].direction]}. ${second} found ${FOUND_PHRASE[sides[1].direction]}.`;
+/** Each study's design and badge, in the classifier's order: "One trial: found a benefit." */
+function headline(sides: [FindingNode, FindingNode], studies: Map<string, Study>, words: FoundWords): string {
+  return sides
+    .map((f) => {
+      const study = studies.get(f.study);
+      const noun = study === undefined ? "study" : DESIGN_NOUN[study.design];
+      const label = foundLabel(words, study, f.direction);
+      return `One ${noun}: ${label.charAt(0).toLowerCase()}${label.slice(1)}.`;
+    })
+    .join(" ");
 }
 
 function Pair({ data, found }: { data: Export; found: Found }) {
@@ -113,7 +111,7 @@ function Pair({ data, found }: { data: Export; found: Found }) {
       <section className={styles.hero}>
         <h1 className={styles.h1}>
           <span className={styles.eyebrow}>Contradiction · {outcome.name}</span>
-          <span className={styles.title}>{headline(sides, studies)}</span>
+          <span className={styles.title}>{headline(sides, studies, data.question.found)}</span>
         </h1>
         <div className={styles.chips}>
           <span className={styles.reasonChip}>Likely reason: {reasonWord}</span>
@@ -129,7 +127,7 @@ function Pair({ data, found }: { data: Export; found: Found }) {
 
       <section aria-label="The two findings" className={styles.findings}>
         {sides.map((finding) => (
-          <FindingCard key={finding.id} finding={finding} study={studies.get(finding.study)} />
+          <FindingCard key={finding.id} finding={finding} study={studies.get(finding.study)} words={data.question.found} />
         ))}
       </section>
 
@@ -161,11 +159,19 @@ function Pair({ data, found }: { data: Export; found: Found }) {
   );
 }
 
-function FindingCard({ finding, study }: { finding: FindingNode; study: Study | undefined }) {
+function FindingCard({
+  finding,
+  study,
+  words,
+}: {
+  finding: FindingNode;
+  study: Study | undefined;
+  words: FoundWords;
+}) {
   return (
     <article className={styles.card} aria-label={studyLabel(study, finding.study)}>
       <span className={`${styles.badge} ${styles.cardBadge} ${styles[finding.direction]}`}>
-        {FOUND_LABEL[finding.direction]}
+        {foundLabel(words, study, finding.direction)}
       </span>
       <div className={styles.cardHead}>
         <h2 className={styles.h2Card}>{studyLabel(study, finding.study)}</h2>
@@ -241,7 +247,7 @@ function rows(found: Found, dimensions: Dimension[], studies: Map<string, Study>
   const result: Row[] = [
     field("population", "Population", fa.population, fb.population),
     field("intervention", "Intervention", fa.intervention, fb.intervention),
-    field("comparator", "Comparator", fa.comparator, fb.comparator),
+    field("comparator", "Comparator", comparatorText(fa.comparator), comparatorText(fb.comparator)),
     field("design_or_bias", "Design or risk of bias", design(sa), design(sb)),
     {
       key: "sample_size",
@@ -303,7 +309,7 @@ function SideBySide({ data, found, studies }: { data: Export; found: Found; stud
               {[fa, fb].map((f) => (
                 <th key={f.id} scope="col">
                   <span className={styles.studyHead}>
-                    <span className={`${styles.badge} ${styles[f.direction]}`}>{FOUND_LABEL[f.direction]}</span>
+                    <span className={`${styles.badge} ${styles[f.direction]}`}>{foundLabel(data.question.found, studies.get(f.study), f.direction)}</span>
                     {studyLabel(studies.get(f.study), f.study)}
                   </span>
                 </th>

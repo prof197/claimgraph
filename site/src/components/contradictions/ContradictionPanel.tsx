@@ -4,10 +4,28 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { studiesByKey } from "../../lib/data";
 import { href } from "../../routes";
-import type { ApparentPair, ContradictionEdge, Export, FindingNode, Outcome, Reason, Study } from "../../types/export";
+import type {
+  ApparentPair,
+  ContradictionEdge,
+  Export,
+  FindingNode,
+  FoundWords,
+  Outcome,
+  Reason,
+  Study,
+} from "../../types/export";
 import styles from "./Contradictions.module.css";
-import { FOUND_LABEL, REASON_LABEL, formatCount, inSentence, plural, sampleSize, studyLabel } from "./labels";
-import { findingsById, orderedApparent, orderedPairs, orient } from "./pairs";
+import {
+  REASON_LABEL,
+  comparatorText,
+  formatCount,
+  foundLabel,
+  inSentence,
+  plural,
+  sampleSize,
+  studyLabel,
+} from "./labels";
+import { findingsById, orderedApparent, orderedPairs, sidesOf } from "./pairs";
 
 export interface ContradictionPanelProps {
   data: Export;
@@ -38,6 +56,7 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
   const studies = useMemo(() => studiesByKey(data), [data]);
   const [all, setAll] = useState(false);
   const headingId = useId();
+  const words = data.question.found;
   const shown = all ? pairs : pairs.slice(0, FIRST_PAIRS);
   const empty = emptyText(outcome);
 
@@ -69,7 +88,7 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
       {pairs.length > 0 && (
         <ul className={styles.pairs}>
           {shown.map((pair) => (
-            <PairItem key={pair.pair_id} pair={pair} sides={orient(findings, pair)} studies={studies} />
+            <PairItem key={pair.pair_id} pair={pair} sides={sidesOf(findings, pair)} studies={studies} words={words} />
           ))}
         </ul>
       )}
@@ -80,7 +99,7 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
         </button>
       )}
 
-      {apparent.length > 0 && <ApparentList pairs={apparent} findings={findings} studies={studies} />}
+      {apparent.length > 0 && <ApparentList pairs={apparent} findings={findings} studies={studies} words={words} />}
     </section>
   );
 }
@@ -121,7 +140,9 @@ function emptyText(outcome: Outcome): string | null {
     return "No two studies on it point different ways, so there was nothing to compare.";
   }
   if (outcome.classified_pairs === 0) {
-    return "Its pairs of studies have not been classified yet.";
+    return outcome.candidate_pairs === 1
+      ? "Its pair of studies has not been classified yet."
+      : "Its pairs of studies have not been classified yet.";
   }
   return null;
 }
@@ -133,11 +154,11 @@ export function withoutReason(detail: string, reason: Reason): string {
   return detail.toLowerCase().startsWith(word) ? detail.slice(word.length).trim() : detail;
 }
 
-function Side({ finding, studies }: { finding: FindingNode; studies: Map<string, Study> }) {
+function Side({ finding, studies, words }: { finding: FindingNode; studies: Map<string, Study>; words: FoundWords }) {
   const study = studies.get(finding.study);
   return (
     <div className={styles.side}>
-      <span className={`${styles.badge} ${styles[finding.direction]}`}>{FOUND_LABEL[finding.direction]}</span>
+      <span className={`${styles.badge} ${styles[finding.direction]}`}>{foundLabel(words, study, finding.direction)}</span>
       <span className={styles.sideName}>{studyLabel(study, finding.study)}</span>
       <dl className={styles.fields}>
         <dt>Population</dt>
@@ -145,7 +166,7 @@ function Side({ finding, studies }: { finding: FindingNode; studies: Map<string,
         <dt>Intervention</dt>
         <dd>{finding.intervention}</dd>
         <dt>Comparator</dt>
-        <dd>{finding.comparator}</dd>
+        <dd>{comparatorText(finding.comparator)}</dd>
         <dt>Sample size</dt>
         <dd>{sampleSize(study?.sample_size ?? null)}</dd>
       </dl>
@@ -156,12 +177,20 @@ function Side({ finding, studies }: { finding: FindingNode; studies: Map<string,
   );
 }
 
-function Sides({ sides, studies }: { sides: [FindingNode, FindingNode]; studies: Map<string, Study> }) {
+function Sides({
+  sides,
+  studies,
+  words,
+}: {
+  sides: [FindingNode, FindingNode];
+  studies: Map<string, Study>;
+  words: FoundWords;
+}) {
   return (
     <div className={styles.sides}>
-      <Side finding={sides[0]} studies={studies} />
+      <Side finding={sides[0]} studies={studies} words={words} />
       <span className={styles.visuallyHidden}>versus</span>
-      <Side finding={sides[1]} studies={studies} />
+      <Side finding={sides[1]} studies={studies} words={words} />
     </div>
   );
 }
@@ -170,10 +199,12 @@ function PairItem({
   pair,
   sides,
   studies,
+  words,
 }: {
   pair: ContradictionEdge;
   sides: [FindingNode, FindingNode] | undefined;
   studies: Map<string, Study>;
+  words: FoundWords;
 }) {
   const names =
     sides === undefined
@@ -181,7 +212,7 @@ function PairItem({
       : `${studyLabel(studies.get(sides[0].study), sides[0].study)} and ${studyLabel(studies.get(sides[1].study), sides[1].study)}`;
   return (
     <li className={styles.match}>
-      {sides !== undefined && <Sides sides={sides} studies={studies} />}
+      {sides !== undefined && <Sides sides={sides} studies={studies} words={words} />}
       <p className={styles.reason}>
         <span className={styles.reasonName}>Likely reason: {REASON_LABEL[pair.reason].toLowerCase()}.</span>{" "}
         {withoutReason(pair.detail, pair.reason)}{" "}
@@ -197,10 +228,12 @@ function ApparentList({
   pairs,
   findings,
   studies,
+  words,
 }: {
   pairs: ApparentPair[];
   findings: Map<string, FindingNode>;
   studies: Map<string, Study>;
+  words: FoundWords;
 }) {
   return (
     <details className={styles.apparent}>
@@ -211,10 +244,10 @@ function ApparentList({
       </summary>
       <ul className={styles.pairs}>
         {pairs.map((pair) => {
-          const sides = orient(findings, { source: pair.finding_a, target: pair.finding_b });
+          const sides = sidesOf(findings, { source: pair.finding_a, target: pair.finding_b });
           return (
             <li key={pair.pair_id} className={styles.match}>
-              {sides !== undefined && <Sides sides={sides} studies={studies} />}
+              {sides !== undefined && <Sides sides={sides} studies={studies} words={words} />}
               <p className={styles.reason}>
                 <span className={styles.reasonName}>Why not: {REASON_LABEL[pair.reason].toLowerCase()}.</span>{" "}
                 {withoutReason(pair.detail, pair.reason)}

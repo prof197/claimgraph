@@ -84,7 +84,7 @@ describe("the contradiction panel", () => {
     if (!item) throw new Error("the pair is a list item");
 
     expect(within(item).getByText("Found a benefit")).toBeTruthy();
-    expect(within(item).getByText("Found no effect")).toBeTruthy();
+    expect(within(item).getByText("No clear difference")).toBeTruthy();
     expect(within(item).getByText("Synthetic101 et al. 2011")).toBeTruthy();
     expect(within(item).getByText("Synthetic102 et al. 2012")).toBeTruthy();
     const terms = within(item).getAllByRole("term").map((t) => t.textContent);
@@ -102,6 +102,23 @@ describe("the contradiction panel", () => {
     expect(within(item).getByText("18,000")).toBeTruthy();
     expect(within(item).getByText("Synthetic sentence 1 from synthetic abstract 999000101.")).toBeTruthy();
     expect(item.textContent).toContain("Likely reason: population. synthetic: depressed adults vs a general older population");
+  });
+
+  it("sets the columns in the classifier's order, and words an observational study's badge as a link", () => {
+    render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
+    const item = pairLinks()[2]?.closest("li");
+    if (!item) throw new Error("the pair is a list item");
+    // Pair 104|105: study a, the trial, on the left; b, the cross-sectional study, on the right.
+    const names = [...item.querySelectorAll("span")].map((e) => e.textContent).filter((t) => /^Synthetic10\d et al\./.test(t ?? ""));
+    expect(names).toEqual(["Synthetic104 et al. 2014", "Synthetic105 et al. 2015"]);
+    expect(within(item).getByText("Found a benefit")).toBeTruthy();
+    expect(within(item).getByText("Linked to worse synthetic mood")).toBeTruthy();
+  });
+
+  it("names one unclassified pair in the singular", () => {
+    const outcome = { ...outcomeOf(synthetic, "Synthetic cases"), candidate_pairs: 1 };
+    render(<ContradictionPanel data={synthetic} outcome={outcome} />);
+    expect(screen.getByText("Its pair of studies has not been classified yet.")).toBeTruthy();
   });
 
   it("more closely matched pairs than fit: shows the first ones, then all on request", async () => {

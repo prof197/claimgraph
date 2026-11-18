@@ -3,7 +3,6 @@ import { contradictionsOn, findingsOn, studiesByKey } from "../../lib/data";
 import type {
   ApparentPair,
   ContradictionEdge,
-  Direction,
   Export,
   FindingNode,
   Outcome,
@@ -50,24 +49,18 @@ export function orderedApparent(data: Export, outcome: Outcome): ApparentPair[] 
   return [...outcome.apparent].sort((a, b) => comparePairs(key(a), key(b)));
 }
 
-const SIDE_ORDER: Record<Direction, number> = { benefit: 0, harm: 1, none: 2 };
-
 /** Findings on an outcome by id, for looking up both ends of many pairs at once. */
 export function findingsById(data: Export, outcome: Outcome): Map<string, FindingNode> {
   return new Map(findingsOn(data, outcome).map((f) => [f.id, f]));
 }
 
-/** Both findings of a pair, the one that found an effect first, as the panel reads them. */
-export function orient(
+/** Both findings of a pair in the classifier's order, study a then study b, so its detail's
+ * "A" and "B" read left to right. */
+export function sidesOf(
   byId: Map<string, FindingNode>,
   edge: Pick<ContradictionEdge, "source" | "target">,
 ): [FindingNode, FindingNode] | undefined {
-  const source = byId.get(edge.source);
-  const target = byId.get(edge.target);
-  if (source === undefined || target === undefined) {
-    return undefined;
-  }
-  return SIDE_ORDER[source.direction] <= SIDE_ORDER[target.direction]
-    ? [source, target]
-    : [target, source];
+  const a = byId.get(edge.source);
+  const b = byId.get(edge.target);
+  return a === undefined || b === undefined ? undefined : [a, b];
 }

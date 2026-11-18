@@ -89,7 +89,7 @@ describe("the synthetic fixture", () => {
       .map((th) => th.textContent);
     expect(groups).toEqual([
       "Benefit · 3 studies, plus 1 not counted",
-      "No effect · 1 study, plus 1 not counted",
+      "No clear difference · 1 study, plus 1 not counted",
       "Harm · 2 studies",
     ]);
     expect(within(list).getByText("Not counted: Subgroup results only")).toBeTruthy();
@@ -115,7 +115,8 @@ describe("the synthetic fixture", () => {
     expect(within(card).getByRole("heading").textContent).toBe(
       "Synthetic study 106 of supplement X and mood",
     );
-    expect(within(card).getByText("Harm")).toBeTruthy();
+    // A case series is observational, so its badge reads as a link, not harm.
+    expect(within(card).getByText("Linked to worse synthetic mood")).toBeTruthy();
     expect(within(card).getByText("Case series")).toBeTruthy();
   });
 
@@ -196,6 +197,19 @@ describe("the synthetic fixture", () => {
       "This run cost $0.18, measured: extract $0.11 · normalize $0.02 · classify $0.05.",
     );
     expect(method.textContent).toContain("52 PubMed records found");
+  });
+});
+
+describe("the method's compare line", () => {
+  it("says how many chosen pairs have not been classified yet", () => {
+    const data = JSON.parse(JSON.stringify(fixtures.synthetic)) as Export;
+    if (data.method.selection) data.method.selection.unclassified = 2;
+    render(<QuestionPage data={data} outcome={null} />);
+    const method = screen.getByRole("region", { name: "How this page was made" });
+    expect(method.textContent).toContain(
+      "It judged 10 of the 12 pairs whose studies are alike in at least 3 of 5 ways, with no " +
+        "study in more than 8. The other 2 have not been classified yet.",
+    );
   });
 });
 

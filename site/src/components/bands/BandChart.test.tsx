@@ -44,7 +44,7 @@ it("draws one named button per study, each starting with its direction", () => {
   const buttons = within(group).getAllByRole("button");
   expect(buttons).toHaveLength(rows.length);
   for (const b of buttons) {
-    expect(b.getAttribute("aria-label")).toMatch(/^[^:]+: (Benefit|No effect|Harm), /);
+    expect(b.getAttribute("aria-label")).toMatch(/^[^:]+: (Benefit|No clear difference|Harm), /);
   }
   expect(within(group).getByRole("button", { name: /^Synthetic108 et al\. 2018: .*subgroup results only, not counted/ })).toBeTruthy();
   expect(within(group).getByRole("button", { name: /^PMID 999000107 \(2017\): .*design without a weight, not counted/ })).toBeTruthy();
@@ -108,7 +108,7 @@ it("names each band and says when one has no studies", () => {
     <BandChart outcome={data.outcomes[1]!} rows={thin} everyOutcome={every} through={2026} selected={null} onSelect={vi.fn()} />,
   );
   const text = bandText(screen.getByRole("group", { name: /as a graph/ }));
-  for (const name of ["Benefit", "No effect", "Harm"]) expect(text).toContain(name);
+  for (const name of ["Benefit", "No clear difference", "Harm"]) expect(text).toContain(name);
   const empty = ["benefit", "none", "harm"].filter((d) => !thin.some((r) => r.finding.direction === d));
   expect(text.filter((t) => t === "No studies")).toHaveLength(empty.length);
 });

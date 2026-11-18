@@ -136,15 +136,18 @@ export function compareLine(method: MethodData, dimensions: Dimension[]): string
   if (method.classified_pairs === 0) {
     return "No pairs have been judged yet.";
   }
+  const waiting = selection?.unclassified ?? 0;
+  const chosen = method.classified_pairs + waiting;
   const judged =
     selection === null
       ? "It judged every pair"
-      : `It judged the ${number(method.classified_pairs)} pairs whose studies are alike in at least ` +
-        `${selection.minimum} of ${selection.fields} ways` +
+      : `It judged ${waiting > 0 ? `${number(method.classified_pairs)} of ` : ""}the ${number(chosen)} pairs ` +
+        `whose studies are alike in at least ${selection.minimum} of ${selection.fields} ways` +
         (selection.per_study === null ? "" : `, with no study in more than ${selection.per_study}`);
+  const rest = waiting === 0 ? "" : ` The other ${number(waiting)} have not been classified yet.`;
   return (
-    `${judged}. The page shows only the closely matched ones, alike in all ${fields.length}, each ` +
-    `reported by both studies: ${listed}.`
+    `${judged}.${rest} The page shows only the closely matched ones, alike in all ${fields.length}, ` +
+    `each reported by both studies: ${listed}.`
   );
 }
 

@@ -16,10 +16,12 @@ function copy(): Export {
 }
 
 describe("the pair page", () => {
-  it("shows both findings side by side, the effect first, with the likely reason", () => {
+  it("shows both findings side by side, in the classifier's order, with the likely reason", () => {
     render(<PairPage data={fixtures.synthetic} pairId={POPULATION} />);
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1.textContent).toBe("Contradiction · Synthetic symptomsOne trial found a benefit. One found no effect.");
+    expect(h1.textContent).toBe(
+      "Contradiction · Synthetic symptomsOne trial: found a benefit. One trial: no clear difference.",
+    );
     expect(screen.getByText("Likely reason: population")).toBeTruthy();
     expect(screen.getByText("Also differs: intervention")).toBeTruthy();
     expect(screen.getByText("synthetic: depressed adults vs a general older population")).toBeTruthy();
@@ -88,11 +90,23 @@ describe("the pair page", () => {
     expect(screen.queryByRole("link", { name: /^Next/ })).toBeNull();
   });
 
-  it("names designs in the title when the two differ", () => {
+  it("names each design in the title, in the classifier's order, with an observational study's link", () => {
     render(<PairPage data={fixtures.synthetic} pairId="Synthetic symptoms|999000102|999000103" />);
+    // Study a, the trial that found no clear difference, comes first though b found an effect.
     expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
-      "One cohort study found a benefit. One trial found no effect.",
+      "One trial: no clear difference. One cohort study: linked to better synthetic mood.",
     );
+    const cards = within(screen.getByRole("region", { name: "The two findings" })).getAllByRole("article");
+    expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual(["Synthetic102 et al. 2012", "Synthetic103 et al. 2013"]);
+  });
+
+  it("shows a comparison across participants as having no comparison group", () => {
+    const data = copy();
+    for (const node of data.graph.nodes) {
+      if (node.kind === "finding" && node.id === "999000102-1") node.comparator = "Across participants";
+    }
+    render(<PairPage data={data} pairId={POPULATION} />);
+    expect(screen.getAllByText("No comparison group (association across participants)").length).toBeGreaterThan(0);
   });
 
   it("not-found state: an unknown pair id says so and links back to the page", () => {
