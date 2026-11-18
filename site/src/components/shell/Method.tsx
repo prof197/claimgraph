@@ -94,15 +94,16 @@ export function Method({ data }: { data: Export }) {
           {compareStep(method)}
         </Step>
       </ol>
+      {/* The compare step in full, beside the steps it expands on. */}
+      <p className="shell-text">
+        {[depthLine(method), compareLine(method, data.question.dimensions)].filter((t) => t !== null).join(" ")}
+      </p>
       {method.drops.length > 0 && (
         <p className="shell-text">
           Left out:{" "}
           {method.drops.map(dropText).join(" · ")}.
         </p>
       )}
-      <p className="shell-text">
-        {[depthLine(method), compareLine(method, data.question.dimensions)].filter((t) => t !== null).join(" ")}
-      </p>
       <p className="shell-text">{costLine(method)}</p>
       <Evals method={method} />
     </section>
