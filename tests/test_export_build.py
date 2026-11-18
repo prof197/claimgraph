@@ -113,7 +113,8 @@ REVIEWS = {
     "999000201": (
         Design.META_ANALYSIS,
         2019,
-        "Synthetic pooled review",
+        # The title names the exposure and the summary the outcome: listed.
+        "Synthetic supplement X: a synthetic pooled review",
         "Synthetic supplement X gave a pooled benefit on synthetic mood.",
     ),
     "999000202": (Design.NARRATIVE_REVIEW, 2024, "Synthetic supplement X and synthetic mood", None),
@@ -122,6 +123,13 @@ REVIEWS = {
         2021,
         "Synthetic review of an unrelated synthetic condition",
         "Synthetic supplement X was among many factors in an unrelated synthetic condition.",
+    ),
+    # Only the summary names the exposure, in passing: left out.
+    "999000204": (
+        Design.SYSTEMATIC_REVIEW,
+        2022,
+        "Synthetic mood and a synthetic diet",
+        "Synthetic supplement X was one of many synthetic diet factors linked to synthetic mood.",
     ),
 }
 
@@ -332,7 +340,7 @@ def test_the_question_states_the_search_day_and_unevaluated_dimensions(tmp_path:
     question = build(tmp_path).question
 
     assert question.retrieved == date(2026, 1, 15)
-    assert question.abstracts == 12
+    assert question.abstracts == 13
     assert question.mapping_reviewed
     assert [(d.name, d.label, d.unit, d.evaluated) for d in question.dimensions] == [
         ("synthetic_dose", "Synthetic dose", "mg", False)
@@ -396,8 +404,11 @@ def test_excluded_designs_are_left_out_and_reviews_are_listed_newest_first(
         ("999000202", Design.NARRATIVE_REVIEW),
         ("999000201", Design.META_ANALYSIS),
     ]
-    off = "reviews whose title and summary do not name both the exposure and the outcome"
-    assert next(d.count for d in export.method.drops if d.what == off) == 1
+    off = (
+        "reviews whose title does not name the exposure"
+        " or whose title and summary do not name the outcome"
+    )
+    assert next(d.count for d in export.method.drops if d.what == off) == 2
 
 
 def test_every_finding_on_a_mapped_outcome_is_a_node_with_its_quote(tmp_path: Path) -> None:

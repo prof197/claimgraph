@@ -672,11 +672,12 @@ page to draw.
   abstract, so it also finds reviews on other subjects that mention vitamin D or depression in
   passing, such as of refugee children in detention or of risk factors for sarcopenic obesity.
   Extraction records no domain for a review, only a one-sentence summary, so a review is listed
-  only when its title or summary names an exposure term and an outcome term from the question's
-  search, and the method's "Left out" line counts the rest: for vitamin D, 217 of 489, leaving
-  124 systematic reviews and meta-analyses and 148 narrative reviews. A summary can name both in
-  passing too: a meta-analysis of probiotics that flags vitamin D status for future study is
-  still listed.
+  only when its title names an exposure term from the question's search and its title or summary
+  names an outcome term. The exposure must be in the title because a summary names vitamin D in
+  passing as readily as the abstract does: a meta-analysis of probiotics that flags vitamin D
+  status for future study would otherwise be listed. The method's "Left out" line counts the
+  rest: for vitamin D, 330 of 489, leaving 82 systematic reviews and meta-analyses and 77
+  narrative reviews.
 - **Graph:** a NetworkX graph whose nodes are outcome hubs and findings. Edges link each finding
   to its outcome, plus genuine contradictions with their reason. It is exported as node-link JSON
   with a per-outcome summary block, and a JSON schema test guards the export.

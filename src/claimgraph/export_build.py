@@ -204,7 +204,8 @@ def _drops(
     )
     rows.append(
         (
-            "reviews whose title and summary do not name both the exposure and the outcome",
+            "reviews whose title does not name the exposure"
+            " or whose title and summary do not name the outcome",
             reviews_off_question,
         )
     )
@@ -238,16 +239,20 @@ def _term(term: str) -> re.Pattern[str]:
 
 
 def _on_question(review: Review, config: QuestionConfig) -> bool:
-    """Whether a review's title or summary names an exposure term and an outcome term.
+    """Whether a review's title names an exposure term, and its title or summary an outcome term.
 
     The search matches the whole abstract, so a review that mentions vitamin D or depression in
     passing is found; extraction records no domain for a review, so its title and one-sentence
-    summary decide whether the page lists it.
+    summary decide whether the page lists it. The exposure must be in the title: a summary names
+    vitamin D in passing as readily as the abstract does.
     """
-    text = f"{review.title} {review.summary or ''}".replace("-", " ").casefold()
-    return all(
-        any(_term(t).search(text) for t in terms)
-        for terms in (config.exposure_terms, config.outcome_terms)
+
+    def names(text: str, terms: list[str]) -> bool:
+        text = text.replace("-", " ").casefold()
+        return any(_term(t).search(text) for t in terms)
+
+    return names(review.title, config.exposure_terms) and names(
+        f"{review.title} {review.summary or ''}", config.outcome_terms
     )
 
 
