@@ -415,6 +415,10 @@ class ExclusionReason(StrEnum):
     # An observational analysis inside a trial, such as of its baseline data, which would take
     # the trial's design and weight.
     OBSERVATIONAL_ANALYSIS_IN_TRIAL = "observational_analysis_in_trial"
+    # The abstract reports the result only for a construct that bundles depression with other
+    # conditions, which the labeling guide puts out of domain, though extraction named it
+    # depression.
+    BUNDLED_OUTCOME = "bundled_outcome"
 
 
 class ExcludedFinding(Record):
