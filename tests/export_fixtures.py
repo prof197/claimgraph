@@ -33,9 +33,27 @@ from claimgraph.export import (
     WeightedView,
     Weighting,
 )
-from claimgraph.models import DESIGN_WEIGHTS, Arm, Design, PairKind, PairSelection, Reason
+from claimgraph.models import (
+    DESIGN_WEIGHTS,
+    Arm,
+    Design,
+    DirectionWords,
+    FoundWords,
+    PairKind,
+    PairSelection,
+    Reason,
+)
 
 B, N, H = Direction.BENEFIT, Direction.NONE, Direction.HARM
+
+FOUND = FoundWords(
+    trial=DirectionWords(benefit="Found a benefit", none="No clear difference", harm="Found harm"),
+    observational=DirectionWords(
+        benefit="Linked to better synthetic mood",
+        none="No clear link",
+        harm="Linked to worse synthetic mood",
+    ),
+)
 
 # key: (design, sample size, extra papers, trial IDs)
 STUDIES: dict[str, tuple[Design, int | None, list[str], list[str]]] = {
@@ -357,6 +375,7 @@ def _studies() -> list[Study]:
             weight=DESIGN_WEIGHTS.get(design),
             sample_size=size,
             trial_ids=trials,
+            trial=design in (Design.RCT, Design.NON_RANDOMIZED_TRIAL),
         )
         for key, (design, size, extra, trials) in STUDIES.items()
     ]
@@ -398,6 +417,7 @@ def synthetic() -> Export:
             abstracts=40,
             mapping_reviewed=True,
             dimensions=DIMENSIONS,
+            found=FOUND,
         ),
         outcomes=[
             Outcome(
@@ -529,6 +549,7 @@ def minimal() -> Export:
             abstracts=2,
             mapping_reviewed=True,
             dimensions=[],
+            found=FOUND,
         ),
         outcomes=[
             Outcome(
@@ -561,6 +582,7 @@ def minimal() -> Export:
                 weight=3,
                 sample_size=100,
                 trial_ids=[],
+                trial=True,
             )
             for s in studies
         ],

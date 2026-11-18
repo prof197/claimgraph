@@ -8,7 +8,16 @@ from typing import Annotated, Self
 
 from pydantic import Field, StringConstraints, model_validator
 
-from claimgraph.models import DEFAULT_EXCLUDED_DESIGNS, Design, Finding, NonBlank, Reason, Record
+from claimgraph.models import (
+    DEFAULT_EXCLUDED_DESIGNS,
+    DEFAULT_FOUND,
+    Design,
+    Finding,
+    FoundWords,
+    NonBlank,
+    Reason,
+    Record,
+)
 
 MAX_DIMENSIONS = 5
 # The only absent value for an options dimension; text and number dimensions use null.
@@ -111,6 +120,9 @@ class QuestionConfig(Record):
     end_date: date
     exclude_designs: frozenset[Design] = DEFAULT_EXCLUDED_DESIGNS
     dimensions: list[Dimension] = Field(default_factory=list[Dimension], max_length=MAX_DIMENSIONS)
+    # How the page's per-study badges word each direction, for trials and for observational
+    # designs; only the page reads it.
+    found: FoundWords = DEFAULT_FOUND
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:

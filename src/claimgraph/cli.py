@@ -1368,6 +1368,13 @@ def classify_command(
         int | None,
         typer.Option(help="With --alike, no study in more than N pairs.", min=1),
     ] = None,
+    recorded_only: Annotated[
+        bool,
+        typer.Option(
+            help="With --split corpus, write the recorded pairs and count the rest as "
+            "unclassified, instead of failing on them; sends nothing."
+        ),
+    ] = False,
     runs_dir: Annotated[Path, typer.Option(help="Where run outputs are read from.")] = RUNS_DIR,
     mappings_dir: Annotated[
         Path, typer.Option(help="Where the outcome mappings are read from.")
@@ -1395,6 +1402,10 @@ def classify_command(
         raise typer.Exit(1)
     if per_study is not None and alike is None:
         typer.echo("--per-study takes --alike", err=True)
+        raise typer.Exit(1)
+    # The selection records the unclassified count, so the export can say so.
+    if recorded_only and (split is not Split.CORPUS or alike is None or live):
+        typer.echo("--recorded-only takes --split corpus and --alike, and sends nothing", err=True)
         raise typer.Exit(1)
     results = _corpus_results(run_dir, model)
     findings = {f.finding_id: f for r in results if r.study is not None for f in r.study.findings}
@@ -1488,7 +1499,11 @@ def classify_command(
     for line in classify.summary_lines(run.results, prices):
         typer.echo(line)
     typer.echo(f"wrote {out}")
-    if run.missing:
+    if run.missing and recorded_only:
+        typer.echo(f"{len(run.missing)} pairs not recorded, left unclassified:")
+        for pair_id in sorted(run.missing):
+            typer.echo(f"  {pair_id}")
+    elif run.missing:
         typer.echo(
             f"{len(run.missing)} pairs not recorded; record them with --live after a dry run",
             err=True,
@@ -1504,6 +1519,7 @@ def classify_command(
                 fields=pair_sample.FIXED_FIELDS + len(config.dimensions),
                 size_ratio=pair_sample.ALIKE_SIZE_RATIO,
                 per_study=per_study,
+                unclassified=len(run.missing),
             )
         )
         classified = models.ClassifiedPairs(

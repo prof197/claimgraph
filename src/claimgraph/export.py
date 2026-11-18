@@ -22,6 +22,7 @@ from claimgraph.models import (
     Design,
     DimensionValue,
     FindingId,
+    FoundWords,
     NonBlank,
     PairKind,
     PairSelection,
@@ -59,6 +60,8 @@ class Question(Record):
     # The hosted build refuses an export from an unreviewed mapping.
     mapping_reviewed: bool
     dimensions: list[Dimension]
+    # How each study's badge words its direction, by whether the study is a trial.
+    found: FoundWords
 
 
 class DirectionCounts(Record):
@@ -187,6 +190,8 @@ class Study(Record):
     # Enrolled or randomized, not analyzed.
     sample_size: PositiveInt | None
     trial_ids: list[str]
+    # A randomized or non-randomized trial, whose badge reads as a difference, not a link.
+    trial: bool
 
 
 class Review(Record):

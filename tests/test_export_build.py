@@ -643,3 +643,15 @@ def test_the_export_reads_the_recorded_classification_scores(tmp_path: Path) -> 
 
     assert ("classification", "verdict") in rows
     assert ("classification", "reason") in rows
+
+
+def test_badges_are_worded_by_the_config_and_marked_by_trial(tmp_path: Path) -> None:
+    export = build(tmp_path)
+    studies = {s.key: s for s in export.studies}
+
+    assert export.question.found == CONFIG.found
+    assert (studies["999000101"].design, studies["999000101"].trial) == (Design.RCT, True)
+    assert (studies["999000105"].design, studies["999000105"].trial) == (
+        Design.CROSS_SECTIONAL,
+        False,
+    )

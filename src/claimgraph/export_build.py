@@ -216,6 +216,7 @@ def _study(key: str, papers: list[Paper]) -> Study:
         weight=DESIGN_WEIGHTS.get(lead.design),
         sample_size=sizes[0] if sizes else None,
         trial_ids=sorted({t for a, _ in papers for t in a.trial_ids}),
+        trial=lead.design in pair_sample.TRIALS,
     )
 
 
@@ -482,6 +483,7 @@ def _question(
             )
             for d in config.dimensions
         ],
+        found=config.found,
     )
 
 

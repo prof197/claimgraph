@@ -44,6 +44,7 @@ export interface Question {
   abstracts: number;
   mapping_reviewed: boolean;
   dimensions: Dimension[];
+  found: FoundWords;
 }
 /**
  * A custom dimension from the question config, as the finding card shows it.
@@ -55,6 +56,23 @@ export interface Dimension {
   refines: Reason;
   unit: string | null;
   evaluated: boolean;
+}
+/**
+ * A study's badge, worded by design: a trial gave the exposure and found a difference or
+ * not; an observational study found a link, which is not a benefit. Each question words its
+ * own, so its outcome can be named.
+ */
+export interface FoundWords {
+  trial: DirectionWords;
+  observational: DirectionWords;
+}
+/**
+ * What a study's badge says for each direction it found.
+ */
+export interface DirectionWords {
+  benefit: string;
+  none: string;
+  harm: string;
 }
 export interface Outcome {
   name: string;
@@ -129,6 +147,7 @@ export interface Study {
   weight: number | null;
   sample_size: number | null;
   trial_ids: string[];
+  trial: boolean;
 }
 /**
  * NetworkX node-link data: `nx.node_link_data(graph, edges="edges")`.
@@ -234,6 +253,7 @@ export interface PairSelection {
   fields: number;
   size_ratio: number;
   per_study: number | null;
+  unclassified?: number;
 }
 export interface StageCost {
   stage: string;

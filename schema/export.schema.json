@@ -319,6 +319,34 @@
       "title": "DirectionShares",
       "type": "object"
     },
+    "DirectionWords": {
+      "additionalProperties": false,
+      "description": "What a study's badge says for each direction it found.",
+      "properties": {
+        "benefit": {
+          "pattern": "\\S",
+          "title": "Benefit",
+          "type": "string"
+        },
+        "none": {
+          "pattern": "\\S",
+          "title": "None",
+          "type": "string"
+        },
+        "harm": {
+          "pattern": "\\S",
+          "title": "Harm",
+          "type": "string"
+        }
+      },
+      "required": [
+        "benefit",
+        "none",
+        "harm"
+      ],
+      "title": "DirectionWords",
+      "type": "object"
+    },
     "Drop": {
       "additionalProperties": false,
       "description": "Something the pipeline left out, and how many, for the method section.",
@@ -518,6 +546,24 @@
         "dimensions"
       ],
       "title": "FindingNode",
+      "type": "object"
+    },
+    "FoundWords": {
+      "additionalProperties": false,
+      "description": "A study's badge, worded by design: a trial gave the exposure and found a difference or\nnot; an observational study found a link, which is not a benefit. Each question words its\nown, so its outcome can be named.",
+      "properties": {
+        "trial": {
+          "$ref": "#/$defs/DirectionWords"
+        },
+        "observational": {
+          "$ref": "#/$defs/DirectionWords"
+        }
+      },
+      "required": [
+        "trial",
+        "observational"
+      ],
+      "title": "FoundWords",
       "type": "object"
     },
     "Graph": {
@@ -827,6 +873,12 @@
             }
           ],
           "title": "Per Study"
+        },
+        "unclassified": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Unclassified",
+          "type": "integer"
         }
       },
       "required": [
@@ -871,6 +923,9 @@
           },
           "title": "Dimensions",
           "type": "array"
+        },
+        "found": {
+          "$ref": "#/$defs/FoundWords"
         }
       },
       "required": [
@@ -879,7 +934,8 @@
         "retrieved",
         "abstracts",
         "mapping_reviewed",
-        "dimensions"
+        "dimensions",
+        "found"
       ],
       "title": "Question",
       "type": "object"
@@ -1055,6 +1111,10 @@
           },
           "title": "Trial Ids",
           "type": "array"
+        },
+        "trial": {
+          "title": "Trial",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1067,7 +1127,8 @@
         "design",
         "weight",
         "sample_size",
-        "trial_ids"
+        "trial_ids",
+        "trial"
       ],
       "title": "Study",
       "type": "object"

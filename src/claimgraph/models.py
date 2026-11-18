@@ -302,6 +302,32 @@ class Classification(PairClassification):
     arm: Arm
 
 
+class DirectionWords(Record):
+    """What a study's badge says for each direction it found."""
+
+    benefit: NonBlank
+    none: NonBlank
+    harm: NonBlank
+
+
+class FoundWords(Record):
+    """A study's badge, worded by design: a trial gave the exposure and found a difference or
+    not; an observational study found a link, which is not a benefit. Each question words its
+    own, so its outcome can be named."""
+
+    trial: DirectionWords
+    observational: DirectionWords
+
+
+# For a question that words none of its own.
+DEFAULT_FOUND = FoundWords(
+    trial=DirectionWords(benefit="Found a benefit", none="No clear difference", harm="Found harm"),
+    observational=DirectionWords(
+        benefit="Linked to benefit", none="No clear link", harm="Linked to harm"
+    ),
+)
+
+
 class PairSelection(Record):
     """How the classified pairs were chosen from the candidates: those whose two studies are
     alike in at least `minimum` of `fields` ways, both reporting each, with sample sizes alike
@@ -311,6 +337,8 @@ class PairSelection(Record):
     fields: PositiveInt
     size_ratio: PositiveInt
     per_study: PositiveInt | None
+    # Chosen pairs with no recorded answer yet, left unclassified by a replay-only run.
+    unclassified: NonNegativeInt = 0
 
 
 class ClassifiedPairs(Record):
