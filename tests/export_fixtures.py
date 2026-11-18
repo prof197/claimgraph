@@ -4,6 +4,7 @@ The committed fixture files under site/src/fixtures are written from these build
 keeps them in step. The summary numbers are worked by hand from the study table below.
 """
 
+import random
 from datetime import date
 from typing import Any
 
@@ -43,6 +44,7 @@ from claimgraph.models import (
     PairSelection,
     Reason,
 )
+from claimgraph.summary import HeadlineStudy, summarize
 
 B, N, H = Direction.BENEFIT, Direction.NONE, Direction.HARM
 
@@ -334,7 +336,7 @@ def _findings() -> list[FindingNode]:
                 claim=f"Synthetic supplement X {words} {outcome.lower()} in synthetic study "
                 f"{study[-3:]}.",
                 quote=f"Synthetic sentence {n} from synthetic abstract {study}.",
-                outcome_reported=f"synthetic {outcome.lower()} score",
+                outcome_reported=f"{outcome.lower()} score",
                 is_primary=headline and n == 1,
                 subgroup=subgroup,
                 population="Synthetic adults",
@@ -643,4 +645,118 @@ def minimal() -> Export:
     )
 
 
-FIXTURES: dict[str, Any] = {"synthetic": synthetic, "minimal": minimal}
+# The showcase's crowd on synthetic symptoms, drawn with a fixed seed so the fixture is stable.
+# Its shape is a busy question's: mostly cross-sectional studies and trials, more each year,
+# about five in eight finding a benefit and some only in a subgroup. Every record is invented.
+CROWD = 270
+CROWD_SUBGROUP_ONLY = 35
+CROWD_DESIGNS = {
+    Design.CROSS_SECTIONAL: 132,
+    Design.RCT: 64,
+    Design.COHORT: 28,
+    Design.CASE_CONTROL: 24,
+    Design.CASE_SERIES: 19,
+    Design.NON_RANDOMIZED_TRIAL: 5,
+    Design.OTHER: 1,
+}
+
+
+def showcase() -> Export:
+    """The synthetic fixture with a crowd of invented studies on synthetic symptoms, so the
+    graph looks as it does on a question with hundreds of studies."""
+    base = synthetic()
+    rng = random.Random(20261118)
+    years = [2003, 2006, 2008, *range(2010, 2027)]
+    year_weights = [1, 1, 2, *(3 + i for i in range(17))]
+    designs, design_weights = list(CROWD_DESIGNS), list(CROWD_DESIGNS.values())
+    studies: list[Study] = []
+    nodes: list[FindingNode] = []
+    for i in range(CROWD + CROWD_SUBGROUP_ONLY):
+        key = f"999{100001 + i}"
+        design = rng.choices(designs, design_weights)[0]
+        size = None if rng.random() < 0.07 else max(12, round(rng.lognormvariate(5.2, 1.5)))
+        headline = i < CROWD
+        direction = B if rng.random() < 0.63 else N
+        words = {B: "lowered", N: "did not change", H: "raised"}[direction]
+        studies.append(
+            Study(
+                key=key,
+                pmids=[key],
+                title=f"Synthetic study {i + 1} of supplement X and mood",
+                first_author=f"Synthetic{i + 1}",
+                journal="Synthetic Journal",
+                year=rng.choices(years, year_weights)[0],
+                design=design,
+                weight=DESIGN_WEIGHTS.get(design),
+                sample_size=size,
+                trial_ids=[],
+                trial=design in (Design.RCT, Design.NON_RANDOMIZED_TRIAL),
+            )
+        )
+        nodes.append(
+            FindingNode(
+                kind="finding",
+                id=_finding_id(key, 1),
+                outcome=SYMPTOMS,
+                study=key,
+                pmid=key,
+                direction=direction,
+                headline=headline,
+                claim=f"Synthetic supplement X {words} synthetic symptoms in synthetic study "
+                f"{i + 1}.",
+                quote=f"Synthetic sentence 1 from synthetic abstract {key}.",
+                outcome_reported="synthetic symptoms score",
+                is_primary=headline,
+                subgroup=None if headline else "synthetic subgroup",
+                population="Synthetic adults",
+                intervention="Synthetic supplement X, 50 mg daily for 8 weeks",
+                comparator="Synthetic placebo",
+                dimensions={"baseline_synthetic_status": "not_reported", "synthetic_dose": 50.0},
+            )
+        )
+    every_study = {s.key: s for s in [*base.studies, *studies]}
+    findings = [n for n in base.graph.nodes if n.kind == "finding"] + nodes
+    on_symptoms = [n for n in findings if n.outcome == SYMPTOMS]
+    leads = [
+        HeadlineStudy(
+            study=n.study,
+            design=every_study[n.study].design,
+            sample_size=every_study[n.study].sample_size,
+            direction=n.direction,
+        )
+        for n in on_symptoms
+        if n.headline
+    ]
+    led = {lead.study for lead in leads}
+    subgroup_only = len({n.study for n in on_symptoms} - led)
+    outcomes = [
+        o.model_copy(update={"summary": summarize(leads, subgroup_only)})
+        if o.name == SYMPTOMS
+        else o
+        for o in base.outcomes
+    ]
+    edges = [
+        *base.graph.edges,
+        *(OutcomeEdge(kind="outcome", source=n.id, target=_hub(SYMPTOMS)) for n in nodes),
+    ]
+    return base.model_copy(
+        update={
+            "question": base.question.model_copy(update={"abstracts": 360}),
+            "outcomes": outcomes,
+            "studies": list(every_study.values()),
+            "graph": base.graph.model_copy(
+                update={"nodes": [*base.graph.nodes, *nodes], "edges": edges}
+            ),
+            "method": base.method.model_copy(
+                update={
+                    "records_found": 372,
+                    "abstracts_kept": 360,
+                    "findings": len(findings),
+                    "studies": len(every_study),
+                }
+            ),
+        }
+    )
+
+
+FIXTURES: dict[str, Any] = {"synthetic": synthetic, "minimal": minimal, "showcase": showcase}
