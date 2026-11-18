@@ -375,22 +375,22 @@ hosted page. The table sets it beside vitamin D and depression.
 | --- | ---: | ---: |
 | Question | Does vitamin D affect depression? | Does creatine supplementation affect cognition? |
 | Abstracts kept | 1,901 | 188 |
-| Studies with a headline finding | 423 | 34 |
+| Studies with a headline finding | 422 | 34 |
 | Findings extracted | 815 | 83 |
 | Outcomes | 4 | 15 |
-| Candidate pairs | 24,495 | 60 |
+| Candidate pairs | 24,324 | 60 |
 | Outcome mapping | reviewed | unreviewed |
 | Extraction, measured | $5.26 | $0.51 |
-| `single-small`, estimated | $5.15 (at most $34.82) | $0.012 (at most $0.085) |
-| `single-small`, measured | $2.35 (from 40 dev pairs) | n/a |
-| `single-mid`, estimated | $102.95 (at most $696.49) | $0.25 (at most $1.70) |
-| `single-mid`, measured | $40.32 (from 40 dev pairs) | n/a |
-| `self-consistency` (k = 6), estimated | $580.30 (at most $4,192.29) | $1.39 (at most $10.21) |
-| `self-moa`, estimated | $399.56 (at most $2,820.25) | $0.96 (at most $6.87) |
-| `council`, estimated | $643.99 (at most $2,819.21) | $1.56 (at most $6.87) |
-| `council`, measured | $194.05 (from 204 corpus pairs) | n/a |
-| `council-ranked`, estimated | $1,192.09 (at most $4,941.36) | $2.89 (at most $12.04) |
-| `council-ranked`, measured | $390.93 (from 40 dev pairs) | n/a |
+| `single-small`, estimated | $5.11 (at most $34.58) | $0.012 (at most $0.085) |
+| `single-small`, measured | $2.33 (from 40 dev pairs) | n/a |
+| `single-mid`, estimated | $102.24 (at most $691.64) | $0.25 (at most $1.70) |
+| `single-mid`, measured | $40.04 (from 40 dev pairs) | n/a |
+| `self-consistency` (k = 6), estimated | $576.27 (at most $4,163.08) | $1.39 (at most $10.21) |
+| `self-moa`, estimated | $396.79 (at most $2,800.60) | $0.96 (at most $6.87) |
+| `council`, estimated | $639.51 (at most $2,799.56) | $1.56 (at most $6.87) |
+| `council`, measured | $193.77 (from 201 corpus pairs) | n/a |
+| `council-ranked`, estimated | $1,183.80 (at most $4,906.93) | $2.89 (at most $12.04) |
+| `council-ranked`, measured | $388.20 (from 40 dev pairs) | n/a |
 
 Each depth's estimate is the classify dry run's for every candidate pair, as if none were recorded: typical output and no cache reads at batch prices, with the most it could cost in brackets. A measured row scales a current run's spend per pair, cache reads included, to every candidate pair. Prices checked 2026-11-16.
 
@@ -414,7 +414,7 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | extract | dev-haiku | claude-haiku-5-5 | 50 | 33,951 | 7,153 | 350,497 | 35,659 | $0.0128 | 2026-11-13 |
 | normalize | sonnet proposal 60df41ed | claude-sonnet-5-5 | 1 | 11,157 | 0 | 0 | 12,900 | $0.1513 | 2026-11-16 |
 | normalize | sonnet proposal 67f6f870 | claude-sonnet-5-5 | 1 | 12,547 | 0 | 0 | 11,040 | $0.1355 | 2026-11-16 |
-| classify | corpus-council | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 1,736 | 1,798,045 | 179,559 | 3,027,635 | 262,920 | $3.4885 | 2026-11-16 |
+| classify | corpus-council | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 1,756 | 1,818,850 | 188,588 | 3,056,023 | 265,961 | $3.5372 | 2026-11-16 |
 | classify | dev-council-ranked | claude-sonnet-5-5, gemini-4-argon, gpt-6.1-sol | 283 | 313,987 | 55,606 | 430,128 | 46,675 | $0.6384 | 2026-11-16 |
 | classify | dev-single-mid | claude-sonnet-5-5 | 40 | 24,390 | 2,697 | 105,183 | 6,565 | $0.0658 | 2026-11-16 |
 | classify | dev-single-mid.round1 | claude-sonnet-5-5 | 40 | 24,390 | 2,015 | 78,585 | 7,202 | $0.0668 | 2026-11-16 |
@@ -432,8 +432,8 @@ Measured spend of each recorded run, from the token counts the API returned and 
 | retrieve | 1 | $0.0000 |
 | extract | 3 | $5.2760 |
 | normalize | 2 | $0.2868 |
-| classify | 12 | $16.4830 |
-| All stages | 18 | $22.0459 |
+| classify | 12 | $16.5317 |
+| All stages | 18 | $22.0946 |
 
 corpus-first200-sonnet's recordings are corpus-sonnet's, so the totals count them once.
 <!-- run-costs:end -->
@@ -450,7 +450,7 @@ record, which is only as current as the last fetch. Published runs refresh the c
 Known limitation: papers on the same trial or dataset can be paired as a contradiction, since
 they match on everything the most-alike selection compares. Papers that share a trial
 registration are merged into one study first, but an unregistered trial or a shared survey is
-not. Of the 204 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
+not. Of the 201 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
 against Huang 2025, Guo 2025 and Chen 2025, all on NHANES, from different cycles and so
 different people. Found by string matching; see DESIGN.md. The merge also misses a trial whose
 registration only one paper names: Libuda 2020 and Schlarbaum 2026 appear to report the same
@@ -460,6 +460,11 @@ Known limitation: "No clear difference" mostly means the abstract reported no si
 the summary strip maps what studies reported rather than synthesizing them. Cochrane's handbook
 (chapter 12, section 12.2.2.1) rejects vote counting by statistical significance, because small
 studies that cannot detect a real effect get counted as showing none.
+
+Known limitation: on a phone, Graph view sets some dots so close that a neighbour's tap area
+covers part of one. List view, the default under 720px, reaches every study, as do the arrow
+keys in Graph view, so the page relies on WCAG 2.2's equivalent-control exception to the target
+size minimum (success criterion 2.5.8).
 
 Known limitation: the classify dry run's estimate runs high. For the council run on the most
 alike pairs it estimated $5.75, and the run measured $1.74, about a third of it. The measured

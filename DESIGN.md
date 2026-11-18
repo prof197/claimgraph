@@ -668,7 +668,15 @@ page to draw.
 - **Thin outcomes:** under 5 studies, the strip shows counts only, without the weighted bar or the
   sensitivity line, and says the evidence is thin.
 - **Reviews and meta-analyses:** listed, not counted. Narrative reviews sit in a collapsed list with
-  their count, under the systematic reviews and meta-analyses.
+  their count, under the systematic reviews and meta-analyses. The search matches the whole
+  abstract, so it also finds reviews on other subjects that mention vitamin D or depression in
+  passing, such as of refugee children in detention or of risk factors for sarcopenic obesity.
+  Extraction records no domain for a review, only a one-sentence summary, so a review is listed
+  only when its title or summary names an exposure term and an outcome term from the question's
+  search, and the method's "Left out" line counts the rest: for vitamin D, 217 of 489, leaving
+  124 systematic reviews and meta-analyses and 148 narrative reviews. A summary can name both in
+  passing too: a meta-analysis of probiotics that flags vitamin D status for future study is
+  still listed.
 - **Graph:** a NetworkX graph whose nodes are outcome hubs and findings. Edges link each finding
   to its outcome, plus genuine contradictions with their reason. It is exported as node-link JSON
   with a per-outcome summary block, and a JSON schema test guards the export.
@@ -1417,8 +1425,8 @@ Measured where a number is given; the rest are expectations.
 Block sizes, token use, cost and eval scores land here as they are measured.
 
 **Vitamin D candidate pairs**, from the reviewed mapping, after the 15D polarity override and the
-26 excluded findings: 24,495 pairs among 423 studies with a headline finding, 24,229 of them an
-effect against no effect and 266 benefit against harm. The last three exclusions, found by
+27 excluded findings: 24,324 pairs among 422 studies with a headline finding, 24,058 of them an
+effect against no effect and 266 benefit against harm. The last four exclusions, found by
 reading the closely matched pairs, took the count from 24,770. Before the 21 findings whose exposure is
 off the question were excluded there were 27,297 pairs, 854 of them benefit against harm: a
 finding on another exposure points the other way from many vitamin D findings, so the leaks made
@@ -1428,13 +1436,13 @@ dropped as out of domain, and 58 study-outcomes have only subgroup results.
 
 | Outcome | Studies | Pairs | Only subgroup results |
 | --- | ---: | ---: | ---: |
-| Depressive symptoms | 274 | 17,613 | 37 |
+| Depressive symptoms | 273 | 17,442 | 37 |
 | Depression cases | 184 | 6,881 | 21 |
 | Remission | 2 | 1 | 0 |
 | Treatment response | 2 | 0 | 0 |
 
 These count pairs of studies, which grow with the square of the studies on an outcome, not
-findings. The page no longer shows them: 17,613 beside 274 studies reads as a count of
+findings. The page no longer shows them: 17,442 beside 273 studies reads as a count of
 findings, and the panel shows the closely matched pairs instead.
 
 An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
@@ -1474,9 +1482,8 @@ differs in most of these pairs, not that it is the main reason in each.
 
 Two papers on the same trial or dataset match on every field, so the selection was checked for
 them by string matching, without a model. Papers sharing a trial registration are already one
-study. No classified pair includes a review, and no pair names the same trial; 3 of the 221,
-still classified after the exclusions below,
-pair Zhao 2010 with a later paper on the same survey, NHANES, from different cycles and so
+study. No classified pair includes a review, and no pair names the same trial; 3 of the 201
+classified after the exclusions below pair Zhao 2010 with a later paper on the same survey, NHANES, from different cycles and so
 different people (Huang 2025, Guo 2025, Chen 2025).
 
 **The closely matched pairs.** The panel shows only the classified pairs whose studies are alike
@@ -1487,7 +1494,7 @@ two studies looking at different things; a partial list of those tells a researc
 Eleven pairs were alike in all four, all classified, and each was read against both abstracts.
 All 11 pair separate studies, since two papers on one cohort would match on all four fields by
 construction: different investigators, countries and populations. Reading them against the
-abstracts found three extraction errors, each now on the reviewed exclusion list:
+abstracts found four extraction errors, each now on the reviewed exclusion list:
 
 - Sharifi 2019's finding is a within-group change ("scores decreased in the vitamin D group
   after the intervention"); the abstract gives no between-group result for all patients, only
@@ -1497,14 +1504,18 @@ abstracts found three extraction errors, each now on the reviewed exclusion list
   headline (`observational_analysis_in_trial`).
 - Tarikere Satyanarayana 2023 reports a significant association of unreported direction,
   which extraction recorded as no change (`direction_not_reported`).
+- Tang 2022's null is for "mental health", which the abstract defines as depression, sleep
+  problems and fatigue together, and it reports no depression result on its own; extraction
+  named the outcome depression (BDI-II). The labeling guide puts an outcome that bundles
+  depression with other conditions out of the domain (`bundled_outcome`). Its three pairs went
+  with it, Krysiak 2018's among them.
 
-Tang 2022, in three pairs, stands: its "However" contrasts with the sentence before it, about
-night-shift nurses' sleep, not with an association in a continuous analysis, which the abstract
-does not report; the conclusion confirms the null. Its quote says "mental health", which the
-abstract defines as depression, sleep problems and fatigue together.
+These hand exclusions are the extraction errors the panel made visible, found by reading 11
+pairs, not a review of the corpus; how often such errors occur across it is what the extraction
+eval estimates, in the README's results.
 
-With the exclusions, 9 pairs are alike in all four (8 on depressive symptoms, 1 on depression
-cases), 8 genuine and 1 apparent, all recorded:
+With the exclusions, 6 pairs are alike in all four (5 on depressive symptoms, 1 on depression
+cases), 5 genuine and 1 apparent, all recorded:
 
 | Pair (study a vs b) | Verdict | Reason |
 | --- | --- | --- |
@@ -1514,21 +1525,29 @@ cases), 8 genuine and 1 apparent, all recorded:
 | Leedahl 2013 vs D'Souza 2020 | genuine | population |
 | Leedahl 2013 vs Jang 2026 | genuine | population |
 | Dana-Alamdari 2015 vs Kabukçu 2026 | genuine | population |
-| Kim 2016 vs Tang 2022 | genuine | population |
-| Tang 2022 vs Moura 2026 | genuine | population |
-| Krysiak 2018 vs Tang 2022 | genuine | population |
 
-The exclusions also change the wider selection: 209 pairs are alike in at least three of four,
-and 5 of them, each with Mousa 2018's trial result as its new headline, have no recorded answer.
-They were not sent, and `classify --recorded-only` leaves them unclassified, which the method
-text says; 204 are classified.
+The reasons are shown as the model wrote them, including where one is wrong: Williams 2015 vs
+Sahasrabudhe 2020 says B's claim is cross-sectional only, though its quote includes the 5-year
+analysis. The page states the reason's measured accuracy, and editing model output by hand
+would make that figure describe something other than what is shown.
+
+The exclusions also change the wider selection: 201 pairs are now alike in at least three of
+four. Five of them, each with Mousa 2018's trial result as its new headline, had no recorded
+answer, and council classified them for $0.05 measured: all five genuine, three for design or
+bias and two for population. So all 201 are classified: 164 genuine, 22 apparent and 15 off
+the question.
+
+`classify --recorded-only` is the re-export path without an API key. After a mapping or
+exclusion change it writes the pairs that have a recorded answer and counts the rest as
+unclassified, without sending anything, and the method text says how many wait; recording
+them is a separate live run, after a dry run.
 
 Closely matched is not a replication: dose, duration and who was studied can still differ, and
 those are what the reasons point at. Each pair is shown side by side from the extracted fields,
 with its likely reason as one line and the classifier's measured accuracy stated once for the
 panel: the verdict is right on 93.8% (90% to 97%) of the stratified 300 and the strict reason on
 54.2% (38% to 69%), as pre-registered. `eval contradictions` writes those figures beside the
-labels, and the export reads the hosted arm's. The other 196 classified pairs stay in the export
+labels, and the export reads the hosted arm's. The other 195 classified pairs stay in the export
 and in the CLI's output, for anyone who wants them; the page leaves them off so that what it
 lists is the disagreements design, measure, baseline status and size cannot explain.
 
