@@ -26,6 +26,7 @@ import {
   studyLabel,
 } from "./labels";
 import { findingsById, orderedApparent, orderedPairs, sidesOf } from "./pairs";
+import { StudyLetter } from "./StudyLetter";
 
 export interface ContradictionPanelProps {
   data: Export;
@@ -154,12 +155,25 @@ export function withoutReason(detail: string, reason: Reason): string {
   return detail.toLowerCase().startsWith(word) ? detail.slice(word.length).trim() : detail;
 }
 
-function Side({ finding, studies, words }: { finding: FindingNode; studies: Map<string, Study>; words: FoundWords }) {
+function Side({
+  letter,
+  finding,
+  studies,
+  words,
+}: {
+  letter: "A" | "B";
+  finding: FindingNode;
+  studies: Map<string, Study>;
+  words: FoundWords;
+}) {
   const study = studies.get(finding.study);
   return (
     <div className={styles.side}>
       <span className={`${styles.badge} ${styles[finding.direction]}`}>{foundLabel(words, study, finding.direction)}</span>
-      <span className={styles.sideName}>{studyLabel(study, finding.study)}</span>
+      <span className={styles.sideHead}>
+        <StudyLetter letter={letter} />
+        <span className={styles.sideName}>{studyLabel(study, finding.study)}</span>
+      </span>
       <dl className={styles.fields}>
         <dt>Population</dt>
         <dd>{finding.population}</dd>
@@ -188,9 +202,9 @@ function Sides({
 }) {
   return (
     <div className={styles.sides}>
-      <Side finding={sides[0]} studies={studies} words={words} />
+      <Side letter="A" finding={sides[0]} studies={studies} words={words} />
       <span className={styles.visuallyHidden}>versus</span>
-      <Side finding={sides[1]} studies={studies} words={words} />
+      <Side letter="B" finding={sides[1]} studies={studies} words={words} />
     </div>
   );
 }

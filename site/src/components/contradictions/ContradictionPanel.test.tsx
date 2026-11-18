@@ -111,6 +111,9 @@ describe("the contradiction panel", () => {
     // Pair 104|105: study a, the trial, on the left; b, the cross-sectional study, on the right.
     const names = [...item.querySelectorAll("span")].map((e) => e.textContent).filter((t) => /^Synthetic10\d et al\./.test(t ?? ""));
     expect(names).toEqual(["Synthetic104 et al. 2014", "Synthetic105 et al. 2015"]);
+    // The reason lines call them A and B, so the columns say which is which.
+    const letters = [...item.querySelectorAll("span")].map((e) => e.textContent).filter((t) => /^Study [AB]$/.test(t ?? ""));
+    expect(letters).toEqual(["Study A", "Study B"]);
     expect(within(item).getByText("Found a benefit")).toBeTruthy();
     expect(within(item).getByText("Linked to worse synthetic mood")).toBeTruthy();
   });

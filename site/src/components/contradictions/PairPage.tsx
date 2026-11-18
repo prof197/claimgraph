@@ -31,6 +31,7 @@ import {
   studyLabel,
 } from "./labels";
 import { findingsById, orderedPairs, sidesOf } from "./pairs";
+import { StudyLetter } from "./StudyLetter";
 
 export interface PairPageProps {
   data: Export;
@@ -126,8 +127,14 @@ function Pair({ data, found }: { data: Export; found: Found }) {
       </section>
 
       <section aria-label="The two findings" className={styles.findings}>
-        {sides.map((finding) => (
-          <FindingCard key={finding.id} finding={finding} study={studies.get(finding.study)} words={data.question.found} />
+        {sides.map((finding, i) => (
+          <FindingCard
+            key={finding.id}
+            letter={i === 0 ? "A" : "B"}
+            finding={finding}
+            study={studies.get(finding.study)}
+            words={data.question.found}
+          />
         ))}
       </section>
 
@@ -160,10 +167,12 @@ function Pair({ data, found }: { data: Export; found: Found }) {
 }
 
 function FindingCard({
+  letter,
   finding,
   study,
   words,
 }: {
+  letter: "A" | "B";
   finding: FindingNode;
   study: Study | undefined;
   words: FoundWords;
@@ -174,7 +183,9 @@ function FindingCard({
         {foundLabel(words, study, finding.direction)}
       </span>
       <div className={styles.cardHead}>
-        <h2 className={styles.h2Card}>{studyLabel(study, finding.study)}</h2>
+        <h2 className={styles.h2Card}>
+          <StudyLetter letter={letter} /> {studyLabel(study, finding.study)}
+        </h2>
         <p className={styles.cite}>{citation(study)}</p>
       </div>
       <p className={styles.claim}>{finding.claim}</p>
@@ -306,9 +317,10 @@ function SideBySide({ data, found, studies }: { data: Export; found: Found; stud
           <thead>
             <tr>
               <th scope="col">Field</th>
-              {[fa, fb].map((f) => (
+              {[fa, fb].map((f, i) => (
                 <th key={f.id} scope="col">
                   <span className={styles.studyHead}>
+                    <StudyLetter letter={i === 0 ? "A" : "B"} />
                     <span className={`${styles.badge} ${styles[f.direction]}`}>{foundLabel(data.question.found, studies.get(f.study), f.direction)}</span>
                     {studyLabel(studies.get(f.study), f.study)}
                   </span>
