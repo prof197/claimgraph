@@ -136,6 +136,9 @@ export function BandChart({ outcome, rows, everyOutcome, through, selected, onSe
                   data-band={b.direction}
                 />
               ))}
+              {layout.bands.slice(1).map((b) => (
+                <line key={b.direction} x1={0} x2={width} y1={b.top} y2={b.top} className={styles.gridline} data-row-line="" />
+              ))}
               {layout.axis.ticks.map((t) => (
                 <g key={t.at}>
                   {t.boundary && (

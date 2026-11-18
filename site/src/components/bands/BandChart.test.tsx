@@ -117,3 +117,11 @@ it("says so when an outcome has nothing to draw", () => {
   render(<BandChart outcome={outcome} rows={[]} everyOutcome={every} through={2026} selected={null} onSelect={vi.fn()} />);
   expect(screen.getByText(/No findings on synthetic symptoms to draw/)).toBeTruthy();
 });
+
+it("rules a line between bands, like the year gridlines", () => {
+  const { group } = chart();
+  const tops = [...group.querySelectorAll("rect[data-band]")].slice(1).map((r) => r.getAttribute("y"));
+  const lines = [...group.querySelectorAll("line[data-row-line]")];
+  expect(lines.map((l) => l.getAttribute("y1"))).toEqual(tops);
+  expect(lines.every((l) => l.getAttribute("y1") === l.getAttribute("y2"))).toBe(true);
+});
