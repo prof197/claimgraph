@@ -195,7 +195,8 @@ class Study(Record):
 
 
 class Review(Record):
-    """Listed for context and never counted: reviews pool studies already on the page."""
+    """Listed for context and never counted; only reviews whose title or summary names both
+    the exposure and the outcome are listed."""
 
     pmid: Pmid
     title: NonBlank
@@ -287,7 +288,10 @@ class Drop(Record):
 
 
 class StageCost(Record):
+    """One stage's measured spend over every recorded run of the question, evals included."""
+
     stage: NonBlank
+    runs: NonNegativeInt
     dollars: NonNegativeFloat
 
 

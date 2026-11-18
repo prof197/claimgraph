@@ -107,10 +107,22 @@ PAPERS: dict[str, tuple[Design, int | None, list[str], list[Spec]]] = {
     "999000107": (Design.CASE_REPORT, 1, [], [("synthetic mood score", DOWN, False, None)]),
     "999000108": (Design.RCT, 60, [], [("synthetic mood score", DOWN, True, None)]),
 }
-# pmid: (design, year, summary)
+# pmid: (design, year, title, summary). A review is listed only when its title or summary names
+# an exposure term and an outcome term: 201 by its summary, 202 by its title; 203 names neither.
 REVIEWS = {
-    "999000201": (Design.META_ANALYSIS, 2019, "Synthetic pooled benefit on symptoms."),
-    "999000202": (Design.NARRATIVE_REVIEW, 2024, None),
+    "999000201": (
+        Design.META_ANALYSIS,
+        2019,
+        "Synthetic pooled review",
+        "Synthetic supplement X gave a pooled benefit on synthetic mood.",
+    ),
+    "999000202": (Design.NARRATIVE_REVIEW, 2024, "Synthetic supplement X and synthetic mood", None),
+    "999000203": (
+        Design.SYSTEMATIC_REVIEW,
+        2021,
+        "Synthetic review of an unrelated synthetic condition",
+        "Synthetic supplement X was among many factors in an unrelated synthetic condition.",
+    ),
 }
 
 
@@ -150,11 +162,11 @@ CLASSIFIED = [
 ]
 
 
-def abstract(pmid: str, year: int, trial_ids: list[str]) -> Abstract:
+def abstract(pmid: str, year: int, trial_ids: list[str], title: str | None = None) -> Abstract:
     return Abstract(
         pmid=pmid,
         pmcid=None,
-        title=f"Synthetic study {pmid[-3:]} of supplement X and mood",
+        title=title or f"Synthetic study {pmid[-3:]} of supplement X and mood",
         first_author=f"Synthetic{pmid[-3:]}",
         journal="Synthetic Journal",
         year=year,
@@ -191,7 +203,7 @@ def finding(pmid: str, n: int, spec: Spec) -> Finding:
 def result(
     pmid: str, design: Design, size: int | None, findings: list[Finding]
 ) -> ExtractionResult:
-    summary = REVIEWS[pmid][2] if pmid in REVIEWS else None
+    summary = REVIEWS[pmid][3] if pmid in REVIEWS else None
     study = ExtractedStudy(
         pmid=pmid,
         design=design,
@@ -267,12 +279,12 @@ def manifests() -> tuple[RunManifest, ExtractManifest]:
 def write_run(run_dir: Path, reverse: bool = False) -> None:
     """The run's files as the pipeline writes them; reversed, the lines come in the other order."""
     abstracts = [abstract(p, 2010 + int(p[-2:]), t) for p, (_, _, t, _) in PAPERS.items()]
-    abstracts += [abstract(p, year, []) for p, (_, year, _) in REVIEWS.items()]
+    abstracts += [abstract(p, year, [], title) for p, (_, year, title, _) in REVIEWS.items()]
     results = [
         result(p, design, size, [finding(p, n, s) for n, s in enumerate(specs, start=1)])
         for p, (design, size, _, specs) in PAPERS.items()
     ]
-    results += [result(p, design, None, []) for p, (design, _, _) in REVIEWS.items()]
+    results += [result(p, design, None, []) for p, (design, *_) in REVIEWS.items()]
     if reverse:
         abstracts.reverse()
         results.reverse()
@@ -320,7 +332,7 @@ def test_the_question_states_the_search_day_and_unevaluated_dimensions(tmp_path:
     question = build(tmp_path).question
 
     assert question.retrieved == date(2026, 1, 15)
-    assert question.abstracts == 11
+    assert question.abstracts == 12
     assert question.mapping_reviewed
     assert [(d.name, d.label, d.unit, d.evaluated) for d in question.dimensions] == [
         ("synthetic_dose", "Synthetic dose", "mg", False)
@@ -380,10 +392,12 @@ def test_excluded_designs_are_left_out_and_reviews_are_listed_newest_first(
     ]
     other = next(s for s in export.studies if s.key == "999000106")
     assert other.weight is None
-    assert [(r.pmid, r.design, r.summary) for r in export.reviews] == [
-        ("999000202", Design.NARRATIVE_REVIEW, None),
-        ("999000201", Design.META_ANALYSIS, "Synthetic pooled benefit on symptoms."),
+    assert [(r.pmid, r.design) for r in export.reviews] == [
+        ("999000202", Design.NARRATIVE_REVIEW),
+        ("999000201", Design.META_ANALYSIS),
     ]
+    off = "reviews whose title and summary do not name both the exposure and the outcome"
+    assert next(d.count for d in export.method.drops if d.what == off) == 1
 
 
 def test_every_finding_on_a_mapped_outcome_is_a_node_with_its_quote(tmp_path: Path) -> None:
@@ -441,7 +455,11 @@ def test_the_method_counts_drops_and_costs(tmp_path: Path) -> None:
     assert drops["findings whose quote was not verbatim"] == 1
     assert drops["findings on outcomes the mapping review left out of the domain"] == 1
     assert drops["findings from designs the question excludes: case report, animal, in vitro"] == 1
-    assert [(c.stage, c.dollars) for c in method.costs] == [("extract", 0.25)]
+    # Every stage with a recorded run, as the README's cost table totals them.
+    assert [(c.stage, c.runs, c.dollars) for c in method.costs] == [
+        ("retrieve", 1, 0),
+        ("extract", 1, 0.25),
+    ]
     assert method.evals == []
 
 
@@ -490,7 +508,8 @@ def test_an_off_question_pair_is_counted_as_a_drop_and_left_off_the_panel(tmp_pa
 
     drops = {d.what: d.count for d in export.method.drops}
     assert drops["candidate pairs where one finding's exposure is not the question's"] == 1
-    assert build(tmp_path / "plain").method.drops[-1].count == 0
+    plain = {d.what: d.count for d in build(tmp_path / "plain").method.drops}
+    assert plain["candidate pairs where one finding's exposure is not the question's"] == 0
     shown = {e.pair_id for e in export.graph.edges if isinstance(e, ContradictionEdge)}
     shown |= {p.pair_id for o in export.outcomes for p in o.apparent}
     assert off.pair_id not in shown

@@ -194,9 +194,39 @@ describe("the synthetic fixture", () => {
     expect(method.textContent).not.toMatch(/candidate pairs|\b25\b/);
     expect(method.textContent).toContain("classified at single-small depth");
     expect(method.textContent).toContain(
-      "This run cost $0.18, measured: extract $0.11 · normalize $0.02 · classify $0.05.",
+      "Measured spend over every recorded run of this question, evals included: $0.18. By stage: " +
+        "retrieve $0.00 (1 run) · extract $0.11 (2 runs) · normalize $0.02 (1 run) · classify $0.05 (3 runs).",
     );
+    // A count of one takes the singular.
+    expect(method.textContent).toContain("1 finding whose quote was not verbatim");
+    expect(method.textContent).toContain("3 findings outside the outcome domain");
     expect(method.textContent).toContain("52 PubMed records found");
+  });
+});
+
+describe("the measured accuracy", () => {
+  it("shows each extraction field once, with the findings matched over the model's and the labels'", () => {
+    render(<QuestionPage data={fixtures.synthetic} outcome={null} />);
+    const method = screen.getByRole("region", { name: "How this page was made" });
+    expect(method.textContent).toContain("extraction, effect: precision 0.70 (21 of 30), recall 0.66 (21 of 32)");
+    expect(method.textContent).not.toContain("effect recall");
+    expect(method.textContent).toContain(
+      "Precision is over the 30 findings the model returned, recall over the 32 labeled.",
+    );
+    expect(method.textContent).not.toMatch(/not equal by construction/);
+  });
+
+  it("says why precision and recall are equal when the model returned as many findings as were labeled", () => {
+    const equal = JSON.parse(JSON.stringify(fixtures.synthetic)) as Export;
+    for (const e of equal.method.evals) {
+      if (e.metric.endsWith(" recall")) e.n = 30;
+    }
+    render(<QuestionPage data={equal} outcome={null} />);
+    const method = screen.getByRole("region", { name: "How this page was made" });
+    expect(method.textContent).toContain(
+      "The model returned as many findings as were labeled, so each field's two figures are equal; " +
+        "they are not equal by construction.",
+    );
   });
 });
 

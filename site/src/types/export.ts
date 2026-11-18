@@ -212,7 +212,8 @@ export interface ContradictionEdge {
   closely_matched?: boolean;
 }
 /**
- * Listed for context and never counted: reviews pool studies already on the page.
+ * Listed for context and never counted; only reviews whose title or summary names both
+ * the exposure and the outcome are listed.
  */
 export interface Review {
   pmid: string;
@@ -255,8 +256,12 @@ export interface PairSelection {
   per_study: number | null;
   unclassified?: number;
 }
+/**
+ * One stage's measured spend over every recorded run of the question, evals included.
+ */
 export interface StageCost {
   stage: string;
+  runs: number;
   dollars: number;
 }
 export interface EvalResult {

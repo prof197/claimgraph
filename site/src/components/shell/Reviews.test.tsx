@@ -12,3 +12,9 @@ it("lists systematic reviews and meta-analyses, and collapses narrative reviews 
   expect(listed && within(listed).getByText(/Pooled 12 synthetic trials/)).toBeTruthy();
   expect(within(details as HTMLElement).getAllByText(/Synthetic narrative review/).length).toBeGreaterThan(0);
 });
+
+it("says the reviews are listed for context, and makes no claim about what they pool", () => {
+  render(<Reviews reviews={fixtures.synthetic.reviews} />);
+  expect(screen.getByText("Listed for context, not counted above.")).toBeTruthy();
+  expect(screen.queryByText(/already on this page/)).toBeNull();
+});

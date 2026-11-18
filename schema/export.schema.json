@@ -955,7 +955,7 @@
     },
     "Review": {
       "additionalProperties": false,
-      "description": "Listed for context and never counted: reviews pool studies already on the page.",
+      "description": "Listed for context and never counted; only reviews whose title or summary names both\nthe exposure and the outcome are listed.",
       "properties": {
         "pmid": {
           "pattern": "^[1-9][0-9]*$",
@@ -1016,11 +1016,17 @@
     },
     "StageCost": {
       "additionalProperties": false,
+      "description": "One stage's measured spend over every recorded run of the question, evals included.",
       "properties": {
         "stage": {
           "pattern": "\\S",
           "title": "Stage",
           "type": "string"
+        },
+        "runs": {
+          "minimum": 0,
+          "title": "Runs",
+          "type": "integer"
         },
         "dollars": {
           "minimum": 0,
@@ -1030,6 +1036,7 @@
       },
       "required": [
         "stage",
+        "runs",
         "dollars"
       ],
       "title": "StageCost",

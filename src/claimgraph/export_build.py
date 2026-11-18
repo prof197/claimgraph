@@ -5,6 +5,7 @@ is ordered by fixed keys, so the same inputs always give the same export.
 """
 
 import json
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 from claimgraph import (
     compare,
     contradiction_eval,
+    costs,
     evaluation,
     graph,
     normalization_eval,
@@ -51,6 +53,7 @@ from claimgraph.models import (
 from claimgraph.normalization_eval import NormalizationScores
 from claimgraph.normalize import OutcomeMapping
 from claimgraph.outcome_pairs import SAMPLE_FILE, load_sample
+from claimgraph.prices import PRICES_FILE, load_prices
 from claimgraph.retrieve import Abstract, DropReason, RetrieveManifest, RunManifest
 from claimgraph.summary import HeadlineStudy, summarize
 
@@ -173,6 +176,7 @@ def _drops(
     found: compare.Candidates,
     excluded: int,
     off_question: int,
+    reviews_off_question: int,
     config: QuestionConfig,
 ) -> list[Drop]:
     """What each stage left out, in pipeline order."""
@@ -198,6 +202,12 @@ def _drops(
     rows.append(
         ("candidate pairs where one finding's exposure is not the question's", off_question)
     )
+    rows.append(
+        (
+            "reviews whose title and summary do not name both the exposure and the outcome",
+            reviews_off_question,
+        )
+    )
     return [Drop(what=what, count=count) for what, count in rows]
 
 
@@ -217,6 +227,27 @@ def _study(key: str, papers: list[Paper]) -> Study:
         sample_size=sizes[0] if sizes else None,
         trial_ids=sorted({t for a, _ in papers for t in a.trial_ids}),
         trial=lead.design in pair_sample.TRIALS,
+    )
+
+
+def _term(term: str) -> re.Pattern[str]:
+    """A search term as PubMed matches it: whole words, any case, a hyphen as a space, and a
+    trailing * for any ending."""
+    body = re.escape(term.removesuffix("*").replace("-", " ").casefold())
+    return re.compile(rf"(?<!\w){body}" + (r"\w*" if term.endswith("*") else r"(?!\w)"))
+
+
+def _on_question(review: Review, config: QuestionConfig) -> bool:
+    """Whether a review's title or summary names an exposure term and an outcome term.
+
+    The search matches the whole abstract, so a review that mentions vitamin D or depression in
+    passing is found; extraction records no domain for a review, so its title and one-sentence
+    summary decide whether the page lists it.
+    """
+    text = f"{review.title} {review.summary or ''}".replace("-", " ").casefold()
+    return all(
+        any(_term(t).search(text) for t in terms)
+        for terms in (config.exposure_terms, config.outcome_terms)
     )
 
 
@@ -257,6 +288,8 @@ class _Corpus:
     reviews: list[Review]
     # Findings from designs the question excludes, which are neither shown nor counted.
     excluded: int
+    # Reviews the search found that are about something else, which the page leaves off.
+    reviews_off_question: int
 
 
 def _corpus(
@@ -272,7 +305,7 @@ def _corpus(
     findings: dict[tuple[str, str], list[Finding]] = defaultdict(list)
     papers: dict[str, list[Paper]] = defaultdict(list)
     reviews: list[Review] = []
-    excluded = 0
+    excluded = reviews_off_question = 0
     for result in sorted(results, key=lambda r: int(r.pmid)):
         study = result.study
         if study is None:
@@ -281,7 +314,11 @@ def _corpus(
         if study.design in config.exclude_designs:
             excluded += len(study.findings)
         elif study.design in REVIEW_DESIGNS:
-            reviews.append(_review(abstract, study))
+            review = _review(abstract, study)
+            if _on_question(review, config):
+                reviews.append(review)
+            else:
+                reviews_off_question += 1
         else:
             key = keys.get(result.pmid, result.pmid)
             # Strings out of the domain have no outcome, and the comparison counts their findings
@@ -300,6 +337,7 @@ def _corpus(
         studies={key: _study(key, papers[key]) for key in sorted(papers)},
         reviews=sorted(reviews, key=lambda r: (-r.year, int(r.pmid))),
         excluded=excluded,
+        reviews_off_question=reviews_off_question,
     )
 
 
@@ -487,6 +525,15 @@ def _question(
     )
 
 
+def _costs(run_dir: Path, normalization_replay: Path, prices_file: Path) -> list[StageCost]:
+    """Each stage's measured spend over every recorded run, as the README's cost table totals it."""
+    found = costs.run_costs(run_dir, normalization_replay, load_prices(prices_file))
+    return [
+        StageCost(stage=t.stage.value, runs=t.runs, dollars=t.dollars)
+        for t in costs.stage_totals(found)
+    ]
+
+
 def study_facts(
     results: list[ExtractionResult],
     abstracts: dict[str, Abstract],
@@ -505,6 +552,7 @@ def build_export(
     classified: ClassifiedPairs,
     gold_dir: Path,
     replay_root: Path = REPLAY_ROOT,
+    prices_file: Path = PRICES_FILE,
 ) -> Export:
     """The export for `config` from the run in `run_dir`, with its contradictions from
     `classified`. A dimension counts as evaluated when the gold labels in `gold_dir` cover it.
@@ -536,12 +584,20 @@ def build_export(
             abstracts_kept=retrieved.kept,
             findings=len(nodes),
             studies=len(corpus.studies),
-            drops=_drops(retrieved, extracted, found, corpus.excluded, pairs.off_question, config),
+            drops=_drops(
+                retrieved,
+                extracted,
+                found,
+                corpus.excluded,
+                pairs.off_question,
+                corpus.reviews_off_question,
+                config,
+            ),
             candidate_pairs=len(found.pairs),
             classified_pairs=len(classified.classifications),
             depth=classified.depth,
             selection=classified.selection,
-            costs=[StageCost(stage="extract", dollars=extracted.cost_usd)],
+            costs=_costs(run_dir, replay_root / config.id / "normalization", prices_file),
             evals=_evals(config, gold_dir, replay_root, classified.depth),
         ),
     )

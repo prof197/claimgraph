@@ -1,14 +1,14 @@
 import { ExternalLink } from "../../lib/ExternalLink";
 import { type ReactNode, useState } from "react";
-import type { Dimension, Export, Method as MethodData, Review } from "../../types/export";
+import type { Dimension, Drop, EvalResult, Export, Method as MethodData, Review } from "../../types/export";
 import { citation, longDate, money, number, pubmedUrl } from "./labels";
 
 /** Reviews a page shows before "Show more". */
 const REVIEWS_SHOWN = 4;
 
-/** Reviews pool studies already on the page, so they are listed for context, never counted. */
-// Systematic reviews and meta-analyses are listed; narrative reviews, which pool no studies
-// by a stated method, sit in a collapsed list with their count.
+// The export lists only the reviews whose title or summary names the question's exposure and
+// outcome. Systematic reviews and meta-analyses are listed; narrative reviews, which pool no
+// studies by a stated method, sit in a collapsed list with their count.
 const LISTED_REVIEWS: ReadonlySet<Review["design"]> = new Set(["systematic_review", "meta_analysis"]);
 
 function ReviewItem({ review }: { review: Review }) {
@@ -35,7 +35,7 @@ export function Reviews({ reviews }: { reviews: Review[] }) {
           Reviews and meta-analyses
         </h2>
         <p className="shell-intro">
-          Listed for context, not counted above: they pool studies that are already on this page.
+          Listed for context, not counted above.
         </p>
       </div>
       {listed.length === 0 ? (
@@ -98,7 +98,7 @@ export function Method({ data }: { data: Export }) {
       {method.drops.length > 0 && (
         <p className="shell-text">
           Left out:{" "}
-          {method.drops.map((d) => `${number(d.count)} ${d.what}`).join(" · ")}.
+          {method.drops.map(dropText).join(" · ")}.
         </p>
       )}
       <p className="shell-text">
@@ -151,6 +151,14 @@ export function compareLine(method: MethodData, dimensions: Dimension[]): string
   );
 }
 
+const PLURALS = /\b(findings|records|abstracts|pairs|reviews)\b/;
+
+/** "3 findings the review excluded", or "1 finding …": the first plural noun agrees. */
+export function dropText(drop: Drop): string {
+  const what = drop.count === 1 ? drop.what.replace(PLURALS, (w) => w.slice(0, -1)) : drop.what;
+  return `${number(drop.count)} ${what}`;
+}
+
 function depthLine(method: MethodData): string {
   return method.depth === null
     ? "No contradictions were classified for this page."
@@ -162,11 +170,66 @@ function costLine(method: MethodData): string {
     return "No model costs were recorded for this run.";
   }
   const total = method.costs.reduce((sum, c) => sum + c.dollars, 0);
-  const parts = method.costs.map((c) => `${c.stage} ${money(c.dollars)}`).join(" · ");
-  return `This run cost ${money(total)}, measured: ${parts}.`;
+  const parts = method.costs
+    .map((c) => `${c.stage} ${money(c.dollars)} (${c.runs} ${c.runs === 1 ? "run" : "runs"})`)
+    .join(" · ");
+  return `Measured spend over every recorded run of this question, evals included: ${money(total)}. By stage: ${parts}.`;
+}
+
+/** An extraction field scored both ways: matched findings over the model's, and over the labels'. */
+interface FieldScore {
+  field: string;
+  precision: EvalResult;
+  recall: EvalResult;
+}
+
+type EvalRow = { kind: "one"; result: EvalResult } | ({ kind: "field" } & FieldScore);
+
+function evalRows(evals: EvalResult[]): EvalRow[] {
+  const rows: EvalRow[] = [];
+  const paired = new Set<EvalResult>();
+  for (const e of evals) {
+    if (paired.has(e)) continue;
+    const field = e.eval === "extraction" ? /^(.*) precision$/.exec(e.metric)?.[1] : undefined;
+    const recall = evals.find((r) => field !== undefined && r.eval === e.eval && r.metric === `${field} recall`);
+    if (field !== undefined && recall !== undefined) {
+      paired.add(recall);
+      rows.push({ kind: "field", field, precision: e, recall });
+    } else {
+      rows.push({ kind: "one", result: e });
+    }
+  }
+  return rows;
+}
+
+function matched(e: EvalResult): number {
+  return Math.round(e.value * e.n);
+}
+
+/** How the extraction fields were scored, and why precision and recall can coincide. */
+export function fieldNote(rows: EvalRow[]): string | null {
+  const first = rows.find((r): r is { kind: "field" } & FieldScore => r.kind === "field");
+  if (first === undefined) return null;
+  const returned = first.precision.n;
+  const labeled = first.recall.n;
+  const same =
+    returned === labeled
+      ? " The model returned as many findings as were labeled, so each field's two figures are equal; they are not equal by construction."
+      : "";
+  return (
+    "Each finding the model returned is matched to a hand-labeled finding by its quoted sentence, " +
+    "and a field counts as right only on a matched finding. Precision is over the " +
+    `${number(returned)} findings the model returned, recall over the ${number(labeled)} labeled.${same}`
+  );
+}
+
+function interval(e: EvalResult): string {
+  return e.low !== null && e.high !== null ? ` (${e.low.toFixed(2)}–${e.high.toFixed(2)})` : "";
 }
 
 function Evals({ method }: { method: MethodData }) {
+  const rows = evalRows(method.evals);
+  const note = fieldNote(rows);
   return (
     <div className="shell-evals">
       <h3 id="evals-h" tabIndex={-1} className="shell-h3">
@@ -175,18 +238,30 @@ function Evals({ method }: { method: MethodData }) {
       {method.evals.length === 0 ? (
         <p className="shell-text">No evals were recorded for this run.</p>
       ) : (
-        <ul className="shell-evals__list">
-          {method.evals.map((e) => (
-            <li key={`${e.eval}|${e.metric}`}>
-              <span className="shell-strong">
-                {e.eval}, {e.metric}:
-              </span>{" "}
-              {e.value.toFixed(2)}
-              {e.low !== null && e.high !== null && ` (${e.low.toFixed(2)}–${e.high.toFixed(2)})`},
-              n {number(e.n)}
-            </li>
-          ))}
-        </ul>
+        <>
+          {note !== null && <p className="shell-text">{note}</p>}
+          <ul className="shell-evals__list">
+            {rows.map((row) =>
+              row.kind === "field" ? (
+                <li key={`${row.precision.eval}|${row.field}`}>
+                  <span className="shell-strong">
+                    {row.precision.eval}, {row.field}:
+                  </span>{" "}
+                  precision {row.precision.value.toFixed(2)} ({matched(row.precision)} of {number(row.precision.n)}),
+                  recall {row.recall.value.toFixed(2)} ({matched(row.recall)} of {number(row.recall.n)})
+                </li>
+              ) : (
+                <li key={`${row.result.eval}|${row.result.metric}`}>
+                  <span className="shell-strong">
+                    {row.result.eval}, {row.result.metric}:
+                  </span>{" "}
+                  {row.result.value.toFixed(2)}
+                  {interval(row.result)}, n {number(row.result.n)}
+                </li>
+              ),
+            )}
+          </ul>
+        </>
       )}
     </div>
   );

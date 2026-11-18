@@ -489,13 +489,47 @@ def synthetic() -> Export:
             depth=Arm.SINGLE_SMALL,
             selection=PairSelection(minimum=3, fields=5, size_ratio=3, per_study=8),
             costs=[
-                StageCost(stage="extract", dollars=0.11),
-                StageCost(stage="normalize", dollars=0.02),
-                StageCost(stage="classify", dollars=0.05),
+                StageCost(stage="retrieve", runs=1, dollars=0),
+                StageCost(stage="extract", runs=2, dollars=0.11),
+                StageCost(stage="normalize", runs=1, dollars=0.02),
+                StageCost(stage="classify", runs=3, dollars=0.05),
             ],
             evals=[
                 EvalResult(
-                    eval="extraction", metric="direction", value=0.9, n=32, low=0.78, high=0.97
+                    eval="extraction", metric="design", value=0.9, n=30, low=None, high=None
+                ),
+                # The model returned 30 findings and the labels hold 32, 24 of them matched.
+                EvalResult(
+                    eval="extraction",
+                    metric="finding precision",
+                    value=0.8,
+                    n=30,
+                    low=None,
+                    high=None,
+                ),
+                EvalResult(
+                    eval="extraction",
+                    metric="finding recall",
+                    value=0.75,
+                    n=32,
+                    low=None,
+                    high=None,
+                ),
+                EvalResult(
+                    eval="extraction",
+                    metric="effect precision",
+                    value=0.7,
+                    n=30,
+                    low=None,
+                    high=None,
+                ),
+                EvalResult(
+                    eval="extraction",
+                    metric="effect recall",
+                    value=0.65625,
+                    n=32,
+                    low=None,
+                    high=None,
                 ),
                 EvalResult(
                     eval="normalization",

@@ -250,6 +250,26 @@ def run_costs(run_dir: Path, normalization_replay: Path, prices: Prices) -> list
     ]
 
 
+class StageTotal(Record):
+    stage: Stage
+    runs: int
+    # A run whose recordings another run's include is listed but not counted twice.
+    dollars: float
+
+
+def stage_totals(costs: Sequence[RunCost]) -> list[StageTotal]:
+    """Every stage with a recorded run, in pipeline order, with its runs and its spend."""
+    return [
+        StageTotal(
+            stage=stage,
+            runs=len(runs),
+            dollars=sum(c.cost_usd for c in runs if c.counted_in is None),
+        )
+        for stage in Stage
+        if (runs := [c for c in costs if c.stage is stage])
+    ]
+
+
 def _usd(value: float) -> str:
     return f"${value:.4f}"
 
@@ -276,15 +296,10 @@ def table(costs: Sequence[RunCost]) -> str:
             f"{_usd(c.cost_usd)} | {checked} |"
         )
     lines += ["", "| Stage | Runs | Cost |", "| --- | ---: | ---: |"]
-    total = 0.0
-    for stage in Stage:
-        runs = [c for c in costs if c.stage is stage]
-        if not runs:
-            continue
-        spent = sum(c.cost_usd for c in runs if c.counted_in is None)
-        total += spent
-        lines.append(f"| {stage.value} | {len(runs)} | {_usd(spent)} |")
-    lines.append(f"| All stages | {len(costs)} | {_usd(total)} |")
+    totals = stage_totals(costs)
+    for t in totals:
+        lines.append(f"| {t.stage.value} | {t.runs} | {_usd(t.dollars)} |")
+    lines.append(f"| All stages | {len(costs)} | {_usd(sum(t.dollars for t in totals))} |")
     shared = [c for c in costs if c.counted_in is not None]
     if shared:
         lines += [
