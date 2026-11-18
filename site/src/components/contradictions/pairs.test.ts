@@ -1,6 +1,6 @@
 import { fixtures } from "../../fixtures";
 import type { Outcome } from "../../types/export";
-import { comparePairs, findingsById, groupByReason, orderedApparent, orderedPairs, orient } from "./pairs";
+import { comparePairs, findingsById, orderedApparent, orderedPairs, orient } from "./pairs";
 
 const data = fixtures.synthetic;
 
@@ -35,19 +35,6 @@ describe("pair order", () => {
       "6/10/b",
       "6/null/a",
     ]);
-  });
-
-  it("groups by reason in the fixed order, keeping the order within each group", () => {
-    const groups = groupByReason(orderedPairs(data, outcome("Synthetic symptoms")));
-    expect(groups.map((g) => g.reason)).toEqual([
-      "population",
-      "intervention",
-      "comparator",
-      "outcome_measure",
-      "design_or_bias",
-      "unclear",
-    ]);
-    expect(groupByReason([])).toEqual([]);
   });
 
   it("orders apparent pairs by their studies' summed weight and size", () => {

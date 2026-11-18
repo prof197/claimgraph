@@ -1,21 +1,13 @@
-// Where an outcome's studies disagree: genuine contradictions grouped by their likely reason,
-// strongest first, and beneath them the pairs that only looked contradictory.
+// Where an outcome's studies disagree: only the closely matched pairs, alike in every field the
+// comparison checks, each shown side by side from the extracted fields with its likely reason,
+// and beneath them the closely matched pairs that only looked contradictory.
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { studiesByKey } from "../../lib/data";
 import { href } from "../../routes";
-import type { ContradictionEdge, Export, FindingNode, Outcome, Reason, Study } from "../../types/export";
+import type { ApparentPair, ContradictionEdge, Export, FindingNode, Outcome, Reason, Study } from "../../types/export";
 import styles from "./Contradictions.module.css";
-import {
-  DESIGN_LABEL,
-  FOUND_LABEL,
-  REASON_LABEL,
-  formatCount,
-  inSentence,
-  nShort,
-  plural,
-  studyLabel,
-} from "./labels";
-import { findingsById, groupByReason, orderedApparent, orderedPairs, orient } from "./pairs";
+import { FOUND_LABEL, REASON_LABEL, formatCount, inSentence, plural, sampleSize, studyLabel } from "./labels";
+import { findingsById, orderedApparent, orderedPairs, orient } from "./pairs";
 
 export interface ContradictionPanelProps {
   data: Export;
@@ -24,15 +16,11 @@ export interface ContradictionPanelProps {
   land?: boolean;
 }
 
-/** Pairs shown per reason before the reader asks for more. */
-export const FIRST_PAIRS = 3;
-/** Up to this many pairs, one click shows them all; past it, each click adds a page. */
-const SHOW_ALL_UP_TO = 200;
-const PAGE = 50;
-const FIRST_APPARENT = 50;
+/** Pairs shown before the reader asks for the rest. */
+export const FIRST_PAIRS = 10;
 
 export function ContradictionPanel(props: ContradictionPanelProps) {
-  // A new outcome starts unfiltered and collapsed.
+  // A new outcome starts collapsed.
   return <Panel key={props.outcome.name} {...props} />;
 }
 
@@ -44,19 +32,14 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
     el.scrollIntoView?.({ block: "start" });
     el.focus({ preventScroll: true });
   }, [land]);
-  const pairs = useMemo(() => orderedPairs(data, outcome), [data, outcome]);
-  const apparent = useMemo(() => orderedApparent(data, outcome), [data, outcome]);
+  const pairs = useMemo(() => orderedPairs(data, outcome).filter((p) => p.closely_matched), [data, outcome]);
+  const apparent = useMemo(() => orderedApparent(data, outcome).filter((p) => p.closely_matched), [data, outcome]);
   const findings = useMemo(() => findingsById(data, outcome), [data, outcome]);
   const studies = useMemo(() => studiesByKey(data), [data]);
-  const [filter, setFilter] = useState<Reason | null>(null);
-  const [limit, setLimit] = useState(FIRST_PAIRS);
+  const [all, setAll] = useState(false);
   const headingId = useId();
-  const alike = data.method.selection != null;
-
-  const groups = groupByReason(pairs);
-  const shown = filter === null ? groups : groups.filter((g) => g.reason === filter);
-  const total = shown.reduce((sum, g) => sum + g.pairs.length, 0);
-  const hidden = shown.reduce((sum, g) => sum + Math.max(0, g.pairs.length - limit), 0);
+  const shown = all ? pairs : pairs.slice(0, FIRST_PAIRS);
+  const empty = emptyText(outcome);
 
   return (
     <section className={styles.panel} aria-labelledby={headingId}>
@@ -64,159 +47,122 @@ function Panel({ data, outcome, land = false }: ContradictionPanelProps) {
         <h2 id={headingId} ref={heading} tabIndex={-1} className={styles.h2}>
           Where studies disagree
         </h2>
-        <p className={styles.lead}>{introText(pairs, outcome, alike)}</p>
+        <p className={styles.lead}>
+          {pairs.length === 0
+            ? `No closely matched studies on ${inSentence(outcome.name)} disagree.`
+            : `${plural(pairs.length, "closely matched pair", "closely matched pairs")} of studies on ${inSentence(outcome.name)} found different things.`}
+        </p>
+        {(pairs.length > 0 || apparent.length > 0) && (
+          <>
+            <p className={styles.lead}>{matchedText(data)}</p>
+            <p className={styles.lead}>{accuracyText(data)}</p>
+          </>
+        )}
       </div>
 
-      {pairs.length === 0 ? (
+      {pairs.length === 0 && empty !== null && (
         <p className={styles.empty} data-state="no-genuine">
-          {emptyText(outcome, alike)}
+          {empty}
         </p>
-      ) : (
-        <>
-          <div role="group" aria-label="Filter by likely reason" className={styles.filters}>
-            <button
-              type="button"
-              className={styles.chip}
-              aria-pressed={filter === null}
-              onClick={() => setFilter(null)}
-            >
-              All · {formatCount(pairs.length)}
-            </button>
-            {groups.map((group) => (
-              <button
-                key={group.reason}
-                type="button"
-                className={styles.chip}
-                aria-pressed={filter === group.reason}
-                onClick={() => setFilter(group.reason)}
-              >
-                {REASON_LABEL[group.reason]} · {formatCount(group.pairs.length)}
-              </button>
-            ))}
-          </div>
-
-          {shown.map((group) => (
-            <div key={group.reason} className={styles.group}>
-              <h3 className={styles.h3}>
-                {REASON_LABEL[group.reason]}
-                <span className={styles.groupCount}>{plural(group.pairs.length, "pair", "pairs")}</span>
-              </h3>
-              <ul className={styles.pairs}>
-                {group.pairs.slice(0, limit).map((pair) => (
-                  <PairItem
-                    key={pair.pair_id}
-                    pair={pair}
-                    sides={orient(findings, pair)}
-                    studies={studies}
-                  />
-                ))}
-              </ul>
-            </div>
-          ))}
-
-          {hidden > 0 && (
-            <button
-              type="button"
-              className={styles.more}
-              onClick={() =>
-                setLimit(total <= SHOW_ALL_UP_TO ? Number.POSITIVE_INFINITY : limit + PAGE)
-              }
-            >
-              {total <= SHOW_ALL_UP_TO
-                ? `Show all ${formatCount(total)} pairs`
-                : `Show more pairs · ${formatCount(total - hidden)} of ${formatCount(total)} shown`}
-            </button>
-          )}
-        </>
       )}
 
-      {apparent.length > 0 && <ApparentList pairs={apparent} studies={studies} />}
+      {pairs.length > 0 && (
+        <ul className={styles.pairs}>
+          {shown.map((pair) => (
+            <PairItem key={pair.pair_id} pair={pair} sides={orient(findings, pair)} studies={studies} />
+          ))}
+        </ul>
+      )}
+
+      {shown.length < pairs.length && (
+        <button type="button" className={styles.more} onClick={() => setAll(true)}>
+          Show all {formatCount(pairs.length)} pairs
+        </button>
+      )}
+
+      {apparent.length > 0 && <ApparentList pairs={apparent} findings={findings} studies={studies} />}
     </section>
   );
 }
 
-function introText(pairs: ContradictionEdge[], outcome: Outcome, alike: boolean): string {
-  if (pairs.length === 0) {
-    return `No genuine contradictions on ${inSentence(outcome.name)}.`;
-  }
-  const effectVsNone = pairs.filter((p) => p.pair_kind === "effect_vs_none").length;
-  const benefitVsHarm = pairs.length - effectVsNone;
-  const most =
-    effectVsNone > benefitVsHarm
-      ? " Most pair a study that found an effect with one that found none."
-      : benefitVsHarm > effectVsNone
-        ? " Most pair a study that found a benefit with one that found harm."
-        : "";
-  return `${plural(pairs.length, "genuine contradiction", "genuine contradictions")} on ${inSentence(outcome.name)}.${most} ${classifiedText(outcome, alike)}: ${verdictParts(outcome, pairs.length)}.`;
+/** What closely matched means, field by field, and what can still differ. */
+function matchedText(data: Export): string {
+  const dimensions = data.question.dimensions;
+  const ratio = data.method.selection?.size_ratio;
+  const fields = [
+    "the same design",
+    "the same outcome measure",
+    ...dimensions.map((d) => `the same ${inSentence(d.label)}`),
+    ratio === undefined ? "similar sample sizes" : `sample sizes within ${ratio}× of each other`,
+  ];
+  const listed = `${fields.slice(0, -1).join(", ")} and ${fields.at(-1) ?? ""}`;
+  return (
+    `Closely matched means alike in all ${fields.length} ways the comparison checks, each ` +
+    `reported by both studies: ${listed}. Dose, duration and who was studied can still differ.`
+  );
 }
 
-/** Which candidate pairs the classifier read, so a short list is not mistaken for a settled
- * one, and the reader knows the list is the most alike pairs when it is. */
-function classifiedText(outcome: Outcome, alike: boolean): string {
-  const classified = outcome.classified_pairs;
-  if (classified >= outcome.candidate_pairs) {
-    return outcome.candidate_pairs === 1
-      ? "Its one candidate pair was classified"
-      : `All ${formatCount(outcome.candidate_pairs)} candidate pairs were classified`;
+/** The classifier's measured accuracy, stated once for the whole panel. */
+function accuracyText(data: Export): string {
+  const figure = (metric: string) =>
+    data.method.evals.find((e) => e.eval === "classification" && e.metric === metric)?.value;
+  const verdict = figure("verdict");
+  const reason = figure("reason");
+  const read = "A model read each pair, judged whether the disagreement is genuine and named the likely reason.";
+  if (verdict === undefined || reason === undefined) {
+    return `${read} Its accuracy has not been measured for this page.`;
   }
-  if (!alike) {
-    return `${formatCount(classified)} of ${plural(outcome.candidate_pairs, "candidate pair was", "candidate pairs were")} classified`;
-  }
-  const which = classified === 1 ? "the one whose studies are most alike was" : `the ${formatCount(classified)} whose studies are most alike were`;
-  return `Of ${plural(outcome.candidate_pairs, "candidate pair", "candidate pairs")}, ${which} classified`;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  return `${read} Checked against hand-labeled pairs, the verdict is right about ${pct(verdict)} of the time and the reason about ${pct(reason)}.`;
 }
 
-/** Where every classified pair went: genuine, only apparent, or off the question. */
-function verdictParts(outcome: Outcome, genuine: number): string {
-  const offQuestion = Math.max(0, outcome.classified_pairs - genuine - outcome.apparent.length);
-  const parts = genuine > 0 ? [`${formatCount(genuine)} genuine`] : [];
-  if (outcome.apparent.length > 0) {
-    parts.push(`${formatCount(outcome.apparent.length)} that only looked contradictory (listed below)`);
-  }
-  if (offQuestion > 0) {
-    parts.push(`${formatCount(offQuestion)} off the question`);
-  }
-  const last = parts.pop() ?? "";
-  return parts.length > 0 ? `${parts.join(", ")} and ${last}` : last;
-}
-
-function emptyText(outcome: Outcome, alike: boolean): string {
+function emptyText(outcome: Outcome): string | null {
   if (outcome.candidate_pairs === 0) {
     return "No two studies on it point different ways, so there was nothing to compare.";
   }
   if (outcome.classified_pairs === 0) {
-    return `Its ${plural(outcome.candidate_pairs, "candidate pair has", "candidate pairs have")} not been classified yet.`;
+    return "Its pairs of studies have not been classified yet.";
   }
-  return `${classifiedText(outcome, alike)}, and none was genuine: ${verdictParts(outcome, 0)}.`;
+  return null;
 }
 
-/** What a side says about the field the pair's reason points at. */
-function sideNote(finding: FindingNode, study: Study | undefined, reason: Reason): string {
-  switch (reason) {
-    case "population":
-      return finding.population;
-    case "intervention":
-      return finding.intervention;
-    case "comparator":
-      return finding.comparator;
-    case "outcome_measure":
-      return finding.outcome_reported;
-    case "design_or_bias":
-    case "unclear":
-      return study === undefined ? "Design not known" : DESIGN_LABEL[study.design];
-  }
+/** A detail often opens with its reason's name, as in "population: …", which the line has
+ * just said. */
+export function withoutReason(detail: string, reason: Reason): string {
+  const word = `${REASON_LABEL[reason].toLowerCase()}:`;
+  return detail.toLowerCase().startsWith(word) ? detail.slice(word.length).trim() : detail;
 }
 
-function Side({ finding, studies, reason }: { finding: FindingNode; studies: Map<string, Study>; reason: Reason }) {
+function Side({ finding, studies }: { finding: FindingNode; studies: Map<string, Study> }) {
   const study = studies.get(finding.study);
   return (
-    <span className={styles.side}>
+    <div className={styles.side}>
       <span className={`${styles.badge} ${styles[finding.direction]}`}>{FOUND_LABEL[finding.direction]}</span>
       <span className={styles.sideName}>{studyLabel(study, finding.study)}</span>
-      <span className={styles.sideNote}>
-        {sideNote(finding, study, reason)} · {nShort(study?.sample_size ?? null)}
-      </span>
-    </span>
+      <dl className={styles.fields}>
+        <dt>Population</dt>
+        <dd>{finding.population}</dd>
+        <dt>Intervention</dt>
+        <dd>{finding.intervention}</dd>
+        <dt>Comparator</dt>
+        <dd>{finding.comparator}</dd>
+        <dt>Sample size</dt>
+        <dd>{sampleSize(study?.sample_size ?? null)}</dd>
+      </dl>
+      <blockquote className={styles.sideQuote}>
+        <p>{finding.quote}</p>
+      </blockquote>
+    </div>
+  );
+}
+
+function Sides({ sides, studies }: { sides: [FindingNode, FindingNode]; studies: Map<string, Study> }) {
+  return (
+    <div className={styles.sides}>
+      <Side finding={sides[0]} studies={studies} />
+      <span className={styles.visuallyHidden}>versus</span>
+      <Side finding={sides[1]} studies={studies} />
+    </div>
   );
 }
 
@@ -229,61 +175,54 @@ function PairItem({
   sides: [FindingNode, FindingNode] | undefined;
   studies: Map<string, Study>;
 }) {
+  const names =
+    sides === undefined
+      ? pair.pair_id
+      : `${studyLabel(studies.get(sides[0].study), sides[0].study)} and ${studyLabel(studies.get(sides[1].study), sides[1].study)}`;
   return (
-    <li>
-      <a className={styles.pair} href={href({ page: "pair", pairId: pair.pair_id })}>
-        {sides === undefined ? (
-          <span className={styles.sideName}>{pair.pair_id}</span>
-        ) : (
-          <>
-            <Side finding={sides[0]} studies={studies} reason={pair.reason} />
-            <span className={styles.visuallyHidden}>versus</span>
-            <Side finding={sides[1]} studies={studies} reason={pair.reason} />
-          </>
-        )}
-        <span className={styles.detail}>
-          <span className={styles.visuallyHidden}>Likely reason: {REASON_LABEL[pair.reason].toLowerCase()}. </span>
-          {pair.detail}
-          {pair.also_differs.length > 0 && (
-            <span className={styles.also}>
-              Also differs: {pair.also_differs.map((r) => REASON_LABEL[r].toLowerCase()).join(", ")}
-            </span>
-          )}
-        </span>
-      </a>
+    <li className={styles.match}>
+      {sides !== undefined && <Sides sides={sides} studies={studies} />}
+      <p className={styles.reason}>
+        <span className={styles.reasonName}>Likely reason: {REASON_LABEL[pair.reason].toLowerCase()}.</span>{" "}
+        {withoutReason(pair.detail, pair.reason)}{" "}
+        <a href={href({ page: "pair", pairId: pair.pair_id })}>
+          Compare in full<span className={styles.visuallyHidden}> for {names}</span>
+        </a>
+      </p>
     </li>
   );
 }
 
 function ApparentList({
   pairs,
+  findings,
   studies,
 }: {
-  pairs: Export["outcomes"][number]["apparent"];
+  pairs: ApparentPair[];
+  findings: Map<string, FindingNode>;
   studies: Map<string, Study>;
 }) {
-  const [all, setAll] = useState(false);
-  const shown = all ? pairs : pairs.slice(0, FIRST_APPARENT);
   return (
     <details className={styles.apparent}>
       <summary className={styles.summary}>
         {pairs.length === 1
-          ? "1 pair looked contradictory but wasn't"
-          : `${formatCount(pairs.length)} pairs looked contradictory but weren't`}
+          ? "1 closely matched pair only looked contradictory"
+          : `${formatCount(pairs.length)} closely matched pairs only looked contradictory`}
       </summary>
-      <ul className={styles.apparentList}>
-        {shown.map((pair) => (
-          <li key={pair.pair_id}>
-            {studyLabel(studies.get(pair.study_a), pair.study_a)} vs{" "}
-            {studyLabel(studies.get(pair.study_b), pair.study_b)} · {pair.detail}
-          </li>
-        ))}
+      <ul className={styles.pairs}>
+        {pairs.map((pair) => {
+          const sides = orient(findings, { source: pair.finding_a, target: pair.finding_b });
+          return (
+            <li key={pair.pair_id} className={styles.match}>
+              {sides !== undefined && <Sides sides={sides} studies={studies} />}
+              <p className={styles.reason}>
+                <span className={styles.reasonName}>Why not: {REASON_LABEL[pair.reason].toLowerCase()}.</span>{" "}
+                {withoutReason(pair.detail, pair.reason)}
+              </p>
+            </li>
+          );
+        })}
       </ul>
-      {shown.length < pairs.length && (
-        <button type="button" className={styles.more} onClick={() => setAll(true)}>
-          Show all {formatCount(pairs.length)}
-        </button>
-      )}
     </details>
   );
 }

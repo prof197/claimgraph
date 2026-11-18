@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { fixtures } from "../../fixtures";
 import { href } from "../../routes";
 import type { ContradictionEdge, Export, Outcome } from "../../types/export";
-import { ContradictionPanel, FIRST_PAIRS } from "./ContradictionPanel";
+import { ContradictionPanel, FIRST_PAIRS, withoutReason } from "./ContradictionPanel";
 
 function outcomeOf(data: Export, name: string): Outcome {
   const o = data.outcomes.find((x) => x.name === name);
@@ -11,13 +11,17 @@ function outcomeOf(data: Export, name: string): Outcome {
   return o;
 }
 
-/** The synthetic fixture with extra population pairs, copies of its first one. */
-function withPopulationPairs(extra: number): Export {
-  const data = JSON.parse(JSON.stringify(fixtures.synthetic)) as Export;
+function copy(data: Export): Export {
+  return JSON.parse(JSON.stringify(data)) as Export;
+}
+
+/** The synthetic fixture with extra closely matched pairs, copies of its first one. */
+function withMatchedPairs(extra: number): Export {
+  const data = copy(fixtures.synthetic);
   const base = data.graph.edges.find(
-    (e): e is ContradictionEdge => e.kind === "contradiction" && e.reason === "population",
+    (e): e is ContradictionEdge => e.kind === "contradiction" && e.closely_matched === true,
   );
-  if (base === undefined) throw new Error("the fixture has a population pair");
+  if (base === undefined) throw new Error("the fixture has a closely matched pair");
   for (let i = 0; i < extra; i += 1) {
     data.graph.edges.push({ ...base, pair_id: `${base.pair_id}|copy${i}`, design_weight: 1 });
   }
@@ -31,110 +35,113 @@ function panel() {
   return screen.getByRole("region", { name: "Where studies disagree" });
 }
 
+// jsdom drops the space before the hidden study names that a browser keeps.
+function pairLinks() {
+  return within(panel()).queryAllByRole("link", { name: /^Compare in full\s*for / });
+}
+
 describe("the contradiction panel", () => {
-  it("genuine pairs: groups them by reason, each linking to its pair page with its detail", () => {
+  it("shows only the closely matched pairs, and says what closely matched means", () => {
     render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
-    expect(within(panel()).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
-      "Population1 pair",
-      "Intervention1 pair",
-      "Comparator1 pair",
-      "Outcome measure1 pair",
-      "Design or risk of bias1 pair",
-      "Unclear1 pair",
-    ]);
-    const link = within(panel()).getByRole("link", { name: /depressed adults vs a general older population/ });
-    expect(link.getAttribute("href")).toBe(href({ page: "pair", pairId: "Synthetic symptoms|999000101|999000102" }));
-    expect(link.textContent).toContain("Found a benefit");
-    expect(link.textContent).toContain("Synthetic101 et al. 2011");
-    expect(link.textContent).toContain("Found no effect");
-    expect(link.textContent).toContain("n 18,000");
-    expect(link.textContent).toContain("Likely reason: population");
-    expect(link.textContent).toContain("Also differs: intervention");
+
+    expect(screen.getByText("3 closely matched pairs of studies on synthetic symptoms found different things.")).toBeTruthy();
     expect(
       screen.getByText(
-        /^6 genuine contradictions on synthetic symptoms\..* Of 16 candidate pairs, the 8 whose studies are most alike were classified: 6 genuine and 2 that only looked contradictory \(listed below\)\.$/,
+        "Closely matched means alike in all 5 ways the comparison checks, each reported by both " +
+          "studies: the same design, the same outcome measure, the same baseline synthetic status, " +
+          "the same synthetic dose and sample sizes within 3× of each other. Dose, duration and " +
+          "who was studied can still differ.",
       ),
     ).toBeTruthy();
+    expect(pairLinks().map((a) => a.getAttribute("href"))).toEqual([
+      href({ page: "pair", pairId: "Synthetic symptoms|999000102|999000104" }),
+      href({ page: "pair", pairId: "Synthetic symptoms|999000101|999000102" }),
+      href({ page: "pair", pairId: "Synthetic symptoms|999000104|999000105" }),
+    ]);
+    // Neither reason headings nor filters, and no count of candidate pairs.
+    expect(within(panel()).queryAllByRole("heading", { level: 3 })).toHaveLength(0);
+    expect(screen.queryByRole("group", { name: "Filter by likely reason" })).toBeNull();
+    expect(panel().textContent).not.toMatch(/candidate/);
   });
 
-  it("filtered by reason: a reason button shows only that group", async () => {
-    const user = userEvent.setup();
+  it("states the measured accuracy once, for the whole panel", () => {
     render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
-    const filters = screen.getByRole("group", { name: "Filter by likely reason" });
-    expect(within(filters).getByRole("button", { name: "All · 6" }).getAttribute("aria-pressed")).toBe("true");
-
-    await user.click(within(filters).getByRole("button", { name: "Comparator · 1" }));
-
-    expect(within(filters).getByRole("button", { name: "Comparator · 1" }).getAttribute("aria-pressed")).toBe("true");
-    expect(within(panel()).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Comparator1 pair"]);
-    expect(within(panel()).getAllByRole("link")).toHaveLength(1);
-
-    await user.click(within(filters).getByRole("button", { name: "All · 6" }));
-    expect(within(panel()).getAllByRole("link")).toHaveLength(6);
+    expect(
+      screen.getAllByText(/Checked against hand-labeled pairs, the verdict is right about 90% of the time and the reason about 50%\./),
+    ).toHaveLength(1);
   });
 
-  it("more pairs than fit: shows the first few per reason, then all of them on request", async () => {
-    const user = userEvent.setup();
-    const data = withPopulationPairs(4);
+  it("says so when the accuracy was not measured", () => {
+    const data = copy(synthetic);
+    data.method.evals = data.method.evals.filter((e) => e.eval !== "classification");
     render(<ContradictionPanel data={data} outcome={outcomeOf(data, "Synthetic symptoms")} />);
-    const population = within(panel()).getByRole("heading", { name: /^Population/ }).parentElement;
-    if (population === null) throw new Error("the group has a container");
-    expect(within(population).getAllByRole("link")).toHaveLength(FIRST_PAIRS);
+    expect(screen.getByText(/Its accuracy has not been measured for this page\./)).toBeTruthy();
+  });
 
-    await user.click(screen.getByRole("button", { name: "Show all 10 pairs" }));
+  it("sets the two studies side by side from their extracted fields, then the likely reason", () => {
+    render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
+    const item = pairLinks()[1]?.closest("li");
+    if (!item) throw new Error("the pair is a list item");
 
-    expect(within(population).getAllByRole("link")).toHaveLength(5);
+    expect(within(item).getByText("Found a benefit")).toBeTruthy();
+    expect(within(item).getByText("Found no effect")).toBeTruthy();
+    expect(within(item).getByText("Synthetic101 et al. 2011")).toBeTruthy();
+    expect(within(item).getByText("Synthetic102 et al. 2012")).toBeTruthy();
+    const terms = within(item).getAllByRole("term").map((t) => t.textContent);
+    expect(terms).toEqual([
+      "Population",
+      "Intervention",
+      "Comparator",
+      "Sample size",
+      "Population",
+      "Intervention",
+      "Comparator",
+      "Sample size",
+    ]);
+    expect(within(item).getAllByText("Synthetic supplement X, 50 mg daily for 8 weeks")).toHaveLength(2);
+    expect(within(item).getByText("18,000")).toBeTruthy();
+    expect(within(item).getByText("Synthetic sentence 1 from synthetic abstract 999000101.")).toBeTruthy();
+    expect(item.textContent).toContain("Likely reason: population. synthetic: depressed adults vs a general older population");
+  });
+
+  it("more closely matched pairs than fit: shows the first ones, then all on request", async () => {
+    const user = userEvent.setup();
+    const data = withMatchedPairs(FIRST_PAIRS);
+    render(<ContradictionPanel data={data} outcome={outcomeOf(data, "Synthetic symptoms")} />);
+    expect(pairLinks()).toHaveLength(FIRST_PAIRS);
+
+    await user.click(screen.getByRole("button", { name: `Show all ${FIRST_PAIRS + 3} pairs` }));
+
+    expect(pairLinks()).toHaveLength(FIRST_PAIRS + 3);
     expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
   });
 
-  it("apparent pairs: listed collapsed beneath, each with its one-line reason", async () => {
+  it("closely matched apparent pairs: listed collapsed beneath, side by side", async () => {
     const user = userEvent.setup();
     const { container } = render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
     const details = container.querySelector("details");
     expect(details?.open).toBe(false);
-    await user.click(screen.getByText("2 pairs looked contradictory but weren't"));
+
+    await user.click(screen.getByText("1 closely matched pair only looked contradictory"));
+
     expect(details?.open).toBe(true);
-    expect(screen.getByText("Synthetic102 et al. 2012 vs Synthetic106 et al. 2016 · underpowered: a harm seen in 18 people")).toBeTruthy();
+    expect(details?.textContent).toContain("Why not: design or risk of bias. underpowered: a harm seen in 18 people");
+    expect(details?.textContent).toContain("Synthetic106 et al. 2016");
   });
 
-  it("no genuine contradictions, with apparent ones: says so and still lists them", () => {
+  it("no closely matched pair disagrees, but one only looked like it", () => {
     render(<ContradictionPanel data={synthetic} outcome={outcomeOf(synthetic, "Synthetic remission")} />);
-    expect(screen.getByText("No genuine contradictions on synthetic remission.")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Of 6 candidate pairs, the 2 whose studies are most alike were classified, and none was genuine: 2 that only looked contradictory (listed below).",
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByRole("group", { name: "Filter by likely reason" })).toBeNull();
-    expect(screen.getByText("2 pairs looked contradictory but weren't")).toBeTruthy();
-    expect(screen.getByText(/underpowered: n = 50/)).toBeTruthy();
+    expect(screen.getByText("No closely matched studies on synthetic remission disagree.")).toBeTruthy();
+    expect(pairLinks()).toHaveLength(0);
+    expect(screen.getByText("1 closely matched pair only looked contradictory")).toBeTruthy();
   });
 
-  it("no genuine contradictions, none classified yet: says the candidates wait", () => {
+  it("none classified yet: says the pairs wait", () => {
     render(<ContradictionPanel data={synthetic} outcome={outcomeOf(synthetic, "Synthetic cases")} />);
-    expect(screen.getByText("No genuine contradictions on synthetic cases.")).toBeTruthy();
-    expect(screen.getByText("Its 3 candidate pairs have not been classified yet.")).toBeTruthy();
+    expect(screen.getByText("No closely matched studies on synthetic cases disagree.")).toBeTruthy();
+    expect(screen.getByText("Its pairs of studies have not been classified yet.")).toBeTruthy();
     expect(screen.queryByText(/looked contradictory/)).toBeNull();
-  });
-
-  it("the count line says where every classified pair went, off the question included", () => {
-    const data = JSON.parse(JSON.stringify(synthetic)) as Export;
-    data.method.selection = null;
-    const outcome = { ...outcomeOf(data, "Synthetic symptoms"), classified_pairs: 11 };
-    render(<ContradictionPanel data={data} outcome={outcome} />);
-    expect(
-      screen.getByText(
-        /^.*\. 11 of 16 candidate pairs were classified: 6 genuine, 2 that only looked contradictory \(listed below\) and 3 off the question\.$/,
-      ),
-    ).toBeTruthy();
-  });
-
-  it("the count line, when every candidate pair was classified", () => {
-    const outcome = { ...symptoms, candidate_pairs: 8 };
-    render(<ContradictionPanel data={synthetic} outcome={outcome} />);
-    expect(
-      screen.getByText(/All 8 candidate pairs were classified: 6 genuine and 2 that only looked contradictory \(listed below\)\.$/),
-    ).toBeTruthy();
+    expect(screen.queryByText(/Closely matched means/)).toBeNull();
   });
 
   it("nothing to compare: a thin outcome whose studies all agree", () => {
@@ -143,24 +150,21 @@ describe("the contradiction panel", () => {
     expect(screen.getByText("No two studies on it point different ways, so there was nothing to compare.")).toBeTruthy();
   });
 
-  it("keyboard: tabbing reaches the filters and then every pair", async () => {
+  it("keyboard: tabbing reaches every pair", async () => {
     const user = userEvent.setup();
     render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
     const reached: string[] = [];
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 10; i += 1) {
       await user.tab();
       const el = document.activeElement;
       if (el instanceof HTMLAnchorElement) reached.push(el.getAttribute("href") ?? "");
     }
-    expect(new Set(reached).size).toBe(6);
+    expect(new Set(reached).size).toBe(3);
   });
 
-  it("starts unfiltered again on another outcome", async () => {
-    const user = userEvent.setup();
-    const { rerender } = render(<ContradictionPanel data={synthetic} outcome={symptoms} />);
-    await user.click(screen.getByRole("button", { name: "Unclear · 1" }));
-    rerender(<ContradictionPanel data={synthetic} outcome={outcomeOf(synthetic, "Synthetic remission")} />);
-    rerender(<ContradictionPanel data={synthetic} outcome={symptoms} />);
-    expect(screen.getByRole("button", { name: "All · 6" }).getAttribute("aria-pressed")).toBe("true");
+  it("drops a detail's opening reason name, which the line has just said", () => {
+    expect(withoutReason("population: inpatients vs older adults", "population")).toBe("inpatients vs older adults");
+    expect(withoutReason("Outcome measure: CES-D vs PHQ-9", "outcome_measure")).toBe("CES-D vs PHQ-9");
+    expect(withoutReason("design: cross-sectional vs trial", "design_or_bias")).toBe("design: cross-sectional vs trial");
   });
 });

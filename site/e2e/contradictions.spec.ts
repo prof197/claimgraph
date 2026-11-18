@@ -19,26 +19,31 @@ test("the keyboard reaches a pair, opens it and comes back", async ({ page }) =>
       return el instanceof HTMLAnchorElement && el.hash.startsWith("#/pair/") ? el.hash : null;
     });
   }
-  expect(href).toBe("#/pair/Synthetic%20symptoms%7C999000101%7C999000102");
+  // The first closely matched pair in the panel's order.
+  expect(href).toBe("#/pair/Synthetic%20symptoms%7C999000102%7C999000104");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("One trial found a benefit.");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Contradiction · Synthetic symptoms");
 
-  await page.getByRole("link", { name: "Back to all contradictions" }).click();
+  await page.getByRole("link", { name: "Back to where studies disagree" }).click();
   await expect(panel(page)).toBeVisible();
 });
 
-test("the reason filter shows one group at a time", async ({ page }) => {
+test("the closely matched pairs sit side by side, and stack without sideways scroll at 390px", async ({ page }) => {
   await page.goto(SYMPTOMS);
-  const filters = page.getByRole("group", { name: "Filter by likely reason" });
-  await filters.getByRole("button", { name: "Outcome measure · 1" }).click();
-  await expect(panel(page).getByRole("heading", { level: 3 })).toHaveText(["Outcome measure1 pair"]);
-  await expect(panel(page).getByRole("link")).toHaveCount(1);
+  await expect(panel(page).getByRole("link", { name: /^Compare in full\s+for / })).toHaveCount(3);
+  await expect(panel(page).getByRole("group", { name: "Filter by likely reason" })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(panel(page)).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("an outcome with no genuine contradictions says so and lists the apparent ones", async ({ page }) => {
+test("an outcome with no closely matched disagreement says so and lists the apparent one", async ({ page }) => {
   await page.goto("/?fixture=synthetic#/outcome/Synthetic%20remission");
-  await expect(panel(page).getByText("No genuine contradictions on synthetic remission.")).toBeVisible();
-  await panel(page).getByText("2 pairs looked contradictory but weren't").click();
+  await expect(panel(page).getByText("No closely matched studies on synthetic remission disagree.")).toBeVisible();
+  await panel(page).getByText("1 closely matched pair only looked contradictory").click();
   await expect(panel(page).getByText(/underpowered: n = 50/)).toBeVisible();
 });
 
@@ -56,7 +61,7 @@ test("the pair page has no axe violations and no sideways scroll at 390px", asyn
 
 test("the panel has no axe violations with the apparent list open", async ({ page }) => {
   await page.goto(SYMPTOMS);
-  await panel(page).getByText("2 pairs looked contradictory but weren't").click();
+  await panel(page).getByText("1 closely matched pair only looked contradictory").click();
   const results = await new AxeBuilder({ page }).include("section[aria-labelledby]").analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
 });

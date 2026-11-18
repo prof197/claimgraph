@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { fixtures } from "../../fixtures";
 import { href } from "../../routes";
-import type { ContradictionEdge, Export, FindingNode } from "../../types/export";
+import type { Export, FindingNode } from "../../types/export";
 import { PairPage } from "./PairPage";
 
 const POPULATION = "Synthetic symptoms|999000101|999000102";
@@ -68,26 +68,23 @@ describe("the pair page", () => {
     expect(statusOf(/^Synthetic dose/)).toBe("Different");
   });
 
-  it("links back to the outcome and on to the next pair with the same reason", () => {
-    const data = copy();
-    const base = data.graph.edges.find((e): e is ContradictionEdge => e.kind === "contradiction" && e.pair_id === POPULATION);
-    if (base === undefined) throw new Error("the fixture has the pair");
-    data.graph.edges.push({ ...base, pair_id: `${POPULATION}|copy`, design_weight: 1 });
-    render(<PairPage data={data} pairId={POPULATION} />);
+  it("links back to the outcome and on to the next closely matched pair", () => {
+    render(<PairPage data={fixtures.synthetic} pairId={POPULATION} />);
     const back = href({ page: "question", outcome: "Synthetic symptoms" });
     // The header link lands on the contradictions; the one under the pair, on the findings.
-    expect(screen.getByRole("link", { name: "Back to all contradictions" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Back to where studies disagree" }).getAttribute("href")).toBe(
       href({ page: "question", outcome: "Synthetic symptoms", at: "contradictions" }),
     );
     expect(screen.getByRole("link", { name: "Back to the findings" }).getAttribute("href")).toBe(back);
-    expect(screen.getByRole("link", { name: "Next population pair · 2 of 2" }).getAttribute("href")).toBe(
-      href({ page: "pair", pairId: `${POPULATION}|copy` }),
+    // The panel's order: 102|104, then this pair, then 104|105.
+    expect(screen.getByRole("link", { name: "Next closely matched pair · 3 of 3" }).getAttribute("href")).toBe(
+      href({ page: "pair", pairId: "Synthetic symptoms|999000104|999000105" }),
     );
     expect(screen.getByText("Research navigation demo, not medical advice.")).toBeTruthy();
   });
 
-  it("a lone pair of its reason has no next link", () => {
-    render(<PairPage data={fixtures.synthetic} pairId={POPULATION} />);
+  it("a pair the panel does not list has no next link", () => {
+    render(<PairPage data={fixtures.synthetic} pairId="Synthetic symptoms|999000102|999000103" />);
     expect(screen.queryByRole("link", { name: /^Next/ })).toBeNull();
   });
 
@@ -101,7 +98,7 @@ describe("the pair page", () => {
   it("not-found state: an unknown pair id says so and links back to the page", () => {
     render(<PairPage data={fixtures.synthetic} pairId="Synthetic symptoms|999000000|999000001" />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("No such pair");
-    expect(screen.getByRole("link", { name: "Back to all contradictions" }).getAttribute("href")).toBe("#/");
+    expect(screen.getByRole("link", { name: "Back to where studies disagree" }).getAttribute("href")).toBe("#/");
   });
 
   it("not-found state: an apparent pair has no pair page", () => {

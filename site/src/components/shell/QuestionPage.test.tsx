@@ -183,13 +183,14 @@ describe("the synthetic fixture", () => {
     render(<QuestionPage data={data} outcome={null} />);
     const method = screen.getByRole("region", { name: "How this page was made" });
 
-    expect(method.textContent).toContain("10 of 25 candidate pairs classified");
     expect(method.textContent).toContain(
-      "They are the pairs whose two studies are alike in at least 3 of 5 ways, each reported by " +
-        "both: design, outcome measure, baseline synthetic status, synthetic dose and sample size " +
-        "within 3×, with no study in more than 8.",
+      "It judged the 10 pairs whose studies are alike in at least 3 of 5 ways, with no study in " +
+        "more than 8. The page shows only the closely matched ones, alike in all 5, each reported " +
+        "by both studies: design, outcome measure, baseline synthetic status, synthetic dose and " +
+        "sample size within 3×.",
     );
-    expect(method.textContent).toContain("The other 15 were not classified");
+    // Candidate counts count pairs of studies, which reads as a count of findings.
+    expect(method.textContent).not.toMatch(/candidate pairs|\b25\b/);
     expect(method.textContent).toContain("classified at single-small depth");
     expect(method.textContent).toContain(
       "This run cost $0.18, measured: extract $0.11 · normalize $0.02 · classify $0.05.",

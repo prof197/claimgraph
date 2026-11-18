@@ -45,83 +45,34 @@
   color: var(--color-text-tertiary);
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: 22px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.chip[aria-pressed="true"] {
-  border-color: var(--color-text);
-  background: var(--color-text);
-  color: var(--color-surface);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.h3 {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.groupCount {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--color-text-secondary);
-}
-
 .pairs {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.pair {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
-  gap: 10px 24px;
-  align-items: center;
-  padding: 14px 16px;
+.match {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: var(--color-text);
-  text-decoration: none;
 }
 
-.pair:hover {
-  color: var(--color-text);
-  background: var(--color-page);
-  border-color: var(--color-border-strong);
+.sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 16px 24px;
 }
 
 .side {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -153,23 +104,50 @@
   font-weight: 600;
 }
 
-.sideNote {
+.fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  gap: 4px 12px;
   font-size: 13px;
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
   line-height: 1.45;
 }
 
-.also {
-  font-size: 13px;
+.fields dt {
+  color: var(--color-text-tertiary);
+}
+
+.fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The abstract's own words, as the finding card sets them. */
+.sideQuote {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--color-page);
+  border-radius: 6px;
+}
+
+.sideQuote p {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
   color: var(--color-text-secondary);
+}
+
+.reason {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.reasonName {
+  font-weight: 600;
 }
 
 .more {
@@ -211,18 +189,6 @@
 
 .apparent[open] .summary::before {
   content: "▾";
-}
-
-.apparentList {
-  list-style: none;
-  margin: 8px 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-text-tertiary);
 }
 
 .visuallyHidden {

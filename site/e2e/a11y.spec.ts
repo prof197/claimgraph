@@ -135,7 +135,7 @@ test("a keyboard reaches the tabs, summary, list, finding card and pairs, and ba
 
   // The pair page's first stop leads back.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  const back = await tabTo(page, (f) => f.name === "Back to all contradictions", 3);
+  const back = await tabTo(page, (f) => f.name === "Back to where studies disagree", 3);
   path.push(...back);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#\/outcome\/Synthetic%20symptoms\/contradictions$/);

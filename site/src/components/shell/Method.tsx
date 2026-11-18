@@ -1,6 +1,6 @@
 import { ExternalLink } from "../../lib/ExternalLink";
 import { type ReactNode, useState } from "react";
-import type { Dimension, Export, Method as MethodData, PairSelection, Review } from "../../types/export";
+import type { Dimension, Export, Method as MethodData, Review } from "../../types/export";
 import { citation, longDate, money, number, pubmedUrl } from "./labels";
 
 /** Reviews a page shows before "Show more". */
@@ -92,11 +92,7 @@ export function Method({ data }: { data: Export }) {
         </Step>
         <Step n="04" title="Compare">
           Only findings on the same outcome that point different ways are compared, and a model
-          names the likely reason: {number(method.classified_pairs)} of{" "}
-          {number(method.candidate_pairs)} candidate pairs classified.
-          {method.selection !== null && method.selection !== undefined && (
-            <> {selectionLine(method.selection, data.question.dimensions, method)}</>
-          )}
+          judges each pair and names the likely reason. {compareLine(method, data.question.dimensions)}
         </Step>
       </ol>
       {method.drops.length > 0 && (
@@ -125,22 +121,30 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
   );
 }
 
-/** How the classified pairs were chosen, and what that means for reading them. */
-export function selectionLine(selection: PairSelection, dimensions: Dimension[], method: MethodData): string {
+/** Which pairs the model judged, and which of them the page shows. Candidate counts stay
+ * off the page: they count pairs of studies, which reads as a count of findings. */
+export function compareLine(method: MethodData, dimensions: Dimension[]): string {
+  const selection = method.selection ?? null;
+  const ratio = selection === null ? null : selection.size_ratio;
   const fields = [
     "design",
     "outcome measure",
     ...dimensions.map((d) => d.label.charAt(0).toLowerCase() + d.label.slice(1)),
-    `sample size within ${selection.size_ratio}×`,
+    ratio === null ? "sample size" : `sample size within ${ratio}×`,
   ];
   const listed = `${fields.slice(0, -1).join(", ")} and ${fields.at(-1) ?? ""}`;
-  const cap = selection.per_study === null ? "" : `, with no study in more than ${selection.per_study}`;
-  const rest = method.candidate_pairs - method.classified_pairs;
+  if (method.classified_pairs === 0) {
+    return "No pairs have been judged yet.";
+  }
+  const judged =
+    selection === null
+      ? "It judged every pair"
+      : `It judged the ${number(method.classified_pairs)} pairs whose studies are alike in at least ` +
+        `${selection.minimum} of ${selection.fields} ways` +
+        (selection.per_study === null ? "" : `, with no study in more than ${selection.per_study}`);
   return (
-    `They are the pairs whose two studies are alike in at least ${selection.minimum} of ` +
-    `${selection.fields} ways, each reported by both: ${listed}${cap}. These are the ` +
-    `disagreements design or size cannot explain away. The other ${number(rest)} were not ` +
-    "classified, so the genuine and apparent counts describe these pairs, not every disagreement."
+    `${judged}. The page shows only the closely matched ones, alike in all ${fields.length}, each ` +
+    `reported by both studies: ${listed}.`
   );
 }
 

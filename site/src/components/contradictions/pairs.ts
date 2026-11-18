@@ -1,4 +1,4 @@
-// Ordering and grouping of an outcome's contradiction pairs, shared by the panel and the pair page.
+// Ordering of an outcome's contradiction pairs, shared by the panel and the pair page.
 import { contradictionsOn, findingsOn, studiesByKey } from "../../lib/data";
 import type {
   ApparentPair,
@@ -7,9 +7,7 @@ import type {
   Export,
   FindingNode,
   Outcome,
-  Reason,
 } from "../../types/export";
-import { REASONS } from "./labels";
 
 /** Stronger designs first, then larger combined samples (unknown last), then pair id, so
  * the order never depends on the export's. */
@@ -34,18 +32,6 @@ function edgeKey(edge: ContradictionEdge) {
 
 export function orderedPairs(data: Export, outcome: Outcome): ContradictionEdge[] {
   return contradictionsOn(data, outcome).sort((a, b) => comparePairs(edgeKey(a), edgeKey(b)));
-}
-
-export interface ReasonGroup {
-  reason: Reason;
-  pairs: ContradictionEdge[];
-}
-
-/** Non-empty groups in the fixed reason order, each keeping the pairs' order. */
-export function groupByReason(pairs: ContradictionEdge[]): ReasonGroup[] {
-  return REASONS.map((reason) => ({ reason, pairs: pairs.filter((p) => p.reason === reason) })).filter(
-    (group) => group.pairs.length > 0,
-  );
 }
 
 /** Apparent pairs carry no combined weight or size, so they are summed from the studies. */
@@ -74,7 +60,7 @@ export function findingsById(data: Export, outcome: Outcome): Map<string, Findin
 /** Both findings of a pair, the one that found an effect first, as the panel reads them. */
 export function orient(
   byId: Map<string, FindingNode>,
-  edge: ContradictionEdge,
+  edge: Pick<ContradictionEdge, "source" | "target">,
 ): [FindingNode, FindingNode] | undefined {
   const source = byId.get(edge.source);
   const target = byId.get(edge.target);

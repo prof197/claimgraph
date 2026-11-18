@@ -71,7 +71,7 @@ export function PairPage({ data, pairId }: PairPageProps) {
         <div className={styles.headerInner}>
           <span className={styles.brand}>Claimgraph</span>
           <a className={styles.headerLink} href={back}>
-            Back to all contradictions
+            Back to where studies disagree
           </a>
         </div>
       </header>
@@ -102,9 +102,10 @@ function headline(sides: [FindingNode, FindingNode], studies: Map<string, Study>
 function Pair({ data, found }: { data: Export; found: Found }) {
   const { pair, outcome, sides } = found;
   const studies = studiesByKey(data);
-  const sameReason = orderedPairs(data, outcome).filter((p) => p.reason === pair.reason);
-  const at = sameReason.findIndex((p) => p.pair_id === pair.pair_id);
-  const next = sameReason[(at + 1) % sameReason.length];
+  // The panel lists only the closely matched pairs, so the walk through them does too.
+  const matched = orderedPairs(data, outcome).filter((p) => p.closely_matched === true);
+  const at = matched.findIndex((p) => p.pair_id === pair.pair_id);
+  const next = at === -1 ? undefined : matched[(at + 1) % matched.length];
   const reasonWord = REASON_LABEL[pair.reason].toLowerCase();
 
   return (
@@ -145,10 +146,10 @@ function Pair({ data, found }: { data: Export; found: Found }) {
           bias.
         </p>
         <div className={styles.actions}>
-          {next !== undefined && sameReason.length > 1 && (
+          {next !== undefined && matched.length > 1 && (
             <a className={`${styles.action} ${styles.actionStrong}`} href={href({ page: "pair", pairId: next.pair_id })}>
-              Next {reasonWord} pair · {formatCount(((at + 1) % sameReason.length) + 1)} of{" "}
-              {formatCount(sameReason.length)}
+              Next closely matched pair · {formatCount(((at + 1) % matched.length) + 1)} of{" "}
+              {formatCount(matched.length)}
             </a>
           )}
           <a className={styles.action} href={href({ page: "question", outcome: outcome.name })}>
