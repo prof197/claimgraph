@@ -1313,6 +1313,12 @@ Measured where a number is given; the rest are expectations.
 - **Absence of evidence read as evidence of absence:** small trials report "no significant
   difference." Sample size shows on every finding, the size-aware line tests the weighting, and
   the classifier can mark such pairs apparent as underpowered.
+- **Vote counting:** "no effect" mostly means the abstract reported no significant
+  difference, since `no_change` covers a non-significant trend and "the rest were not
+  significant" as well as a true null. So the summary strip maps what studies reported rather
+  than synthesizing them. Cochrane's handbook rejects vote counting by statistical significance,
+  because underpowered studies that cannot rule out a real effect get counted as showing none
+  ([Cochrane Handbook 6.5, chapter 12, section 12.2.2.1][cochrane-vote]).
 - **A finding with no stated direction gets a guessed one:** an abstract can report that
   vitamin D was "significantly associated" with depression, or list it among variables related
   to depression risk, without saying which way. Extraction must still give an effect, and
@@ -1371,7 +1377,12 @@ Measured where a number is given; the rest are expectations.
   The page shows the reviewed mapping, not the proposal, so neither reaches it; the eval scores
   them.
 - **Double counting:** one trial can publish several papers, and large trials publish many
-  secondary analyses. The trial-ID merge handles it.
+  secondary analyses. The trial-ID merge handles it, but only when the abstracts carry the
+  registration: retrieval reads NCT numbers from the text and other registries only from
+  PubMed's DataBank list. Schlarbaum 2026 names DRKS00009758 in its text, and Libuda 2020
+  reports what appears to be the same adolescent trial (the same 2,640 IU a day for 28 days,
+  BDI-II) without it, so the two stay separate studies, both no effect. Two papers on one
+  cohort or survey without a trial ID are not merged either.
 - **A real quote that doesn't support the claim:** claim wording is unscored, so the eval does
   not measure support. The page shows the verbatim quote beside every claim, so a reader checks
   the two against each other.
@@ -1421,6 +1432,10 @@ dropped as out of domain, and 57 study-outcomes have only subgroup results.
 | Remission | 2 | 1 | 0 |
 | Treatment response | 2 | 0 | 0 |
 
+These count pairs of studies, which grow with the square of the studies on an outcome, not
+findings. The page no longer shows them: 17,888 beside 276 studies reads as a count of
+findings, and the panel shows the closely matched pairs instead.
+
 An early cost estimate assumed about 3,000 same-outcome pairs for about 500 abstracts. Pairs
 grow roughly with the square of the studies on an outcome, and this corpus of 1,901 abstracts is
 nearly four times that size, so most of the gap comes from corpus size. Scaled from the dev runs'
@@ -1461,6 +1476,40 @@ them by string matching, without a model. Papers sharing a trial registration ar
 study. No classified pair includes a review, and no pair names the same trial; 3 of the 221
 pair Zhao 2010 with a later paper on the same survey, NHANES, from different cycles and so
 different people (Huang 2025, Guo 2025, Chen 2025).
+
+**The closely matched pairs.** The panel shows only the classified pairs whose studies are alike
+in all four fields: design, outcome measure, baseline vitamin D status, and sample sizes within
+3x, each reported by both. A pair alike in only three differs in the fourth or leaves it
+unreported, and with design and size free to differ, its reason, mostly population, describes
+two studies looking at different things; a partial list of those tells a researcher little.
+Eleven pairs are alike in all four,
+all classified (10 on depressive symptoms, 1 on depression cases); 9 are genuine and 2
+apparent. Each was read against both abstracts to confirm the two papers are separate studies,
+since two papers on one cohort match on all four fields by construction, and all 11 are:
+different investigators, countries and populations. None was dropped.
+
+| Pair | Verdict | Reason |
+| --- | --- | --- |
+| Libuda 2020 vs Omidian 2019 | genuine | population |
+| Schlarbaum 2026 vs Omidian 2019 | apparent | outcome measure |
+| Mousa 2018 vs Sharifi 2019 | genuine | design or bias |
+| Williams 2015 vs Sahasrabudhe 2020 | genuine | population |
+| Leedahl 2013 vs D'Souza 2020 | genuine | population |
+| Leedahl 2013 vs Jang 2026 | genuine | population |
+| Jamall 2016 vs Tarikere Satyanarayana 2023 | apparent | outcome measure |
+| Dana-Alamdari 2015 vs Kabukçu 2026 | genuine | population |
+| Kim 2016 vs Tang 2022 | genuine | population |
+| Tang 2022 vs Moura 2026 | genuine | population |
+| Krysiak 2018 vs Tang 2022 | genuine | population |
+
+Closely matched is not a replication: dose, duration and who was studied can still differ, and
+those are what the reasons point at. Each pair is shown side by side from the extracted fields,
+with its likely reason as one line and the classifier's measured accuracy stated once for the
+panel: the verdict is right on 93.8% (90% to 97%) of the stratified 300 and the strict reason on
+54.2% (38% to 69%), as pre-registered. `eval contradictions` writes those figures beside the
+labels, and the export reads the hosted arm's. The other 210 classified pairs stay in the export
+and in the CLI's output, for anyone who wants them; the page leaves them off so that what it
+lists is the disagreements design, measure, baseline status and size cannot explain.
 
 **Vitamin D retrieval** (records added to PubMed through October 31, 2026; searched November 5,
 2026). The topic terms and MeSH headings are the config's; both filters, non-research
@@ -1532,6 +1581,7 @@ publication types and animal-only studies, apply to every row.
 - [Claude API pricing][pricing]
 - [Cochrane Handbook 5.1, section 9.5.1: what is heterogeneity][cochrane]
 - [Cochrane Handbook 6.5.1, section 4.4.4: controlled vocabulary and text words][cochrane-search]
+- [Cochrane Handbook 6.5, section 12.2.2.1: vote counting based on statistical significance][cochrane-vote]
 - [GRADE: indirectness and PICO][grade-pico]
 - [Cochrane EPOC: what study designs should be included in an EPOC review][epoc-designs]
 - [CEBM glossary: case series][cebm-glossary]
@@ -1564,6 +1614,7 @@ publication types and animal-only studies, apply to every row.
 [pricing]: https://platform.claude.com/docs/en/about-claude/pricing
 [cochrane]: https://training-noproxy.cochrane.org/handbook/archive/v5.1/chapter_9/9_5_1_what_is_heterogeneity.htm
 [cochrane-search]: https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-04
+[cochrane-vote]: https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-12
 [grade-pico]: https://scholarworks.aub.edu.lb/items/3ff7d4a6-32f2-46d7-9ffe-15425f8d58fd
 [epoc-designs]: https://epoc.cochrane.org/sites/epoc.cochrane.org/files/public/uploads/Resources-for-authors2017/what_study_designs_should_be_included_in_an_epoc_review.pdf
 [cebm-glossary]: https://www.cebm.ox.ac.uk/resources/ebm-tools/glossary

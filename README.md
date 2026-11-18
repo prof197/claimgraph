@@ -362,7 +362,7 @@ Scope rule: the best arm is self-consistency, and its gain over single-small, +2
 
 **Ruling:** the two figures pick different arms, council on the pre-registered figure and single-small without those pairs. The pre-registered figure picks it only because of the 15D pairs, a data error the corpus no longer has, and without them no arm separates from single-small. So the owner ruled: single-small for every pair, unless its precision on genuine without those pairs is clearly below council's. Without those pairs, single-small's precision on genuine is 84.1% (79% to 88%) and council's 93.2% (89% to 97%); the intervals do not overlap.
 
-The hosted page classifies the pairs whose studies are most alike at council. The accuracy above is measured on the stratified 300 eval pairs, drawn to stand for every candidate pair; the page shows the most alike pairs instead, so its mix of verdicts and reasons need not match the eval's.
+The hosted page classifies the pairs whose studies are most alike at council, and shows the closely matched ones, alike in every field the comparison checks. The accuracy above is measured on the stratified 300 eval pairs, drawn to stand for every candidate pair; the page's pairs are chosen differently, so its mix of verdicts and reasons need not match the eval's.
 <!-- contradiction-eval:end -->
 
 ## A second question
@@ -452,7 +452,14 @@ they match on everything the most-alike selection compares. Papers that share a 
 registration are merged into one study first, but an unregistered trial or a shared survey is
 not. Of the 221 classified pairs, none shares a named trial and 3 share a survey: Zhao 2010
 against Huang 2025, Guo 2025 and Chen 2025, all on NHANES, from different cycles and so
-different people. Found by string matching; see DESIGN.md.
+different people. Found by string matching; see DESIGN.md. The merge also misses a trial whose
+registration only one paper names: Libuda 2020 and Schlarbaum 2026 appear to report the same
+adolescent trial (DRKS00009758), and stay two studies, both no effect.
+
+Known limitation: "no effect" mostly means the abstract reported no significant difference, so
+the summary strip maps what studies reported rather than synthesizing them. Cochrane's handbook
+(chapter 12, section 12.2.2.1) rejects vote counting by statistical significance, because small
+studies that cannot detect a real effect get counted as showing none.
 
 Known limitation: the classify dry run's estimate runs high. For the council run on the most
 alike pairs it estimated $5.75, and the run measured $1.74, about a third of it. The measured
