@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const SYMPTOMS = "/?fixture=synthetic#/outcome/Synthetic%20symptoms";
+const SYMPTOMS = "/outcome/Synthetic%20symptoms?fixture=synthetic";
 
 function graph(page: Page) {
   return page.getByRole("group", { name: /as a graph/ });
@@ -35,7 +35,7 @@ test("the axis is the same on every outcome", async ({ page }) => {
   await page.goto(SYMPTOMS);
   await expect(graph(page)).toBeVisible();
   const symptoms = await ticks();
-  await page.goto("/?fixture=synthetic#/outcome/Synthetic%20remission");
+  await page.goto("/outcome/Synthetic%20remission?fixture=synthetic");
   await expect(graph(page)).toBeVisible();
   expect(await ticks()).toEqual(symptoms);
   await expect(graph(page).locator("text", { hasText: "<2010" })).toBeVisible();
@@ -89,7 +89,7 @@ test("picking a design recounts the bands", async ({ page }) => {
 for (const outcome of ["Synthetic%20symptoms", "Synthetic%20cases", "Synthetic%20remission"]) {
   test(`the bands for ${decodeURIComponent(outcome)} have no axe violations`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/?fixture=synthetic#/outcome/${outcome}`);
+    await page.goto(`/outcome/${outcome}?fixture=synthetic`);
     await expect(graph(page)).toBeVisible();
     const results = await new AxeBuilder({ page }).include(".shell-figure").analyze();
     expect(results.violations.map((v) => v.id)).toEqual([]);

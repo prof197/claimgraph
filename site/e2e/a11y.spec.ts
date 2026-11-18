@@ -88,12 +88,12 @@ test("a keyboard reaches the tabs, summary, list, finding card and pairs, and ba
   // The outcome tabs are links; Enter on one opens its outcome.
   path.push(...(await tabTo(page, (f) => f.inside === "Outcomes" && f.name.startsWith("Synthetic cases"))));
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20cases$/);
+  await expect(page).toHaveURL(/\/outcome\/Synthetic%20cases\?fixture=synthetic$/);
   await expect(page.getByRole("link", { name: /^Synthetic cases/ })).toHaveAttribute("aria-current", "page");
   // Back to the first outcome, which has the weighted bar and contradictions.
   path.push(...(await tabTo(page, (f) => f.inside === "Outcomes" && f.name.startsWith("Synthetic symptoms"))));
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20symptoms$/);
+  await expect(page).toHaveURL(/\/outcome\/Synthetic%20symptoms\?fixture=synthetic$/);
 
   // The summary's weighted bar says each segment's share on focus.
   path.push(...(await tabTo(page, (f) => f.inside === "Design-weighted share by direction")));
@@ -126,10 +126,10 @@ test("a keyboard reaches the tabs, summary, list, finding card and pairs, and ba
   path.push(...(await tabTo(page, (f) => f.tag === "a" && f.name.startsWith("Open on PubMed"))));
 
   // The contradiction pairs are links to their pair pages.
-  path.push(...(await tabTo(page, (f) => f.tag === "a" && (f.href ?? "").startsWith("#/pair/"))));
+  path.push(...(await tabTo(page, (f) => f.tag === "a" && (f.href ?? "").startsWith("/pair/"))));
   const pairHref = (path.at(-1) as Focused).href;
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL((url) => url.hash === pairHref);
+  await expect(page).toHaveURL((url) => url.pathname + url.search === pairHref);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   expect(await axe(page)).toEqual([]);
 
@@ -138,7 +138,7 @@ test("a keyboard reaches the tabs, summary, list, finding card and pairs, and ba
   const back = await tabTo(page, (f) => f.name === "Back to where studies disagree", 3);
   path.push(...back);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20symptoms\/contradictions$/);
+  await expect(page).toHaveURL(/\/outcome\/Synthetic%20symptoms\?fixture=synthetic#where-studies-disagree$/);
   // It lands on the contradictions, focus on their heading, not at the top of the page.
   const heading = page.getByRole("heading", { name: "Where studies disagree" });
   await expect(heading).toBeFocused();
@@ -186,7 +186,7 @@ test("every control is a real button or link, in both views and on the pair page
   await expect(page.getByRole("region", { name: /as a list$/ })).toBeVisible();
   expect(await fakeControls(page), "list view").toEqual([]);
 
-  await page.goto(`${HOME}#/pair/Synthetic%20symptoms%7C999000101%7C999000102`);
+  await page.goto("/pair/Synthetic%20symptoms%7C999000101%7C999000102?fixture=synthetic");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   expect(await fakeControls(page), "pair page").toEqual([]);
 
@@ -202,7 +202,7 @@ test("every control is a real button or link, in both views and on the pair page
 
 test("direction is carried by position and labels as well as colour", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${HOME}#/outcome/Synthetic%20symptoms`);
+  await page.goto("/outcome/Synthetic%20symptoms?fixture=synthetic");
   const graph = page.getByRole("group", { name: /as a graph/ });
   await expect(graph).toBeVisible();
 

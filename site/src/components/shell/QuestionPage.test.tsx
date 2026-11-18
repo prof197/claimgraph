@@ -161,7 +161,7 @@ describe("the synthetic fixture", () => {
     await userEvent.click(within(list).getByRole("button", { name: "Synthetic101 et al. 2011" }));
 
     const also = within(detail()).getByRole("link", { name: "Also reports: synthetic remission" });
-    expect(also.getAttribute("href")).toBe("#/outcome/Synthetic%20remission");
+    expect(also.getAttribute("href")).toBe("/outcome/Synthetic%20remission");
     await userEvent.click(also);
     rerender(<QuestionPage data={data} outcome="Synthetic remission" />);
 

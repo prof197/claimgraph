@@ -63,7 +63,7 @@ test("an outcome tab switches the strip and keeps reviews and the method", async
   await page.goto("/?fixture=synthetic");
   await page.getByRole("link", { name: /^Synthetic cases/ }).click();
 
-  await expect(page).toHaveURL(/#\/outcome\/Synthetic%20cases$/);
+  await expect(page).toHaveURL(/\/outcome\/Synthetic%20cases\?fixture=synthetic$/);
   await expect(page.getByRole("region", { name: "Summary for synthetic cases" })).toContainText(
     "Thin evidence.",
   );

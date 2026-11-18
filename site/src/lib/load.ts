@@ -13,7 +13,7 @@ export async function loadExport(search: string = window.location.search): Promi
     }
     return load();
   }
-  const response = await fetch("./export.json");
+  const response = await fetch(`${import.meta.env.BASE_URL}export.json`);
   // The dev server answers a missing file with the page itself, so a fresh clone gets HTML.
   if (import.meta.env.DEV && !(response.headers.get("content-type") ?? "").includes("json")) {
     throw new Error(

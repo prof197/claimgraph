@@ -157,8 +157,9 @@ function Pair({ data, found }: { data: Export; found: Found }) {
               {formatCount(matched.length)}
             </a>
           )}
-          <a className={styles.action} href={href({ page: "question", outcome: outcome.name })}>
-            Back to the findings
+          {/* A reader comes here from the panel, so the way back lands on it. */}
+          <a className={styles.action} href={href({ page: "question", outcome: outcome.name, at: "contradictions" })}>
+            Back to where studies disagree
           </a>
         </div>
       </section>

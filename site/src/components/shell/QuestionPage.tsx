@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { findingsOn, outcomeNamed } from "../../lib/data";
-import { href } from "../../routes";
 import type { Export, FindingNode, Outcome } from "../../types/export";
 import { ContradictionPanel } from "../contradictions/ContradictionPanel";
 import { BandChart } from "../bands/BandChart";
@@ -36,12 +35,11 @@ export function QuestionPage({
   const [view, setView] = useState<View>(initialView);
   // The reader's pick per outcome, so switching tabs and back keeps it.
   const [picked, setPicked] = useState<Record<string, string>>({});
-  const here = href({ page: "question", outcome });
   const pick = (name: string, findingId: string) => setPicked((p) => ({ ...p, [name]: findingId }));
 
   return (
     <>
-      <PageHeader here={here} />
+      <PageHeader />
       <main className="shell-main">
         <div className="shell-wrap shell-top">
           <section className="shell-hero" aria-labelledby="question-h">

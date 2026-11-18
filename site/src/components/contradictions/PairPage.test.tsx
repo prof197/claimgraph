@@ -74,14 +74,14 @@ describe("the pair page", () => {
     expect(statusOf(/^Synthetic dose/)).toBe("Different");
   });
 
-  it("links back to the outcome and on to the next closely matched pair", () => {
+  it("links back to the outcome's contradictions and on to the next closely matched pair", () => {
     render(<PairPage data={fixtures.synthetic} pairId={POPULATION} />);
-    const back = href({ page: "question", outcome: "Synthetic symptoms" });
-    // The header link lands on the contradictions; the one under the pair, on the findings.
-    expect(screen.getByRole("link", { name: "Back to where studies disagree" }).getAttribute("href")).toBe(
-      href({ page: "question", outcome: "Synthetic symptoms", at: "contradictions" }),
-    );
-    expect(screen.getByRole("link", { name: "Back to the findings" }).getAttribute("href")).toBe(back);
+    // A reader comes from the panel, so both ways back, in the header and under the pair, land on it.
+    const back = screen.getAllByRole("link", { name: "Back to where studies disagree" });
+    expect(back.map((a) => a.getAttribute("href"))).toEqual([
+      "/outcome/Synthetic%20symptoms#where-studies-disagree",
+      "/outcome/Synthetic%20symptoms#where-studies-disagree",
+    ]);
     // The panel's order: 102|104, then this pair, then 104|105.
     expect(screen.getByRole("link", { name: "Next closely matched pair · 3 of 3" }).getAttribute("href")).toBe(
       href({ page: "pair", pairId: "Synthetic symptoms|999000104|999000105" }),
@@ -116,7 +116,7 @@ describe("the pair page", () => {
   it("not-found state: an unknown pair id says so and links back to the page", () => {
     render(<PairPage data={fixtures.synthetic} pairId="Synthetic symptoms|999000000|999000001" />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("No such pair");
-    expect(screen.getByRole("link", { name: "Back to where studies disagree" }).getAttribute("href")).toBe("#/");
+    expect(screen.getByRole("link", { name: "Back to where studies disagree" }).getAttribute("href")).toBe("/");
   });
 
   it("not-found state: an apparent pair has no pair page", () => {

@@ -1,8 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const SYMPTOMS = "/?fixture=synthetic#/outcome/Synthetic%20symptoms";
-const PAIR = "/?fixture=synthetic#/pair/Synthetic%20symptoms%7C999000101%7C999000102";
+const SYMPTOMS = "/outcome/Synthetic%20symptoms?fixture=synthetic";
+const PAIR = "/pair/Synthetic%20symptoms%7C999000101%7C999000102?fixture=synthetic";
 
 function panel(page: Page) {
   return page.getByRole("region", { name: "Where studies disagree" });
@@ -16,15 +16,15 @@ test("the keyboard reaches a pair, opens it and comes back", async ({ page }) =>
     await page.keyboard.press("Tab");
     href = await page.evaluate(() => {
       const el = document.activeElement;
-      return el instanceof HTMLAnchorElement && el.hash.startsWith("#/pair/") ? el.hash : null;
+      return el instanceof HTMLAnchorElement && el.pathname.startsWith("/pair/") ? el.pathname : null;
     });
   }
   // The first closely matched pair in the panel's order.
-  expect(href).toBe("#/pair/Synthetic%20symptoms%7C999000102%7C999000104");
+  expect(href).toBe("/pair/Synthetic%20symptoms%7C999000102%7C999000104");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Contradiction · Synthetic symptoms");
 
-  await page.getByRole("link", { name: "Back to where studies disagree" }).click();
+  await page.getByRole("banner").getByRole("link", { name: "Back to where studies disagree" }).click();
   await expect(panel(page)).toBeVisible();
 });
 
@@ -41,7 +41,7 @@ test("the closely matched pairs sit side by side, and stack without sideways scr
 });
 
 test("an outcome with no closely matched disagreement says so and lists the apparent one", async ({ page }) => {
-  await page.goto("/?fixture=synthetic#/outcome/Synthetic%20remission");
+  await page.goto("/outcome/Synthetic%20remission?fixture=synthetic");
   await expect(panel(page).getByText("No closely matched studies on synthetic remission disagree.")).toBeVisible();
   await panel(page).getByText("1 closely matched pair only looked contradictory").click();
   await expect(panel(page).getByText(/underpowered: n = 50/)).toBeVisible();
@@ -67,6 +67,50 @@ test("the panel has no axe violations with the apparent list open", async ({ pag
 });
 
 test("an unknown pair says so", async ({ page }) => {
-  await page.goto("/?fixture=synthetic#/pair/nothing");
+  await page.goto("/pair/nothing?fixture=synthetic");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("No such pair");
+});
+
+test("a pair opens at its top, and going back returns to the same place", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await page.goto(SYMPTOMS);
+  const link = panel(page).locator('a[href^="/pair/"]').first();
+  await link.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(0);
+  await link.click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Contradiction");
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+  await page.goBack();
+  await expect(panel(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(before, -1);
+});
+
+test("the way back under a pair lands on the panel, its heading focused", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await page.goto(PAIR);
+  await page.locator("main").getByRole("link", { name: "Back to where studies disagree" }).click();
+  const heading = panel(page).getByRole("heading", { name: "Where studies disagree" });
+  await expect(heading).toBeFocused();
+  expect(await heading.evaluate((el) => Math.abs(el.getBoundingClientRect().top))).toBeLessThan(5);
+  expect(new URL(page.url()).hash).toBe("#where-studies-disagree");
+});
+
+test("switching outcome tabs keeps the reader's place", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await page.goto(SYMPTOMS);
+  const tab = page.getByRole("navigation", { name: "Outcomes" }).getByRole("link").nth(1);
+  await page.evaluate(() => window.scrollTo(0, 150));
+  const before = await page.evaluate(() => window.scrollY);
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-current", "page");
+  expect(await page.evaluate(() => window.scrollY)).toBe(before);
+});
+
+test("an address from the earlier hash routes opens at its path", async ({ page }) => {
+  await page.goto("/?fixture=synthetic#/pair/Synthetic%20symptoms%7C999000101%7C999000102");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Contradiction");
+  const url = new URL(page.url());
+  expect(url.pathname + url.search + url.hash).toBe(PAIR);
 });

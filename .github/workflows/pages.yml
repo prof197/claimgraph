@@ -66,6 +66,9 @@ jobs:
           set -o pipefail
           node site/scripts/export-size.mjs site/public/export.json | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Types, tests and build
+        env:
+          # A project page is served from /<repository>/, and the page's routes are paths.
+          SITE_BASE: /${{ github.event.repository.name }}/
         run: npm --prefix site run check
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

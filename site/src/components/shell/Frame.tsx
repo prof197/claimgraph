@@ -2,9 +2,9 @@ import { ExternalLink, REPOSITORY_URL } from "../../lib/ExternalLink";
 import type { MouseEvent, ReactNode } from "react";
 import "./shell.css";
 
-/** A link to a section of this page. Routes live in the hash, so an in-page `#id` would read
- * as a route: the link keeps the current route as its address and scrolls on click instead. */
-export function JumpLink({ here, to, children }: { here: string; to: string; children: ReactNode }) {
+/** A link to a section of this page that scrolls to it and focuses its heading, leaving the
+ * address as it is. */
+export function JumpLink({ to, children }: { to: string; children: ReactNode }) {
   const jump = (event: MouseEvent<HTMLAnchorElement>) => {
     const target = document.getElementById(to);
     if (target === null) {
@@ -15,22 +15,22 @@ export function JumpLink({ here, to, children }: { here: string; to: string; chi
     target.focus({ preventScroll: true });
   };
   return (
-    <a href={here} onClick={jump}>
+    <a href={`#${to}`} onClick={jump}>
       {children}
     </a>
   );
 }
 
-export function PageHeader({ here }: { here: string }) {
+export function PageHeader() {
   return (
     <header className="shell-header">
       <div className="shell-header__inner">
         <span className="shell-wordmark">Claimgraph</span>
         <nav aria-label="Site" className="shell-header__nav">
-          <JumpLink here={here} to="method-h">
+          <JumpLink to="method-h">
             How it works
           </JumpLink>
-          <JumpLink here={here} to="evals-h">
+          <JumpLink to="evals-h">
             Evals
           </JumpLink>
           <ExternalLink href={REPOSITORY_URL}>Source code</ExternalLink>
