@@ -6,9 +6,10 @@ import { PairPage } from "./PairPage";
 
 const POPULATION = "Synthetic symptoms|999000101|999000102";
 
-function statusOf(rowName: RegExp): string | null | undefined {
-  const row = screen.getByRole("rowheader", { name: rowName }).closest("tr");
-  return row?.querySelector("td:last-child")?.textContent;
+/** The verdict, then the smaller note beneath it when there is one: "Different | likely reason". */
+function statusOf(rowName: RegExp): string {
+  const cell = screen.getByRole("rowheader", { name: rowName }).closest("tr")?.querySelector("td:last-child");
+  return Array.from(cell?.children ?? [], (c) => c.textContent).join(" | ");
 }
 
 function copy(): Export {
@@ -40,8 +41,8 @@ describe("the pair page", () => {
   it("marks each reason field and custom dimension: likely reason, also differs, different, same", () => {
     render(<PairPage data={fixtures.synthetic} pairId={POPULATION} />);
     // The synthetic populations read the same, yet the classifier named population.
-    expect(statusOf(/^Population$/)).toBe("Likely reason");
-    expect(statusOf(/^Intervention$/)).toBe("Different · also differs");
+    expect(statusOf(/^Population$/)).toBe("Same | named as the likely reason");
+    expect(statusOf(/^Intervention$/)).toBe("Different | also differs");
     expect(statusOf(/^Comparator$/)).toBe("Same");
     expect(statusOf(/^Design or risk of bias$/)).toBe("Same");
     expect(statusOf(/^Sample size$/)).toBe("Different");
@@ -65,8 +66,8 @@ describe("the pair page", () => {
       }
     }
     render(<PairPage data={data} pairId={POPULATION} />);
-    expect(statusOf(/^Population$/)).toBe("Different · likely reason");
-    expect(statusOf(/^Outcome measure$/)).toBe("Different · both map to synthetic symptoms");
+    expect(statusOf(/^Population$/)).toBe("Different | likely reason");
+    expect(statusOf(/^Outcome measure$/)).toBe("Different | both map to synthetic symptoms");
     expect(statusOf(/^Synthetic dose/)).toBe("Different");
   });
 

@@ -226,14 +226,15 @@ function reasonStatus(reason: Reason, pair: ContradictionEdge, a: string, b: str
   return differ ? "different" : "same";
 }
 
-const STATUS_TEXT: Record<Status, string> = {
-  likely: "Different · likely reason",
-  "likely-same": "Likely reason",
-  also: "Different · also differs",
-  different: "Different",
-  same: "Same",
-  "not-compared": "—",
-  "one-missing": "Reported by one only",
+/** Each status as a one-line verdict, and the qualifier set in smaller text beneath it. */
+const STATUS_TEXT: Record<Status, { verdict: string; note?: string }> = {
+  likely: { verdict: "Different", note: "likely reason" },
+  "likely-same": { verdict: "Same", note: "named as the likely reason" },
+  also: { verdict: "Different", note: "also differs" },
+  different: { verdict: "Different" },
+  same: { verdict: "Same" },
+  "not-compared": { verdict: "—" },
+  "one-missing": { verdict: "Not compared", note: "reported by one study only" },
 };
 
 function rows(found: Found, dimensions: Dimension[], studies: Map<string, Study>): Row[] {
@@ -314,6 +315,12 @@ function SideBySide({ data, found, studies }: { data: Export; found: Found; stud
       </h2>
       <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Side by side, scrolls sideways">
         <table className={styles.table}>
+          <colgroup>
+            <col className={styles.colField} />
+            <col className={styles.colStudy} />
+            <col className={styles.colStudy} />
+            <col className={styles.colVerdict} />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">Field</th>
@@ -333,14 +340,16 @@ function SideBySide({ data, found, studies }: { data: Export; found: Found; stud
             {rows(found, data.question.dimensions, studies).map((row) => {
               const likely = row.status === "likely" || row.status === "likely-same";
               const differs = likely || row.status === "also" || row.status === "different";
+              const text = STATUS_TEXT[row.status];
+              const notes = [text.note, row.note].filter((n) => n !== undefined);
               return (
                 <tr key={row.key} className={likely ? styles.likely : undefined} data-status={row.status}>
                   <th scope="row">{row.name}</th>
                   <td>{row.a}</td>
                   <td>{row.b}</td>
                   <td className={likely ? styles.differs : differs ? undefined : styles.same}>
-                    {STATUS_TEXT[row.status]}
-                    {row.note === undefined ? "" : ` · ${row.note}`}
+                    <span className={styles.verdict}>{text.verdict}</span>
+                    {notes.length > 0 && <span className={styles.verdictNote}>{notes.join(" · ")}</span>}
                   </td>
                 </tr>
               );

@@ -461,9 +461,11 @@
   overflow-x: auto;
 }
 
+/* The two studies get equal columns; the field names and verdicts get narrower ones. */
 .table {
   width: 100%;
   min-width: 640px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 15px;
   line-height: 1.45;
@@ -502,16 +504,26 @@
   gap: 8px;
 }
 
-/* On a wide screen the field names and verdicts stay on one line; the findings' own text
-   takes the wrapping. A narrow screen scrolls the table sideways, so it keeps wrapping. */
-@media (min-width: 721px) {
-  .table tbody th:not(:has(.fieldName)),
-  .fieldName,
-  .table td:last-child,
-  .table thead th:first-child,
-  .table thead th:last-child {
-    white-space: nowrap;
-  }
+.colField,
+.colVerdict {
+  width: 19%;
+}
+
+.colStudy {
+  width: 31%;
+}
+
+.verdict {
+  display: block;
+}
+
+.verdictNote {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--color-text-secondary);
 }
 
 .likely {
@@ -534,7 +546,7 @@
   padding: 1px 6px;
 }
 
-.differs {
+.differs .verdict {
   font-weight: 600;
 }
 
