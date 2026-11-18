@@ -6,9 +6,14 @@ groups findings that measure the same outcome, and names the likely reason when 
 disagree: different people, a different dose or comparator, a different measure, or a weaker
 design. A static page shows the result.
 
-Research navigation demo, not medical advice.
+**Live demo: [prof197.github.io/claimgraph](https://prof197.github.io/claimgraph/)**, the
+vitamin D and depression run. Research navigation demo, not medical advice.
 
-![The page on its synthetic test data: studies in benefit, no effect and harm bands by year, with one study's finding and its quoted sentence beside them](docs/page.png)
+![The page's graph on a synthetic test export of 313 invented studies: dots in benefit, no clear difference and harm bands by publication year, sized by sample and shaded by design, with one study's finding and its quoted sentence beside them](docs/page.png)
+
+The picture uses invented test data shaped like a busy question; the live demo shows the real
+run. Its quotes come from abstracts that are not openly licensed, so the repository holds no
+pictures of it.
 
 **Status:** the pipeline runs end to end on one question, vitamin D and depression, and the
 hosted page shows its run: every kept abstract extracted, the outcome mapping reviewed, and the
