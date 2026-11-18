@@ -72,6 +72,10 @@ the asset that `site/export.lock.json` names from the repository's `exports` rel
 `site/public/export.json`, and check that its SHA-256 matches the lock's. The dev server then
 shows the real page on `/`.
 
+`npm --prefix site ci` reports high-severity advisories. They are one ReDoS in picomatch, reached
+only through the site's dev tooling (Vite, Vitest and the type generator); no patched picomatch
+exists yet, and `npm --prefix site audit --omit=dev` is clean.
+
 A run of your own starts with retrieval, which needs a contact email for NCBI:
 
 ```

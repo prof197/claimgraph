@@ -677,7 +677,9 @@ page to draw.
   passing as readily as the abstract does: a meta-analysis of probiotics that flags vitamin D
   status for future study would otherwise be listed. The method's "Left out" line counts the
   rest: for vitamin D, 330 of 489, leaving 82 systematic reviews and meta-analyses and 77
-  narrative reviews.
+  narrative reviews. Matching is on the search terms as written, so it misses a few on-question
+  titles: one that spells "Vıtamın D" with a dotless ı, and one that says "Hypovitaminosis D".
+  They are left out, and counted on the line.
 - **Graph:** a NetworkX graph whose nodes are outcome hubs and findings. Edges link each finding
   to its outcome, plus genuine contradictions with their reason. It is exported as node-link JSON
   with a per-outcome summary block, and a JSON schema test guards the export.
